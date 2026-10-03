@@ -3460,49 +3460,902 @@ function clearHighlights() {
 }
 
 // =============================================================================
-// R5. SIDECAR WEBSOCKET RPC BRIDGE
+// MILESTONE v0.2.3: RESILIENT SIDECAR WEBSOCKET RPC BRIDGE & STREAMING (R1-R4)
 // =============================================================================
-function connectSidecar() {
-  try {
-    sidecarWs = new WebSocket('ws://127.0.0.1:4949');
-    sidecarWs.onopen = () => {
-      if (daemonStatusText) {
-        daemonStatusText.textContent = 'Sidecar 4949';
-        daemonStatusText.style.color = '#ffffff';
-      }
-      if (outputLogger) outputLogger.log('sidecar', 'Connected to Sidecar daemon at ws://127.0.0.1:4949');
-    };
 
-    sidecarWs.onclose = () => {
-      if (daemonStatusText) {
-        daemonStatusText.textContent = 'Sidecar: Offline';
-        daemonStatusText.style.color = '#f87171';
-      }
-      if (outputLogger) outputLogger.log('sidecar', 'Connection to Sidecar closed. Reconnecting in 3s...');
-      setTimeout(connectSidecar, 3000);
-    };
+let sidecarClient = null;
 
-    sidecarWs.onerror = () => {
-      if (daemonStatusText) daemonStatusText.textContent = 'Sidecar: Offline';
-    };
-
-    sidecarWs.onmessage = (event) => {
-      try {
-        const msg = JSON.parse(event.data);
-        if (outputLogger) outputLogger.log('sidecar', `Received message: ${msg.method || 'response'}`);
-        if (webviewFrame && webviewFrame.contentWindow) {
-          webviewFrame.contentWindow.postMessage({
-            type: 'DIAGNOSTIC_DATA',
-            payload: msg,
-          }, '*');
-        }
-      } catch (err) {
-        // ignore
-      }
-    };
-  } catch (err) {
-    setTimeout(connectSidecar, 3000);
+class SidecarWebSocketClient {
+  constructor(url = 'ws://127.0.0.1:4949') {
+    this.url = url;
+    this.ws = null;
+    this.reconnectAttempts = 0;
+    this.reconnectTimer = null;
+    this.heartbeatTimer = null;
+    this.missedPings = 0;
+    this.currentLatencyMs = -1;
+    this.pendingPings = new Map();
+    this.pendingRequests = new Map();
+    this.activeModel = 'gemini-2.5-flash';
   }
+
+  connect() {
+    if (this.reconnectTimer) {
+      clearTimeout(this.reconnectTimer);
+      this.reconnectTimer = null;
+    }
+
+    try {
+      this.ws = new WebSocket(this.url);
+      sidecarWs = this.ws;
+
+      this.ws.onopen = () => {
+        this.reconnectAttempts = 0;
+        this.missedPings = 0;
+        this.updateUiStatus(true, this.currentLatencyMs);
+        this.startHeartbeat();
+        // Send initial ping immediately
+        this.sendHeartbeat();
+        if (typeof outputLogger !== 'undefined' && outputLogger) {
+          outputLogger.log('sidecar', `Connected to Sidecar daemon at ${this.url}`);
+        }
+      };
+
+      this.ws.onclose = () => {
+        this.stopHeartbeat();
+        this.updateUiStatus(false, -1);
+        this.scheduleReconnect();
+        if (typeof outputLogger !== 'undefined' && outputLogger) {
+          outputLogger.log('sidecar', 'Connection to Sidecar closed.');
+        }
+      };
+
+      this.ws.onerror = () => {
+        this.updateUiStatus(false, -1);
+      };
+
+      this.ws.onmessage = (event) => {
+        this.handleMessage(event.data);
+      };
+    } catch (err) {
+      this.updateUiStatus(false, -1);
+      this.scheduleReconnect();
+    }
+  }
+
+  disconnect() {
+    if (this.reconnectTimer) {
+      clearTimeout(this.reconnectTimer);
+      this.reconnectTimer = null;
+    }
+    this.stopHeartbeat();
+    if (this.ws) {
+      try {
+        this.ws.close();
+      } catch {}
+      this.ws = null;
+      sidecarWs = null;
+    }
+    this.updateUiStatus(false, -1);
+  }
+
+  startHeartbeat() {
+    this.stopHeartbeat();
+    this.heartbeatTimer = setInterval(() => {
+      this.sendHeartbeat();
+    }, 5000);
+  }
+
+  stopHeartbeat() {
+    if (this.heartbeatTimer) {
+      clearInterval(this.heartbeatTimer);
+      this.heartbeatTimer = null;
+    }
+  }
+
+  sendHeartbeat() {
+    if (!this.ws || this.ws.readyState !== WebSocket.OPEN) return;
+
+    if (this.missedPings >= 2) {
+      try {
+        this.ws.close();
+      } catch {}
+      return;
+    }
+
+    this.missedPings++;
+    const pingId = `ping-${Date.now()}`;
+    const sendTime = (typeof performance !== 'undefined' && performance.now) ? performance.now() : Date.now();
+    this.pendingPings.set(pingId, sendTime);
+
+    const pingFrame = {
+      jsonrpc: '2.0',
+      id: pingId,
+      method: 'rpc.ping',
+      params: { timestamp: Date.now() }
+    };
+
+    try {
+      this.ws.send(JSON.stringify(pingFrame));
+    } catch {}
+  }
+
+  handleMessage(data) {
+    if (!data) return;
+    let msg = null;
+    try {
+      msg = typeof data === 'string' ? JSON.parse(data) : data;
+    } catch {
+      return;
+    }
+
+    if (!msg || typeof msg !== 'object') return;
+
+    // 1. Pong response handling
+    if (msg.id && this.pendingPings.has(msg.id)) {
+      const sendTime = this.pendingPings.get(msg.id);
+      this.pendingPings.delete(msg.id);
+      this.missedPings = 0;
+      const now = (typeof performance !== 'undefined' && performance.now) ? performance.now() : Date.now();
+      this.currentLatencyMs = Math.max(1, Math.round(now - sendTime));
+      this.updateUiStatus(true, this.currentLatencyMs);
+      return;
+    }
+
+    // 2. Chat / Streaming chunk handling
+    const method = msg.method || msg.type || msg.event;
+    const params = msg.params || msg.payload || msg;
+
+    if (method === 'diagnostics.tokenChunk' || method === 'chat:chunk' || method === 'stream:chunk') {
+      const chunk = (params && (params.token || params.chunk || params.text)) || '';
+      const isThinking = !!(params && (params.isThinking || params.targetZone === 'reasoning'));
+      const correlationId = (params && params.correlationId) || 'default';
+      appendChatChunk(chunk, isThinking, correlationId);
+
+      const frame = document.getElementById('webview-frame');
+      if (frame && frame.contentWindow && typeof frame.contentWindow.postMessage === 'function') {
+        frame.contentWindow.postMessage({
+          type: 'DIAGNOSTIC_DATA',
+          payload: msg,
+        }, '*');
+      }
+      return;
+    }
+
+    // 3. Plan events
+    if (typeof method === 'string' && (method.startsWith('plan:') || method.startsWith('plan.'))) {
+      handlePlanStreamMessage(msg);
+      return;
+    }
+
+    // 4. Diff events
+    if (typeof method === 'string' && (method === 'diff:file_proposed' || method.startsWith('diff:'))) {
+      handleDiffStreamMessage(msg);
+      return;
+    }
+
+    // Forward any other diagnostic messages to webview
+    const frame = document.getElementById('webview-frame');
+    if (frame && frame.contentWindow && typeof frame.contentWindow.postMessage === 'function') {
+      frame.contentWindow.postMessage({
+        type: 'DIAGNOSTIC_DATA',
+        payload: msg,
+      }, '*');
+    }
+  }
+
+  getReconnectDelay(attempt = this.reconnectAttempts) {
+    return Math.min(1000 * Math.pow(2, Math.max(0, attempt - 1)), 16000);
+  }
+
+  scheduleReconnect() {
+    if (this.reconnectTimer) return;
+    this.reconnectAttempts++;
+    const delay = this.getReconnectDelay(this.reconnectAttempts) + Math.random() * 250;
+    this.reconnectTimer = setTimeout(() => {
+      this.reconnectTimer = null;
+      this.connect();
+    }, delay);
+  }
+
+  updateUiStatus(connected, latency) {
+    const daemonDot = document.getElementById('daemon-status-dot');
+    const daemonText = document.getElementById('daemon-status-text');
+    const daemonLatency = document.getElementById('daemon-latency-text');
+    const daemonBadge = document.getElementById('daemon-model-badge');
+
+    const screenBDot = document.getElementById('screen-b-daemon-dot');
+    const screenBLatency = document.getElementById('screen-b-daemon-latency');
+    const screenBBadge = document.getElementById('screen-b-model-badge');
+
+    if (connected) {
+      if (daemonDot) {
+        daemonDot.classList.remove('disconnected');
+        daemonDot.classList.add('connected');
+      }
+      if (daemonText) {
+        daemonText.textContent = 'Sidecar 4949';
+        daemonText.style.color = '#ffffff';
+      }
+      if (daemonLatency) {
+        daemonLatency.textContent = latency >= 0 ? `${latency}ms` : '---ms';
+      }
+      if (daemonBadge) {
+        daemonBadge.textContent = this.activeModel;
+      }
+
+      if (screenBDot) {
+        screenBDot.classList.remove('disconnected');
+        screenBDot.classList.add('connected');
+      }
+      if (screenBLatency) {
+        screenBLatency.textContent = latency >= 0 ? `${latency}ms` : '---ms';
+      }
+      if (screenBBadge) {
+        screenBBadge.textContent = this.activeModel;
+      }
+    } else {
+      if (daemonDot) {
+        daemonDot.classList.remove('connected');
+        daemonDot.classList.add('disconnected');
+      }
+      if (daemonText) {
+        daemonText.textContent = 'Sidecar: Offline';
+        daemonText.style.color = '#f87171';
+      }
+      if (daemonLatency) {
+        daemonLatency.textContent = '---ms';
+      }
+      if (screenBDot) {
+        screenBDot.classList.remove('connected');
+        screenBDot.classList.add('disconnected');
+      }
+      if (screenBLatency) {
+        screenBLatency.textContent = '---ms';
+      }
+    }
+  }
+
+  getReconnectAttempts() {
+    return this.reconnectAttempts;
+  }
+
+  getLatency() {
+    return this.currentLatencyMs;
+  }
+
+  isConnected() {
+    return !!(this.ws && this.ws.readyState === WebSocket.OPEN);
+  }
+}
+
+function connectSidecar() {
+  if (!sidecarClient) {
+    sidecarClient = new SidecarWebSocketClient();
+  }
+  sidecarClient.connect();
+  sidecarWs = sidecarClient.ws;
+  return sidecarClient;
+}
+
+function disconnectSidecar() {
+  if (sidecarClient) {
+    sidecarClient.disconnect();
+  }
+}
+
+// -----------------------------------------------------------------------------
+// R2: TYPEWRITER BUFFER, STREAM PARSING, THINKING CARD & CODE BLOCKS
+// -----------------------------------------------------------------------------
+
+class TypewriterRenderer {
+  constructor({ onTick, onComplete, tickIntervalMs = 16 } = {}) {
+    this.queue = '';
+    this.timer = null;
+    this.isActive = false;
+    this.isStreamEnded = false;
+    this.onTick = onTick;
+    this.onComplete = onComplete;
+    this.tickIntervalMs = tickIntervalMs;
+  }
+
+  calculateDrainCount(queueLength) {
+    const len = typeof queueLength === 'number' ? queueLength : this.queue.length;
+    if (len > 500) {
+      return Math.min(len, Math.max(1, Math.ceil(len / 4)));
+    }
+    if (len > 150) {
+      return Math.min(len, Math.ceil(len / 6));
+    }
+    if (len > 50) {
+      return 4;
+    }
+    if (len > 15) {
+      return 2;
+    }
+    return 1;
+  }
+
+  enqueue(chunk) {
+    if (!chunk) return;
+    this.queue += chunk;
+    if (!this.isActive) {
+      this.start();
+    }
+  }
+
+  tick(count) {
+    const drainCount = (typeof count === 'number') ? count : this.calculateDrainCount(this.queue.length);
+    const delta = this.queue.slice(0, drainCount);
+    this.queue = this.queue.slice(drainCount);
+    if (this.onTick) this.onTick(delta);
+    return delta;
+  }
+
+  start() {
+    this.isActive = true;
+    const step = () => {
+      if (!this.isActive) return;
+
+      if (this.queue.length > 0) {
+        const count = this.calculateDrainCount(this.queue.length);
+        const delta = this.queue.slice(0, count);
+        this.queue = this.queue.slice(count);
+        if (this.onTick) this.onTick(delta);
+      }
+
+      if (this.queue.length === 0 && this.isStreamEnded) {
+        this.stop();
+        if (this.onComplete) this.onComplete();
+        return;
+      }
+
+      this.timer = setTimeout(step, this.tickIntervalMs);
+    };
+    this.timer = setTimeout(step, this.tickIntervalMs);
+  }
+
+  end() {
+    this.isStreamEnded = true;
+    if (this.queue.length === 0) {
+      this.stop();
+      if (this.onComplete) this.onComplete();
+    }
+  }
+
+  flush() {
+    if (this.queue.length > 0) {
+      const remaining = this.queue;
+      this.queue = '';
+      if (this.onTick) this.onTick(remaining);
+    }
+    this.stop();
+    if (this.onComplete) this.onComplete();
+  }
+
+  stop() {
+    this.isActive = false;
+    if (this.timer) {
+      clearTimeout(this.timer);
+      this.timer = null;
+    }
+  }
+
+  reset() {
+    this.stop();
+    this.queue = '';
+    this.isStreamEnded = false;
+  }
+}
+
+class StreamMessageParser {
+  constructor({ onThinkingChunk, onAnswerChunk, onThinkingComplete } = {}) {
+    this.insideThinking = false;
+    this.buffer = '';
+    this.thinking = '';
+    this.answer = '';
+    this.thinkingTokens = 0;
+    this.startTime = Date.now();
+    this.onThinkingChunk = onThinkingChunk;
+    this.onAnswerChunk = onAnswerChunk;
+    this.onThinkingComplete = onThinkingComplete;
+  }
+
+  feed(chunk, isThinkingProtocol = false) {
+    if (!chunk) return;
+
+    if (isThinkingProtocol) {
+      this.insideThinking = true;
+      this.thinking += chunk;
+      this.thinkingTokens += Math.max(1, Math.round(chunk.length / 4));
+      if (this.onThinkingChunk) this.onThinkingChunk(chunk, this.thinking);
+      return;
+    }
+
+    this.buffer += chunk;
+
+    while (this.buffer.length > 0) {
+      if (!this.insideThinking) {
+        const openIdx = this.buffer.indexOf('<thinking>');
+        if (openIdx === -1) {
+          const match = this.buffer.match(/<t?(?:h(?:i(?:n(?:k(?:i(?:n(?:g)?)?)?)?)?)?)?$/i);
+          if (match) {
+            const safe = this.buffer.slice(0, match.index);
+            this.buffer = this.buffer.slice(match.index);
+            if (safe) {
+              this.answer += safe;
+              if (this.onAnswerChunk) this.onAnswerChunk(safe, this.answer);
+            }
+            break;
+          } else {
+            const text = this.buffer;
+            this.buffer = '';
+            this.answer += text;
+            if (this.onAnswerChunk) this.onAnswerChunk(text, this.answer);
+            break;
+          }
+        } else {
+          const before = this.buffer.slice(0, openIdx);
+          if (before) {
+            this.answer += before;
+            if (this.onAnswerChunk) this.onAnswerChunk(before, this.answer);
+          }
+          this.insideThinking = true;
+          this.buffer = this.buffer.slice(openIdx + '<thinking>'.length);
+        }
+      } else {
+        const closeIdx = this.buffer.indexOf('</thinking>');
+        if (closeIdx === -1) {
+          const match = this.buffer.match(/<\/?t?(?:h(?:i(?:n(?:k(?:i(?:n(?:g)?)?)?)?)?)?)?$/i);
+          if (match) {
+            const safe = this.buffer.slice(0, match.index);
+            this.buffer = this.buffer.slice(match.index);
+            if (safe) {
+              this.thinking += safe;
+              this.thinkingTokens += Math.max(1, Math.round(safe.length / 4));
+              if (this.onThinkingChunk) this.onThinkingChunk(safe, this.thinking);
+            }
+            break;
+          } else {
+            const text = this.buffer;
+            this.buffer = '';
+            this.thinking += text;
+            this.thinkingTokens += Math.max(1, Math.round(text.length / 4));
+            if (this.onThinkingChunk) this.onThinkingChunk(text, this.thinking);
+            break;
+          }
+        } else {
+          const thinkContent = this.buffer.slice(0, closeIdx);
+          if (thinkContent) {
+            this.thinking += thinkContent;
+            this.thinkingTokens += Math.max(1, Math.round(thinkContent.length / 4));
+            if (this.onThinkingChunk) this.onThinkingChunk(thinkContent, this.thinking);
+          }
+          this.insideThinking = false;
+          if (this.onThinkingComplete) {
+            this.onThinkingComplete({
+              text: this.thinking,
+              tokens: this.thinkingTokens,
+              durationMs: Date.now() - this.startTime,
+            });
+          }
+          this.buffer = this.buffer.slice(closeIdx + '</thinking>'.length);
+        }
+      }
+    }
+  }
+
+  feedChunk(chunk, isThinkingProtocol) {
+    return this.feed(chunk, isThinkingProtocol);
+  }
+
+  finish() {
+    if (this.buffer.length > 0) {
+      if (this.insideThinking) {
+        this.thinking += this.buffer;
+        if (this.onThinkingChunk) this.onThinkingChunk(this.buffer, this.thinking);
+      } else {
+        this.answer += this.buffer;
+        if (this.onAnswerChunk) this.onAnswerChunk(this.buffer, this.answer);
+      }
+      this.buffer = '';
+    }
+  }
+}
+
+function createThinkingCard(correlationId = 'default') {
+  const card = document.createElement('div');
+  card.className = 'thinking-card';
+  card.id = `thinking-card-${correlationId}`;
+
+  const header = document.createElement('div');
+  header.className = 'thinking-card-header';
+  if (typeof header.setAttribute === 'function') {
+    header.setAttribute('role', 'button');
+    header.setAttribute('tabindex', '0');
+    header.setAttribute('title', 'Klik untuk melipat/membuka proses berpikir');
+  }
+
+  const left = document.createElement('div');
+  left.className = 'thinking-header-left';
+  const icon = document.createElement('span');
+  icon.className = 'codicon codicon-lightbulb thinking-icon';
+  const title = document.createElement('span');
+  title.className = 'thinking-title';
+  title.textContent = 'Proses Berpikir';
+  const badge = document.createElement('span');
+  badge.className = 'thinking-stats-badge';
+  badge.textContent = '0 tokens · 0.0s';
+
+  left.appendChild(icon);
+  left.appendChild(title);
+  left.appendChild(badge);
+
+  const right = document.createElement('div');
+  right.className = 'thinking-header-right';
+  const chevron = document.createElement('span');
+  chevron.className = 'codicon codicon-chevron-down thinking-chevron';
+  right.appendChild(chevron);
+
+  header.appendChild(left);
+  header.appendChild(right);
+
+  const body = document.createElement('div');
+  body.className = 'thinking-card-body';
+  const contentText = document.createElement('div');
+  contentText.className = 'thinking-content-text';
+  body.appendChild(contentText);
+
+  card.appendChild(header);
+  card.appendChild(body);
+
+  header.addEventListener('click', () => {
+    card.classList.toggle('collapsed');
+    const isCollapsed = card.classList.contains('collapsed');
+    chevron.classList.toggle('codicon-chevron-down', !isCollapsed);
+    chevron.classList.toggle('codicon-chevron-right', isCollapsed);
+  });
+
+  return card;
+}
+
+function toggleThinkingCard(cardId) {
+  const card = typeof cardId === 'string' ? document.getElementById(cardId) : cardId;
+  if (!card) return;
+  card.classList.toggle('collapsed');
+  const chevron = card.querySelector ? card.querySelector('.thinking-chevron') : null;
+  if (chevron) {
+    const isCollapsed = card.classList.contains('collapsed');
+    chevron.classList.toggle('codicon-chevron-down', !isCollapsed);
+    chevron.classList.toggle('codicon-chevron-right', isCollapsed);
+  }
+}
+
+function formatCodeWithDarkPlusTokens(code, lang = 'plaintext') {
+  const escaped = (code || '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;');
+
+  const keywords = /\b(def|return|function|const|let|var|if|else|elif|for|while|import|export|from|class|try|except|catch|finally|async|await|new|public|private|static|void|int|string|boolean)\b/g;
+  const strings = /(&quot;.*?&quot;|&#039;.*?&#039;|`.*?`|"[^"]*"|'[^']*')/g;
+  const comments = /(#.*$|\/\/.*$)/gm;
+  const numbers = /\b(\d+(?:\.\d+)?)\b/g;
+
+  const highlighted = escaped
+    .replace(comments, '<span class="token-comment">$1</span>')
+    .replace(strings, '<span class="token-string">$1</span>')
+    .replace(keywords, '<span class="token-keyword">$1</span>')
+    .replace(numbers, '<span class="token-number">$1</span>');
+
+  return `
+    <div class="chat-code-block" data-language="${lang}">
+      <div class="chat-code-header">
+        <div class="chat-code-lang">
+          <span class="codicon codicon-file-code"></span>
+          <span class="lang-text">${lang}</span>
+        </div>
+        <button class="btn-copy-code" title="Salin kode ke clipboard">
+          <span class="codicon codicon-copy copy-icon"></span>
+          <span class="copy-label">Copy</span>
+        </button>
+      </div>
+      <pre class="chat-code-pre"><code class="chat-code-content">${highlighted}</code></pre>
+    </div>
+  `;
+}
+
+function attachCopyButtonHandler(buttonEl, codeText) {
+  if (!buttonEl) return;
+  buttonEl.addEventListener('click', (e) => {
+    if (e && e.stopPropagation) e.stopPropagation();
+    let success = false;
+    if (window.electronClipboard && typeof window.electronClipboard.writeText === 'function') {
+      success = window.electronClipboard.writeText(codeText);
+    } else if (navigator.clipboard && typeof navigator.clipboard.writeText === 'function') {
+      navigator.clipboard.writeText(codeText);
+      success = true;
+    }
+
+    const label = buttonEl.querySelector ? buttonEl.querySelector('.copy-label') : null;
+    const icon = buttonEl.querySelector ? buttonEl.querySelector('.codicon') : null;
+
+    if (label) label.textContent = 'Copied!';
+    if (icon && icon.classList) {
+      if (typeof icon.classList.remove === 'function') icon.classList.remove('codicon-copy');
+      if (typeof icon.classList.add === 'function') icon.classList.add('codicon-check');
+    }
+    if (buttonEl.classList && typeof buttonEl.classList.add === 'function') {
+      buttonEl.classList.add('copied');
+    }
+
+    if (buttonEl._copyResetTimer) {
+      clearTimeout(buttonEl._copyResetTimer);
+    }
+    buttonEl._copyResetTimer = setTimeout(() => {
+      if (label) label.textContent = 'Copy';
+      if (icon && icon.classList) {
+        if (typeof icon.classList.remove === 'function') icon.classList.remove('codicon-check');
+        if (typeof icon.classList.add === 'function') icon.classList.add('codicon-copy');
+      }
+      if (buttonEl.classList && typeof buttonEl.classList.remove === 'function') {
+        buttonEl.classList.remove('copied');
+      }
+      buttonEl._copyResetTimer = null;
+    }, 2000);
+  });
+}
+
+function copyCodeBlock(buttonEl, codeText) {
+  return attachCopyButtonHandler(buttonEl, codeText);
+}
+
+function renderChatMarkdown(targetEl, text, isComplete = false) {
+  if (!targetEl) return;
+  if (!text) {
+    targetEl.innerHTML = '';
+    return;
+  }
+
+  const codeBlocks = [];
+  let processed = text;
+
+  // Replace closed code blocks
+  processed = processed.replace(/```([a-zA-Z0-9_\-\+]*)\r?\n([\s\S]*?)```/g, (match, lang, code) => {
+    const idx = codeBlocks.length;
+    codeBlocks.push({ lang: lang || 'plaintext', code });
+    return `__CODE_BLOCK_${idx}__`;
+  });
+
+  // If streaming and there is an unclosed code block at the end
+  if (processed.includes('```')) {
+    processed = processed.replace(/```([a-zA-Z0-9_\-\+]*)\r?\n([\s\S]*)$/, (match, lang, code) => {
+      const idx = codeBlocks.length;
+      codeBlocks.push({ lang: lang || 'plaintext', code });
+      return `__CODE_BLOCK_${idx}__`;
+    });
+  }
+
+  if (codeBlocks.length === 0) {
+    targetEl.textContent = text;
+    return;
+  }
+
+  const parts = processed.split(/(__CODE_BLOCK_\d+__)/);
+  let html = '';
+  for (const part of parts) {
+    const m = part.match(/^__CODE_BLOCK_(\d+)__$/);
+    if (m) {
+      const block = codeBlocks[parseInt(m[1], 10)];
+      html += formatCodeWithDarkPlusTokens(block.code, block.lang);
+    } else if (part) {
+      const escaped = escapeHtml(part).replace(/\n/g, '<br>');
+      html += `<span>${escaped}</span>`;
+    }
+  }
+
+  targetEl.innerHTML = html;
+
+  const blockEls = targetEl.querySelectorAll ? targetEl.querySelectorAll('.chat-code-block') : [];
+  if (blockEls && blockEls.length) {
+    for (let i = 0; i < blockEls.length && i < codeBlocks.length; i++) {
+      const blockEl = blockEls[i];
+      const btn = blockEl.querySelector ? blockEl.querySelector('.btn-copy-code') : null;
+      if (btn) {
+        attachCopyButtonHandler(btn, codeBlocks[i].code);
+      }
+    }
+  }
+}
+
+let activeChatParser = null;
+let activeAssistantMessageEl = null;
+let activeCorrelationId = null;
+let activeTypewriter = null;
+let activeBubbleContentEl = null;
+let activeAnswerBuffer = '';
+
+function resetActiveChatTurn() {
+  if (activeTypewriter) {
+    activeTypewriter.stop();
+    activeTypewriter = null;
+  }
+  activeChatParser = null;
+  activeAssistantMessageEl = null;
+  activeCorrelationId = null;
+  activeBubbleContentEl = null;
+  activeAnswerBuffer = '';
+}
+
+function appendChatChunk(chunk, isThinkingOrOpts = false, correlationId = 'default', options = {}) {
+  const container = document.getElementById('chat-thread-container');
+  if (!container) return;
+
+  let isThinking = false;
+  let corrId = correlationId;
+  let isLast = false;
+
+  if (typeof isThinkingOrOpts === 'object' && isThinkingOrOpts !== null) {
+    isThinking = !!isThinkingOrOpts.isThinking;
+    corrId = isThinkingOrOpts.correlationId || correlationId || 'default';
+    isLast = !!isThinkingOrOpts.isLast;
+  } else {
+    isThinking = !!isThinkingOrOpts;
+    corrId = correlationId || 'default';
+    if (typeof options === 'object' && options !== null) {
+      if (options.correlationId) corrId = options.correlationId;
+      if (options.isLast) isLast = !!options.isLast;
+    }
+  }
+
+  // Turn management: Reset turn if correlationId changed
+  if (activeAssistantMessageEl && activeCorrelationId && activeCorrelationId !== corrId) {
+    resetActiveChatTurn();
+  }
+
+  if (!activeAssistantMessageEl) {
+    activeCorrelationId = corrId;
+    activeAnswerBuffer = '';
+
+    activeAssistantMessageEl = document.createElement('div');
+    activeAssistantMessageEl.className = 'chat-message chat-message-assistant';
+    if (typeof activeAssistantMessageEl.setAttribute === 'function') {
+      activeAssistantMessageEl.setAttribute('data-correlation-id', corrId);
+    }
+
+    const thinkingCard = createThinkingCard(corrId);
+    activeAssistantMessageEl.appendChild(thinkingCard);
+
+    activeBubbleContentEl = document.createElement('div');
+    activeBubbleContentEl.className = 'chat-bubble-content';
+    activeAssistantMessageEl.appendChild(activeBubbleContentEl);
+
+    container.appendChild(activeAssistantMessageEl);
+
+    // Wire genuine TypewriterRenderer for smooth chunk pacing
+    activeTypewriter = new TypewriterRenderer({
+      onTick: (delta) => {
+        activeAnswerBuffer += delta;
+        renderChatMarkdown(activeBubbleContentEl, activeAnswerBuffer, false);
+      },
+      onComplete: () => {
+        renderChatMarkdown(activeBubbleContentEl, activeAnswerBuffer, true);
+      }
+    });
+
+    activeChatParser = new StreamMessageParser({
+      onThinkingChunk: (delta, full) => {
+        const textEl = thinkingCard.querySelector ? thinkingCard.querySelector('.thinking-content-text') : null;
+        if (textEl) textEl.textContent = full;
+        const statsEl = thinkingCard.querySelector ? thinkingCard.querySelector('.thinking-stats-badge') : null;
+        if (statsEl) statsEl.textContent = `${activeChatParser.thinkingTokens} tokens`;
+      },
+      onThinkingComplete: (stats) => {
+        const statsEl = thinkingCard.querySelector ? thinkingCard.querySelector('.thinking-stats-badge') : null;
+        if (statsEl) {
+          const sec = (stats.durationMs / 1000).toFixed(1);
+          statsEl.textContent = `${stats.tokens} tokens · ${sec}s`;
+        }
+        thinkingCard.classList.add('collapsed');
+        const chevron = thinkingCard.querySelector ? thinkingCard.querySelector('.thinking-chevron') : null;
+        if (chevron) {
+          chevron.classList.remove('codicon-chevron-down');
+          chevron.classList.add('codicon-chevron-right');
+        }
+      },
+      onAnswerChunk: (delta, full) => {
+        if (activeTypewriter) {
+          activeTypewriter.enqueue(delta);
+        } else {
+          activeAnswerBuffer += delta;
+          renderChatMarkdown(activeBubbleContentEl, activeAnswerBuffer, false);
+        }
+      }
+    });
+  }
+
+  if (activeChatParser && chunk) {
+    activeChatParser.feed(chunk, isThinking);
+  }
+
+  if (isLast) {
+    if (activeTypewriter) {
+      activeTypewriter.end();
+    }
+    if (activeBubbleContentEl) {
+      renderChatMarkdown(activeBubbleContentEl, activeAnswerBuffer + (activeTypewriter ? activeTypewriter.queue : ''), true);
+    }
+  }
+}
+
+// -----------------------------------------------------------------------------
+// R3: PLAN MODE STREAMING DISPATCHER
+// -----------------------------------------------------------------------------
+
+function handlePlanStreamMessage(msg) {
+  if (!msg) return null;
+  const method = msg.method || msg.type || msg.event;
+  const payload = msg.params || msg.payload || msg.data || msg;
+
+  if (method === 'plan:init' || method === 'plan.init') {
+    return createTaskPlan(payload);
+  }
+  if (method === 'plan:step_start' || method === 'plan.step_start') {
+    const subtaskId = payload.subtaskId || payload.stepId || payload.id;
+    if (currentTaskPlan && subtaskId && Array.isArray(currentTaskPlan.subtasks)) {
+      const st = currentTaskPlan.subtasks.find(s => s.id === subtaskId);
+      if (st) {
+        st.status = 'in_progress';
+        addExecutionLog(`Started subtask: ${st.title || subtaskId}`, 'info', subtaskId);
+        renderPlanView();
+        if (typeof editorEventBridge !== 'undefined' && editorEventBridge && typeof editorEventBridge.emit === 'function') {
+          editorEventBridge.emit('screenB:taskProgress', {
+            planId: currentTaskPlan.id,
+            subtaskId,
+            status: 'in_progress',
+            progress: currentTaskPlan.progress,
+          });
+        }
+      }
+    }
+    return currentTaskPlan;
+  }
+  if (method === 'plan:step_log' || method === 'plan.step_log') {
+    const message = payload.message || payload.log || payload.text;
+    const level = payload.level || 'info';
+    const subtaskId = payload.subtaskId || payload.stepId;
+    if (message) {
+      addExecutionLog(message, level, subtaskId);
+    }
+    return currentTaskPlan;
+  }
+  if (method === 'plan:step_done' || method === 'plan.step_done') {
+    const subtaskId = payload.subtaskId || payload.stepId || payload.id;
+    const status = payload.status || 'completed';
+    const summary = payload.summary || payload.logMessage || payload.message;
+    if (subtaskId) {
+      advanceSubtask(subtaskId, status, summary);
+    }
+    return currentTaskPlan;
+  }
+  return null;
+}
+
+// -----------------------------------------------------------------------------
+// R4: DIFF STREAMING DISPATCHER
+// -----------------------------------------------------------------------------
+
+function handleDiffStreamMessage(msg) {
+  if (!msg) return null;
+  const method = msg.method || msg.type || msg.event;
+  const payload = msg.params || msg.payload || msg.data || msg;
+
+  if (method === 'diff:file_proposed' || method === 'diff.proposed' || (payload && payload.proposedContent)) {
+    const item = addReviewDiff(payload);
+    setScreenBMode('review');
+    return item;
+  }
+  return null;
 }
 
 function triggerAnalysis() {
@@ -4623,6 +5476,10 @@ function getReviewDiffs() {
 }
 
 function renderReviewPane() {
+  const reviewBadge = document.getElementById('review-tab-badge');
+  if (reviewBadge) {
+    reviewBadge.textContent = String(currentReviewDiffs.length);
+  }
   const emptyPane = document.getElementById('review-empty-pane');
   const activePane = document.getElementById('review-active-pane');
   const listEl = document.getElementById('review-file-list') || document.getElementById('screen-b-review-list');
@@ -5362,6 +6219,11 @@ function initGlobalShortcuts() {
   const btnChatNew = document.getElementById('btn-chat-new');
   if (btnChatNew) {
     btnChatNew.addEventListener('click', () => {
+      const container = document.getElementById('chat-thread-container');
+      if (container) {
+        container.innerHTML = '';
+      }
+      resetActiveChatTurn();
       if (webviewFrame && webviewFrame.contentWindow) {
         webviewFrame.contentWindow.postMessage({
           type: 'DIAGNOSTIC_DATA',
@@ -6125,6 +6987,24 @@ if (typeof window !== 'undefined') {
   window.acceptAllReviewDiffs = acceptAllReviewDiffs;
   window.discardAllReviewDiffs = discardAllReviewDiffs;
   window.showDiffEditor = showDiffEditor;
+
+  // Milestone v0.2.3 APIs
+  window.SidecarWebSocketClient = SidecarWebSocketClient;
+  window.sidecarClient = sidecarClient;
+  window.sidecarWs = sidecarWs;
+  window.connectSidecar = connectSidecar;
+  window.disconnectSidecar = disconnectSidecar;
+  window.TypewriterRenderer = TypewriterRenderer;
+  window.StreamMessageParser = StreamMessageParser;
+  window.createThinkingCard = createThinkingCard;
+  window.toggleThinkingCard = toggleThinkingCard;
+  window.formatCodeWithDarkPlusTokens = formatCodeWithDarkPlusTokens;
+  window.attachCopyButtonHandler = attachCopyButtonHandler;
+  window.copyCodeBlock = copyCodeBlock;
+  window.appendChatChunk = appendChatChunk;
+  window.handlePlanStreamMessage = handlePlanStreamMessage;
+  window.handleDiffStreamMessage = handleDiffStreamMessage;
+  window.resetActiveChatTurn = resetActiveChatTurn;
 
   window.screenBController = {
     extractTargetLines,

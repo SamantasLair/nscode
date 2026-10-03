@@ -200,3 +200,69 @@ All implementation in main.ts, preload.ts, index.html, workbench.css, and workbe
 All 447 monorepo tests pass (including 38 tests in v0_2_1_quick_open_dirty_tabs.test.ts and 14 tests in v0_2_1_adversarial_challenger_2.test.ts).
 Desktop package build compiles cleanly with exit code 0.
 Perform the final Victory Audit, verify all acceptance criteria for R1-R5, update docs/tasks.md and docs/BENCHMARK_GOAL_ROADMAP_V1_0_0.md, and confirm completion.
+
+
+## 2026-10-03T09:35:51Z
+
+Implement Milestone v0.2.3 of NSCode connecting Screen B's dynamic agentic architecture to real live AI execution via the local Antislop Sidecar WebSocket daemon (`ws://127.0.0.1:4949`): implement the resilient WebSocket client bridge, real-time chunk streaming with typewriter rendering, decoupled collapsible thinking/reasoning visualization, live streaming agentic subtask decomposition in Plan Mode, and streaming diff generation into Review Mode for instant Monaco side-by-side inspection.
+
+Working directory: C:\laragon\www\_Projek\NSCode  
+Integrity mode: development
+
+## Requirements
+
+### R1. Resilient WebSocket Connection to Antislop Sidecar (`ws://127.0.0.1:4949`)
+- Connect the desktop workbench to the running `antislop-sidecar` daemon via WebSocket:
+  - Default URL: `ws://127.0.0.1:4949` with graceful offline fallback when daemon is inactive.
+  - Heartbeat telemetry: 5s ping/pong with latency calculation.
+  - Automatic reconnection with exponential backoff on disconnect or process restarts.
+  - Daemon status indicator in Screen B header and Status Bar displaying connection status (green dot / red dot), latency, and active model badge (`gemini-2.5-flash`).
+
+### R2. Live Stream Parsing & Typewriter Rendering in Screen B Chat
+- Stream incoming AI responses chunk-by-chunk into Screen B:
+  - Smooth, non-blocking typewriter rendering buffer.
+  - **Decoupled Thinking / Reasoning Blocks**: Detect and isolate reasoning traces (`<thinking>` or protocol reasoning tokens) into a collapsible, dark+ styled inspection card (`codicon-lightbulb`, toggleable chevron) with token/time stats, keeping conversational output clean.
+  - Code block rendering with VS Code Dark+ token styling, language badge, and instant copy button.
+
+### R3. Real-Time Agentic Task Plan Streaming in Plan Mode
+- Wire live streaming protocol messages to Screen B's `Plan Mode`:
+  - The sidecar streams structured plan events: `plan:init` (subtask breakdown), `plan:step_start` (active subtask), `plan:step_log` (execution details), `plan:step_done` (subtask completion).
+  - Screen B dynamically updates the collapsible subtask checklist in real time without screen reloads.
+  - Subtask status glyphs update reactively: pending (`codicon-circle-outline`) -> in progress (`codicon-loading` animated spin) -> completed (`codicon-pass-filled`).
+
+### R4. Streaming Diff Generation into Review Mode & Monaco Preview
+- When the agentic loop proposes file edits:
+  - Sidecar emits `diff:file_proposed` containing file path, diff stats (`+X / -Y`), and virtual proposed content.
+  - Screen B automatically morphs into `Review Mode` or badges the Review tab with unreviewed diff count.
+  - Clicking `[ Review Diff ]` immediately mounts Monaco Diff Editor in Layar A comparing `agent-orig://${filePath}` vs `agent-proposed://${filePath}` without mutating disk files.
+
+### R5. Automated Programmatic Test Suite
+- Comprehensive Vitest test suite (`packages/antislop-desktop/test/v0_2_3_live_ai_streaming.test.ts`) validating:
+  - WebSocket connection lifecycle (connect, reconnect, heartbeat, offline fallback).
+  - Chunk stream parsing and typewriter buffer mechanics.
+  - Collapsible reasoning block isolation.
+  - Live agentic plan event dispatch and UI state updates in Plan Mode.
+  - Streaming diff payload handling and Monaco diff mount triggers.
+  - 100% pass across all 527 existing monorepo tests (zero regression).
+  - Package build compiles cleanly (`exit code 0`).
+
+## Acceptance Criteria
+
+### WebSocket Connection & Telemetry
+- [ ] Workbench establishes WebSocket connection to `ws://127.0.0.1:4949` with auto-reconnect.
+- [ ] Status Bar and Screen B header display live daemon status, model badge, and latency.
+
+### Live Chat Streaming & Reasoning Blocks
+- [ ] Responses stream smoothly chunk-by-chunk into Screen B.
+- [ ] Reasoning/thinking content is isolated inside a collapsible dark+ inspection card.
+- [ ] Code snippets format cleanly with syntax highlighting and copy buttons.
+
+### Real-Time Agentic Plan & Review Diff
+- [ ] Complex tasks stream structured subtasks dynamically into Plan Mode.
+- [ ] Subtask items update their status indicators (*pending* -> *in_progress* -> *completed*) in real time.
+- [ ] Generated diffs populate Review Mode and open side-by-side Monaco Diff Editor in Layar A without disk mutation.
+
+### Test & Build Integrity
+- [ ] All 527 existing tests continue to pass (zero regression).
+- [ ] New unit test suite `v0_2_3_live_ai_streaming.test.ts` passes 100%.
+- [ ] `corepack yarn --cwd packages/antislop-desktop build` compiles cleanly with exit code 0.

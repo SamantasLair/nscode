@@ -47,6 +47,8 @@ flowchart TB
 | **v0.2.0** | **SELESAI (100%)** | Screen B Guided Cognition, Target Stacking, Zero-Buffer Pointer | On-demand fast pattern scout, Technical Summary Cards | *Nonaktif* |
 | **v0.2.1** | **SELESAI (100%)** | Quick Open (`Ctrl+P`), Tab Dirty State (`●`), Status Telemetry (`Ln/Col`), Go to Line (`Ctrl+G`), Dynamic Screen B Modes | Decoupled EditorEventBridge, mode switcher tabs (Chat/Plan/Review) | *Nonaktif* |
 | **v0.2.2** | **SELESAI (100%)** | Dynamic Screen B Agentic, Context Bridge (`Ctrl+Alt+A`), Mode Morphing (Chat/Plan/Review), Task Plan State Machine, Layar A Zero-Buffer Diff Inspection | Interactive subtasks, live execution logs console, zero-buffer virtual model diffs | *Nonaktif* |
+| **v0.2.3** | **SELESAI (100%)** | Live AI Streaming via Sidecar WebSocket (`ws://127.0.0.1:4949`), Typewriter Effect, Collapsible `<thinking>` Inspection Cards, Streaming Plan & Monaco Diff | Live chunk streaming, typewriter queue buffer, reactive subtask updates, diff preview | *Nonaktif* |
+| **v0.2.4** | *Feature Release* | Socratic Cognitive Gate, Anti-Slop Diff Adoption Challenge, Developer Skill Atrophy Defense | Pertanyaan pemahaman kognitif interaktif sebelum diff diterapkan ke disk | *Selektif* |
 | **v0.3.0** | *Feature Release* | Language Server Protocol (LSP) Client (TS, Python, C++), Hover | Error diagnostics diarahkan ke Rustc-style visual | **Opsional (LSP AST Engine)** |
 | **v0.4.0** | *Feature Release* | Terminal Multiplexing (multi-tabs, bash/powershell), `tasks.json` | Output terminal & log dapat di-pipe ke Screen B | **Opsional (Stream Tuning)** |
 | **v0.5.0** | **BETA MILESTONE** | **Daily-Driver Ready**: Git complete, LSP complete, Lint/Format | **Socratic Cognitive Gate aktif penuh (Anti-Slop)** | *Selektif* |

@@ -458,6 +458,7 @@
               <button class="screen-b-mode-tab" id="tab-screen-b-review" data-mode="review" role="tab" aria-selected="false" title="Review Mode">
                 <span class="codicon codicon-diff"></span>
                 <span>Review</span>
+                <span class="review-tab-badge" id="review-tab-badge">0</span>
               </button>
             </div>
             <div class="screen-b-breadcrumb" id="screen-b-breadcrumb">
@@ -465,6 +466,12 @@
               <span class="breadcrumb-sep">&gt;</span>
               <span class="breadcrumb-file" id="screen-b-active-file">quicksort.py</span>
             </div>
+          </div>
+          <!-- Screen B Daemon Telemetry Status Badge (R1) -->
+          <div class="screen-b-daemon-status" id="screen-b-daemon-status" title="Sidecar: Disconnected">
+            <span class="status-dot disconnected" id="screen-b-daemon-dot"></span>
+            <span class="screen-b-daemon-latency" id="screen-b-daemon-latency">---ms</span>
+            <span class="screen-b-model-badge" id="screen-b-model-badge">gemini-2.5-flash</span>
           </div>
           <div class="secondary-actions">
             <button class="icon-action-btn" id="btn-chat-new" title="New Chat">
@@ -500,6 +507,9 @@
               <!-- Technical Summary Cards Container -->
               <div class="technical-summary-cards-container" id="technical-summary-cards-container"></div>
             </div>
+
+            <!-- Native Chat Conversation & Streaming Thread Container (R2) -->
+            <div class="chat-thread-container" id="chat-thread-container"></div>
 
             <!-- Screen B React / Vite Webview Frame (kept intact) -->
             <iframe
@@ -700,8 +710,11 @@
           <span class="status-text" id="status-warning-count">0</span>
         </div>
         <!-- Sidecar Daemon (Discrete) -->
-        <div class="status-item" id="status-daemon" title="Sidecar JSON-RPC Daemon (ws://127.0.0.1:4949)">
+        <div class="status-item status-clickable" id="status-daemon" title="Sidecar JSON-RPC Daemon (ws://127.0.0.1:4949) — Click to Reconnect">
+          <span class="status-dot disconnected" id="daemon-status-dot"></span>
           <span class="status-text" id="daemon-status-text">Sidecar 4949</span>
+          <span class="daemon-latency" id="daemon-latency-text">---ms</span>
+          <span class="daemon-model-badge" id="daemon-model-badge">gemini-2.5-flash</span>
         </div>
         <!-- Antigravity CLI (Preserved for tests) -->
         <div class="status-item status-clickable" id="status-agy" title="Antigravity CLI: Ready">

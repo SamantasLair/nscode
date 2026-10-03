@@ -3289,5 +3289,337 @@ body.is-resizing .bottom-panel {
   gap: 4px;
 }
 
+/* =============================================================================
+   MILESTONE v0.2.3: LIVE AI STREAMING, TYPEWRITER & REASONING BLOCKS
+   ============================================================================= */
+
+/* R1: Daemon Status Indicators */
+.status-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  display: inline-block;
+  flex-shrink: 0;
+  transition: background-color 0.2s ease;
+  margin-right: 4px;
+}
+
+.status-dot.connected {
+  background-color: #89d185;
+  box-shadow: 0 0 4px rgba(137, 209, 133, 0.4);
+}
+
+.status-dot.disconnected {
+  background-color: #f48771;
+}
+
+.daemon-latency,
+.screen-b-daemon-latency {
+  font-family: 'Cascadia Code', Consolas, monospace;
+  font-size: 10px;
+  color: #858585;
+  margin: 0 4px;
+}
+
+.daemon-model-badge,
+.screen-b-model-badge {
+  background-color: #27272a;
+  color: #cccccc;
+  border: 1px solid #3f3f46;
+  border-radius: 3px;
+  padding: 1px 5px;
+  font-size: 10px;
+  font-weight: 600;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', monospace;
+  letter-spacing: 0.02em;
+}
+
+.screen-b-daemon-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 6px;
+  border-radius: 3px;
+  background-color: rgba(255, 255, 255, 0.04);
+  margin-right: 6px;
+  font-size: 11px;
+  cursor: pointer;
+  user-select: none;
+  transition: background-color 0.15s ease;
+}
+
+.screen-b-daemon-status:hover {
+  background-color: rgba(255, 255, 255, 0.08);
+}
+
+/* Review Tab Badge (R4) */
+.review-tab-badge {
+  background-color: #007acc;
+  color: #ffffff;
+  font-size: 10px;
+  font-weight: 600;
+  padding: 0 5px;
+  border-radius: 10px;
+  margin-left: 4px;
+  display: inline-block;
+  line-height: 14px;
+}
+
+/* R2: Native Chat Conversation Thread & Message Bubbles */
+.chat-thread-container {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding: 10px;
+  gap: 12px;
+  box-sizing: border-box;
+  width: 100%;
+}
+
+.chat-message {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  box-sizing: border-box;
+  font-size: 13px;
+  line-height: 1.5;
+  color: #cccccc;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  word-break: break-word;
+}
+
+.chat-message-user {
+  align-self: flex-end;
+  background-color: #2d2d30;
+  border: 1px solid #3f3f46;
+  border-radius: 6px;
+  padding: 8px 12px;
+  max-width: 90%;
+  color: #e4e4e7;
+}
+
+.chat-message-assistant {
+  align-self: flex-start;
+  background-color: transparent;
+  width: 100%;
+  max-width: 100%;
+  padding: 4px 0;
+}
+
+.chat-bubble-content {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: 100%;
+}
+
+.typewriter-cursor {
+  display: inline-block;
+  width: 2px;
+  height: 1em;
+  background-color: #007acc;
+  vertical-align: text-bottom;
+  margin-left: 1px;
+  animation: typewriter-blink 1s step-start infinite;
+}
+
+@keyframes typewriter-blink {
+  50% { opacity: 0; }
+}
+
+/* Collapsible Thinking Card */
+.thinking-card {
+  background-color: #202023;
+  border: 1px solid #2d2d2d;
+  border-left: 3px solid #d7ba7d;
+  border-radius: 4px;
+  margin-bottom: 8px;
+  width: 100%;
+  box-sizing: border-box;
+  overflow: hidden;
+  transition: border-color 0.15s ease;
+}
+
+.thinking-card:hover {
+  border-color: #3f3f46;
+  border-left-color: #d7ba7d;
+}
+
+.thinking-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 6px 10px;
+  background-color: #252528;
+  cursor: pointer;
+  user-select: none;
+  font-size: 11px;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Cascadia Code, sans-serif;
+  transition: background-color 0.15s ease;
+}
+
+.thinking-card-header:hover {
+  background-color: #2a2a2e;
+}
+
+.thinking-header-left {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.thinking-icon {
+  color: #d7ba7d;
+  font-size: 13px;
+  flex-shrink: 0;
+}
+
+.thinking-title {
+  color: #cccccc;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+}
+
+.thinking-stats-badge {
+  background-color: #1e1e1e;
+  border: 1px solid #333333;
+  color: #858585;
+  border-radius: 10px;
+  padding: 1px 6px;
+  font-size: 10px;
+  font-weight: 500;
+  font-family: 'Cascadia Code', Consolas, monospace;
+}
+
+.thinking-header-right {
+  display: flex;
+  align-items: center;
+}
+
+.thinking-chevron {
+  color: #858585;
+  font-size: 12px;
+  transition: transform 0.15s ease;
+}
+
+.thinking-card-body {
+  padding: 8px 10px;
+  font-family: 'Cascadia Code', Consolas, 'Courier New', monospace;
+  font-size: 11px;
+  line-height: 1.45;
+  color: #9cdcfe;
+  background-color: #18181b;
+  max-height: 220px;
+  overflow-y: auto;
+  white-space: pre-wrap;
+  word-break: break-word;
+  border-top: 1px solid #27272a;
+}
+
+.thinking-card.collapsed .thinking-card-body {
+  display: none;
+}
+
+/* Chat Code Blocks with VS Code Dark+ Tokens & Copy Button */
+.chat-code-block {
+  background-color: #1e1e1e;
+  border: 1px solid #2d2d2d;
+  border-radius: 4px;
+  margin: 8px 0;
+  width: 100%;
+  box-sizing: border-box;
+  overflow: hidden;
+}
+
+.chat-code-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 4px 8px;
+  background-color: #252526;
+  border-bottom: 1px solid #2d2d2d;
+  font-size: 11px;
+}
+
+.chat-code-lang {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  color: #858585;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  text-transform: lowercase;
+  font-weight: 500;
+}
+
+.chat-code-lang .codicon {
+  font-size: 12px;
+  color: #007acc;
+}
+
+.btn-copy-code {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 3px;
+  color: #cccccc;
+  font-size: 11px;
+  padding: 2px 6px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.btn-copy-code:hover {
+  background-color: #2d2d2d;
+  border-color: #3f3f46;
+  color: #ffffff;
+}
+
+.btn-copy-code.copied {
+  color: #89d185;
+}
+
+.chat-code-pre {
+  margin: 0;
+  padding: 8px 10px;
+  background-color: #1e1e1e;
+  font-family: 'Cascadia Code', Consolas, 'Courier New', monospace;
+  font-size: 12px;
+  line-height: 1.45;
+  color: #d4d4d4;
+  overflow-x: auto;
+  white-space: pre;
+}
+
+.chat-code-content {
+  font-family: inherit;
+  color: inherit;
+}
+
+/* VS Code Dark+ Syntax Tokens */
+.token-keyword { color: #569cd6; font-weight: 500; }
+.token-string { color: #ce9178; }
+.token-comment { color: #6a9955; font-style: italic; }
+.token-number { color: #b5cea8; }
+.token-function { color: #dcdcaa; }
+.token-variable { color: #9cdcfe; }
+
+.chat-inline-code {
+  background-color: #27272a;
+  border: 1px solid #3f3f46;
+  border-radius: 3px;
+  padding: 1px 4px;
+  font-family: 'Cascadia Code', Consolas, monospace;
+  font-size: 11px;
+  color: #9cdcfe;
+}
+
+
 
 
