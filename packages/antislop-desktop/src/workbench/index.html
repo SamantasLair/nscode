@@ -1,0 +1,713 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>NSCode</title>
+  <!-- Offline Local Codicons -->
+  <link rel="stylesheet" href="codicons/codicon.css">
+  <!-- Workbench Styles -->
+  <link rel="stylesheet" href="workbench.css">
+  <!-- Offline Local Monaco Editor AMD Loader -->
+  <script src="vs/loader.js"></script>
+</head>
+<body class="vs-dark">
+  <div id="workbench-container" class="workbench-layout">
+
+    <!-- ZONE 1: TITLEBAR (30px) -->
+    <header id="titlebar" class="zone-titlebar">
+      <!-- Titlebar Left: VS Code Blue Logo + Menu Bar -->
+      <div class="titlebar-left">
+        <div class="app-icon" id="app-logo" title="NSCode">
+          <svg class="vscode-logo-svg" viewBox="0 0 100 100" width="16" height="16" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M72.2 97.4c2.8 1.4 6.2.7 8.2-1.6l17-16.2c2.1-2 2.6-5.2 1.3-7.8L77.4 34.6 98.7 14.3c2.1-2 2.6-5.2 1.3-7.8L83.1.8c-2.3-1.4-5.3-.8-7 1.3L37.5 37.4 17.6 22.1c-1.8-1.4-4.3-1.4-6.1 0L1.7 29.7c-2.3 1.8-2.3 5.3 0 7.1l19.5 15.1-19.5 15.1c-2.3 1.8-2.3 5.3 0 7.1l9.8 7.6c1.8 1.4 4.3 1.4 6.1 0l19.9-15.3 38.6 34.5c2 1.8 4.7 2.4 7.1 1.5z" fill="#007acc"/>
+            <path d="M77.4 34.6L44.8 63.8l-7.3-6.5L77.4 34.6z" fill="#0066b8"/>
+            <path d="M77.4 65.4L44.8 36.2l-7.3 6.5L77.4 65.4z" fill="#1f8ad2"/>
+          </svg>
+        </div>
+
+        <!-- Cascading Menu Bar (R2) -->
+        <nav id="menubar" class="zone-menubar" role="menubar">
+          <div class="menubar-item" data-menu="file" tabindex="0">File</div>
+          <div class="menubar-item" data-menu="edit" tabindex="0">Edit</div>
+          <div class="menubar-item" data-menu="selection" tabindex="0">Selection</div>
+          <div class="menubar-item" data-menu="view" tabindex="0">View</div>
+          <div class="menubar-item" data-menu="go" tabindex="0">Go</div>
+          <div class="menubar-item" data-menu="run" tabindex="0">Run</div>
+          <div class="menubar-item" data-menu="terminal" tabindex="0">Terminal</div>
+          <div class="menubar-item" data-menu="help" tabindex="0">Help</div>
+        </nav>
+      </div>
+
+      <!-- Titlebar Center: Navigation (< >) + Quick Search / Command Bar -->
+      <div class="titlebar-center">
+        <div class="titlebar-navigation">
+          <button class="nav-btn" id="btn-nav-back" title="Go Back (Alt+Left)">
+            <span class="codicon codicon-chevron-left"></span>
+          </button>
+          <button class="nav-btn" id="btn-nav-forward" title="Go Forward (Alt+Right)">
+            <span class="codicon codicon-chevron-right"></span>
+          </button>
+        </div>
+        <div class="search-command-bar" id="command-palette-trigger" title="Command Palette (Ctrl+P or Ctrl+Shift+P)">
+          <span class="codicon codicon-search"></span>
+          <span class="search-placeholder">NSCode (Ctrl+P to search files, &gt; for commands)</span>
+        </div>
+      </div>
+
+      <!-- Titlebar Right: Layout Toggles (Primary, Bottom Panel, Secondary) -->
+      <div class="titlebar-right">
+        <button class="layout-btn" id="btn-toggle-primary-sidebar" title="Toggle Primary Sidebar (Ctrl+B)">
+          <span class="codicon codicon-layout-sidebar-left"></span>
+        </button>
+        <button class="layout-btn" id="btn-toggle-bottom-panel" title="Toggle Bottom Panel (Ctrl+`)">
+          <span class="codicon codicon-layout-panel"></span>
+        </button>
+        <button class="layout-btn" id="btn-toggle-secondary-sidebar" title="Toggle Cognitive Sandbox Screen B (Ctrl+Alt+B)">
+          <span class="codicon codicon-layout-sidebar-right"></span>
+        </button>
+      </div>
+    </header>
+
+    <!-- WORKBENCH BODY (FLEX ROW) -->
+    <div id="workbench-body" class="workbench-body">
+
+      <!-- ZONE 2: ACTIVITY BAR (48px) -->
+      <nav id="activity-bar" class="zone-activitybar">
+        <div class="activitybar-top">
+          <button class="activity-item active" id="act-explorer" data-view="explorer" title="Explorer (Ctrl+Shift+E)">
+            <div class="active-indicator"></div>
+            <span class="codicon codicon-files"></span>
+          </button>
+          <button class="activity-item" id="act-search" data-view="search" title="Search (Ctrl+Shift+F)">
+            <div class="active-indicator"></div>
+            <span class="codicon codicon-search"></span>
+          </button>
+          <button class="activity-item" id="act-scm" data-view="scm" title="Source Control (Ctrl+Shift+G)">
+            <div class="active-indicator"></div>
+            <span class="codicon codicon-source-control"></span>
+          </button>
+          <button class="activity-item" id="act-antislop" data-view="antislop" title="AntiSlop Cognitive Hub (Ctrl+Alt+B)">
+            <div class="active-indicator"></div>
+            <span class="codicon codicon-zap"></span>
+          </button>
+        </div>
+        <div class="activitybar-bottom">
+          <button class="activity-item" id="act-accounts" title="Accounts">
+            <span class="codicon codicon-account"></span>
+          </button>
+          <button class="activity-item" id="act-settings" title="Settings (Ctrl+,)">
+            <span class="codicon codicon-settings-gear"></span>
+          </button>
+        </div>
+      </nav>
+
+      <!-- ZONE 3: PRIMARY SIDEBAR (260px, Collapsible) -->
+      <aside id="primary-sidebar" class="zone-primary-sidebar">
+        <!-- EXPLORER VIEW PANE -->
+        <div id="view-explorer" class="sidebar-view-pane active">
+          <div class="sidebar-header">
+            <span class="sidebar-title">EXPLORER</span>
+            <div class="sidebar-actions">
+              <button class="icon-action-btn" id="btn-tree-new-file" title="New File">
+                <span class="codicon codicon-new-file"></span>
+              </button>
+              <button class="icon-action-btn" id="btn-tree-new-folder" title="New Folder">
+                <span class="codicon codicon-new-folder"></span>
+              </button>
+              <button class="icon-action-btn" id="btn-tree-refresh" title="Refresh Explorer">
+                <span class="codicon codicon-refresh"></span>
+              </button>
+              <button class="icon-action-btn" id="btn-tree-collapse" title="Collapse Folders in Explorer">
+                <span class="codicon codicon-collapse-all"></span>
+              </button>
+            </div>
+          </div>
+
+          <div class="sidebar-content">
+            <!-- Collapsible Section: OPEN EDITORS -->
+            <div class="sidebar-section" id="section-open-editors">
+              <div class="section-header" id="header-open-editors">
+                <span class="codicon codicon-chevron-down section-chevron" id="chevron-open-editors"></span>
+                <span class="section-title">OPEN EDITORS</span>
+                <span class="section-badge" id="open-editors-count">0</span>
+              </div>
+              <div class="section-body" id="open-editors-list">
+                <!-- Dynamically populated -->
+              </div>
+            </div>
+
+            <!-- Collapsible Section: WORKSPACE / FOLDER -->
+            <div class="sidebar-section" id="section-workspace">
+              <div class="section-header" id="header-workspace">
+                <span class="codicon codicon-chevron-down section-chevron" id="chevron-workspace"></span>
+                <span class="section-title" id="workspace-folder-name">WORKSPACE</span>
+              </div>
+              <div class="section-body" id="workspace-file-tree">
+                <!-- Dynamically populated or empty preset fallback -->
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- SEARCH VIEW PANE (Milestone v0.1.1) -->
+        <div id="view-search" class="sidebar-view-pane" style="display: none;">
+          <div class="sidebar-header">
+            <span class="sidebar-title">SEARCH</span>
+            <div class="sidebar-actions">
+              <button class="icon-action-btn" id="btn-search-refresh" title="Refresh Search">
+                <span class="codicon codicon-refresh"></span>
+              </button>
+              <button class="icon-action-btn" id="btn-search-clear" title="Clear Search">
+                <span class="codicon codicon-clear-all"></span>
+              </button>
+              <button class="icon-action-btn" id="btn-search-collapse" title="Collapse All">
+                <span class="codicon codicon-collapse-all"></span>
+              </button>
+            </div>
+          </div>
+          <div class="sidebar-content search-sidebar-content">
+            <div class="search-form">
+              <div class="search-input-row">
+                <div class="search-input-wrapper">
+                  <input type="text" id="search-query-input" class="search-input" placeholder="Search" />
+                  <div class="search-input-actions">
+                    <button class="search-toggle-btn" id="toggle-case-sensitive" title="Match Case (Alt+C)">Aa</button>
+                    <button class="search-toggle-btn" id="toggle-whole-word" title="Match Whole Word (Alt+W)">\b</button>
+                    <button class="search-toggle-btn" id="toggle-regex" title="Use Regular Expression (Alt+R)">.*</button>
+                  </div>
+                </div>
+              </div>
+              <div class="search-options-row">
+                <button class="search-details-toggle" id="btn-search-details-toggle">
+                  <span class="codicon codicon-chevron-right" id="search-details-chevron"></span>
+                  <span>files to include/exclude</span>
+                </button>
+              </div>
+              <div class="search-details-panel" id="search-details-panel" style="display: none;">
+                <input type="text" id="search-files-include" class="search-filter-input" placeholder="files to include (e.g. *.ts, src/)" />
+                <input type="text" id="search-files-exclude" class="search-filter-input" placeholder="files to exclude (e.g. *.test.ts)" />
+              </div>
+            </div>
+            <div class="search-status-bar" id="search-status-bar">
+              <span id="search-status-text">Type to search in workspace</span>
+            </div>
+            <div class="search-results-tree" id="search-results-tree">
+              <!-- Populated by search results -->
+            </div>
+          </div>
+        </div>
+
+        <!-- SOURCE CONTROL VIEW PANE (Milestone v0.1.1) -->
+        <div id="view-scm" class="sidebar-view-pane" style="display: none;">
+          <div class="sidebar-header">
+            <span class="sidebar-title">SOURCE CONTROL</span>
+            <div class="sidebar-actions">
+              <button class="icon-action-btn" id="btn-scm-refresh" title="Refresh">
+                <span class="codicon codicon-refresh"></span>
+              </button>
+              <button class="icon-action-btn" id="btn-scm-commit-all" title="Commit">
+                <span class="codicon codicon-check"></span>
+              </button>
+            </div>
+          </div>
+          <div class="sidebar-content scm-sidebar-content">
+            <!-- Non-repo empty state -->
+            <div id="scm-non-repo" class="scm-empty-state" style="display: none;">
+              <p class="scm-empty-msg">No source control providers registered.</p>
+              <button id="btn-scm-init" class="btn-vscode-primary">
+                <span class="codicon codicon-repo-create"></span>
+                <span>Initialize Repository</span>
+              </button>
+            </div>
+
+            <!-- Active repo content -->
+            <div id="scm-repo-content" class="scm-repo-content">
+              <div class="scm-branch-bar" id="scm-branch-bar">
+                <span class="codicon codicon-git-branch"></span>
+                <span class="scm-branch-name" id="scm-branch-name">main</span>
+              </div>
+              <div class="scm-commit-box">
+                <textarea id="scm-commit-msg" class="scm-commit-textarea" placeholder="Message (Ctrl+Enter to commit)"></textarea>
+                <button id="btn-scm-commit" class="btn-vscode-primary btn-commit-action">
+                  <span class="codicon codicon-check"></span>
+                  <span>Commit</span>
+                </button>
+              </div>
+
+              <!-- Collapsible Section: STAGED CHANGES -->
+              <div class="sidebar-section scm-section" id="section-scm-staged" style="display: none;">
+                <div class="section-header" id="header-scm-staged">
+                  <span class="codicon codicon-chevron-down section-chevron" id="chevron-scm-staged"></span>
+                  <span class="section-title">STAGED CHANGES</span>
+                  <span class="section-badge" id="scm-staged-count">0</span>
+                  <div class="section-actions">
+                    <button class="icon-action-btn" id="btn-scm-unstage-all" title="Unstage All Changes">
+                      <span class="codicon codicon-remove"></span>
+                    </button>
+                  </div>
+                </div>
+                <div class="section-body scm-file-list" id="scm-staged-list"></div>
+              </div>
+
+              <!-- Collapsible Section: CHANGES -->
+              <div class="sidebar-section scm-section" id="section-scm-changes">
+                <div class="section-header" id="header-scm-changes">
+                  <span class="codicon codicon-chevron-down section-chevron" id="chevron-scm-changes"></span>
+                  <span class="section-title">CHANGES</span>
+                  <span class="section-badge" id="scm-changes-count">0</span>
+                  <div class="section-actions">
+                    <button class="icon-action-btn" id="btn-scm-stage-all" title="Stage All Changes">
+                      <span class="codicon codicon-add"></span>
+                    </button>
+                    <button class="icon-action-btn" id="btn-scm-discard-all" title="Discard All Changes">
+                      <span class="codicon codicon-discard"></span>
+                    </button>
+                  </div>
+                </div>
+                <div class="section-body scm-file-list" id="scm-changes-list"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </aside>
+
+      <!-- SASH: Primary Sidebar Resizer -->
+      <div id="primary-sash" class="workbench-sash vertical-sash"></div>
+
+      <!-- CENTER AREA (FLEX COLUMN: Editor Groups + Bottom Panel) -->
+      <div id="center-area" class="zone-center-area">
+
+        <!-- Editor Area Container (Multi-Group R3) -->
+        <div id="editor-area" class="editor-area layout-single">
+
+          <!-- Group 1 (Layar A Primary - retains legacy IDs for test compatibility) -->
+          <main id="editor-group" class="zone-editor-group editor-group active-group" data-group-id="group-1">
+            <!-- Multi-Tab Header (35px) -->
+            <div id="tab-bar-container" class="tab-bar-container">
+              <div id="tab-scroll-container" class="tab-scroll-container">
+                <!-- Dynamic Document Tabs -->
+              </div>
+              <div class="tab-bar-actions">
+                <button class="tab-action-btn btn-split-right" id="btn-editor-split" title="Split Editor Right (Ctrl+\)">
+                  <span class="codicon codicon-split-horizontal"></span>
+                </button>
+                <button class="tab-action-btn btn-split-down" id="btn-editor-split-down" title="Split Editor Down">
+                  <span class="codicon codicon-split-vertical"></span>
+                </button>
+                <button class="tab-action-btn btn-close-group" id="btn-editor-close-group-1" title="Close Group" style="display:none;">
+                  <span class="codicon codicon-close"></span>
+                </button>
+                <button class="tab-action-btn" id="btn-editor-more" title="More Actions...">
+                  <span class="codicon codicon-more"></span>
+                </button>
+              </div>
+            </div>
+
+            <!-- Breadcrumbs Bar (22px) -->
+            <div id="breadcrumbs-bar" class="breadcrumbs-bar">
+              <div class="breadcrumbs-list" id="breadcrumbs-list">
+                <span class="crumb-item crumb-folder">src</span>
+                <span class="crumb-separator">&gt;</span>
+                <span class="crumb-item crumb-file" id="crumb-file-name">quicksort.py</span>
+                <span class="crumb-separator">&gt;</span>
+                <span class="crumb-item crumb-symbol" id="crumb-symbol-name">quicksort</span>
+              </div>
+            </div>
+
+            <!-- Monaco Editor Mount Container -->
+            <div id="editor-mount" class="monaco-mount-container"></div>
+            <!-- Monaco Diff Editor Mount Container (Milestone v0.1.1) -->
+            <div id="diff-editor-mount" class="monaco-mount-container" style="display:none;"></div>
+          </main>
+
+          <!-- Group Split Sash (Hidden in single layout mode) -->
+          <div id="editor-split-sash" class="workbench-sash vertical-sash" style="display:none;"></div>
+
+          <!-- Group 2 (Layar A Secondary - dynamically displayed on split) -->
+          <div id="editor-group-2" class="zone-editor-group editor-group" data-group-id="group-2" style="display:none;">
+            <div id="tab-bar-container-2" class="tab-bar-container">
+              <div id="tab-scroll-container-2" class="tab-scroll-container">
+                <!-- Dynamic Document Tabs for Group 2 -->
+              </div>
+              <div class="tab-bar-actions">
+                <button class="tab-action-btn btn-split-right" id="btn-editor-split-2" title="Split Editor Right">
+                  <span class="codicon codicon-split-horizontal"></span>
+                </button>
+                <button class="tab-action-btn btn-split-down" id="btn-editor-split-down-2" title="Split Editor Down">
+                  <span class="codicon codicon-split-vertical"></span>
+                </button>
+                <button class="tab-action-btn btn-close-group" id="btn-editor-close-group-2" title="Close Group">
+                  <span class="codicon codicon-close"></span>
+                </button>
+              </div>
+            </div>
+            <div id="breadcrumbs-bar-2" class="breadcrumbs-bar">
+              <div class="breadcrumbs-list" id="breadcrumbs-list-2"></div>
+            </div>
+            <div id="editor-mount-2" class="monaco-mount-container"></div>
+          </div>
+
+        </div> <!-- /#editor-area -->
+
+        <!-- SASH: Bottom Panel Resizer -->
+        <div id="bottom-panel-sash" class="workbench-sash horizontal-sash disabled"></div>
+
+        <!-- ZONE: INTEGRATED BOTTOM PANEL (R4) -->
+        <div id="bottom-panel" class="bottom-panel collapsed">
+          <div class="bottom-panel-header" id="bottom-panel-header">
+            <div class="panel-tabs">
+              <button class="panel-tab-btn" id="tab-btn-problems" data-tab="problems">
+                <span>PROBLEMS</span>
+                <span class="panel-badge" id="panel-problems-badge">0</span>
+              </button>
+              <button class="panel-tab-btn" id="tab-btn-output" data-tab="output">
+                <span>OUTPUT</span>
+              </button>
+              <button class="panel-tab-btn active" id="tab-btn-terminal" data-tab="terminal">
+                <span>TERMINAL</span>
+              </button>
+            </div>
+
+            <div class="panel-actions">
+              <!-- Output specific actions -->
+              <div id="output-actions" class="panel-sub-actions" style="display:none;">
+                <select id="output-channel-select" class="panel-channel-select">
+                  <option value="sidecar">Antislop Sidecar (ws://127.0.0.1:4949)</option>
+                  <option value="antigravity">Antigravity CLI (agy)</option>
+                </select>
+                <button class="panel-icon-btn" id="btn-output-clear" title="Clear Output">
+                  <span class="codicon codicon-clear-all"></span>
+                </button>
+              </div>
+
+              <!-- Terminal specific actions -->
+              <div id="terminal-actions" class="panel-sub-actions">
+                <select id="terminal-shell-select" class="panel-channel-select">
+                  <option value="pwsh">1: pwsh</option>
+                </select>
+                <button class="panel-icon-btn" id="btn-terminal-new" title="New Terminal (Ctrl+Shift+`)">
+                  <span class="codicon codicon-plus"></span>
+                </button>
+                <button class="panel-icon-btn" id="btn-terminal-clear" title="Clear Terminal">
+                  <span class="codicon codicon-clear-all"></span>
+                </button>
+                <button class="panel-icon-btn" id="btn-terminal-kill" title="Kill Terminal">
+                  <span class="codicon codicon-trash"></span>
+                </button>
+              </div>
+
+              <!-- General panel control actions -->
+              <button class="panel-icon-btn" id="btn-panel-maximize" title="Toggle Panel Size">
+                <span class="codicon codicon-chevron-up" id="icon-panel-maximize"></span>
+              </button>
+              <button class="panel-icon-btn" id="btn-panel-close" title="Close Panel (Ctrl+`)">
+                <span class="codicon codicon-close"></span>
+              </button>
+            </div>
+          </div>
+
+          <!-- Bottom Panel Body -->
+          <div class="bottom-panel-body" id="bottom-panel-body">
+            <!-- View 1: Problems -->
+            <div class="panel-view" id="panel-view-problems" style="display:none;">
+              <div class="problems-tree" id="problems-tree">
+                <div class="problems-empty">No problems have been detected in the workspace.</div>
+              </div>
+            </div>
+
+            <!-- View 2: Output -->
+            <div class="panel-view" id="panel-view-output" style="display:none;">
+              <div class="output-content" id="output-content"></div>
+            </div>
+
+            <!-- View 3: Terminal (Active by default) -->
+            <div class="panel-view active" id="panel-view-terminal">
+              <div class="terminal-container" id="terminal-container">
+                <div class="terminal-screen" id="terminal-screen"></div>
+                <div class="terminal-prompt-line" id="terminal-prompt-line">
+                  <span class="terminal-prompt" id="terminal-prompt-prefix">PS&gt; </span>
+                  <input type="text" id="terminal-input" class="terminal-input" autocomplete="off" spellcheck="false" />
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+      </div> <!-- /#center-area -->
+
+      <!-- SASH: Secondary Sidebar Resizer (Anti-Trap) -->
+      <div id="secondary-sash" class="workbench-sash vertical-sash"></div>
+
+      <!-- ZONE 5: SECONDARY SIDEBAR (380px, Screen B) -->
+      <aside id="secondary-sidebar" class="zone-secondary-sidebar">
+        <!-- Secondary Sidebar Header Toolbar (35px) -->
+        <div class="secondary-sidebar-header" id="screen-b-header">
+          <div class="secondary-title-group">
+            <span class="secondary-title">SCREEN B</span>
+            <div class="screen-b-breadcrumb" id="screen-b-breadcrumb">
+              <span class="breadcrumb-ws" id="screen-b-ws-name">WORKSPACE</span>
+              <span class="breadcrumb-sep">&gt;</span>
+              <span class="breadcrumb-file" id="screen-b-active-file">quicksort.py</span>
+            </div>
+          </div>
+          <div class="secondary-actions">
+            <button class="icon-action-btn" id="btn-chat-new" title="New Chat">
+              <span class="codicon codicon-add"></span>
+            </button>
+            <button class="icon-action-btn" id="btn-secondary-refresh" title="Re-analyze Code">
+              <span class="codicon codicon-refresh"></span>
+            </button>
+            <button class="icon-action-btn" id="btn-secondary-collapse" title="Collapse Secondary Sidebar (Ctrl+Alt+B)">
+              <span class="codicon codicon-layout-sidebar-right-off"></span>
+            </button>
+          </div>
+        </div>
+
+        <!-- Screen B Guided Cognition Middle Zone -->
+        <div class="secondary-webview-container" id="secondary-middle-container">
+          <!-- Interaction Container -->
+          <div class="screen-b-interaction-container" id="screen-b-interaction-container">
+            <!-- Target Line Stack Container -->
+            <div class="target-line-stack-container" id="target-line-stack-container">
+              <div class="target-stack-header">
+                <div class="target-stack-header-left">
+                  <span class="codicon codicon-layers"></span>
+                  <span class="target-stack-title">TARGET LINE STACK</span>
+                </div>
+                <span class="target-stack-count" id="target-stack-count">0</span>
+              </div>
+              <div class="target-stack-list" id="target-stack-list"></div>
+            </div>
+
+            <!-- Technical Summary Cards Container -->
+            <div class="technical-summary-cards-container" id="technical-summary-cards-container"></div>
+          </div>
+
+          <!-- Screen B React / Vite Webview Frame (kept intact) -->
+          <iframe
+            id="webview-frame"
+            class="secondary-webview-frame"
+            src="about:blank"
+            sandbox="allow-scripts allow-same-origin allow-forms allow-popups"
+          ></iframe>
+        </div>
+
+        <!-- Antigravity Prompt Box (Pinned at bottom of secondary sidebar - R5/R6) -->
+        <div id="antigravity-prompt-container" class="antigravity-prompt-container">
+          <div class="prompt-box-card">
+            <textarea
+              id="prompt-input-box"
+              class="prompt-input-box"
+              placeholder="Apa yang akan kita kerjakan hari ini?"
+              rows="2"
+            ></textarea>
+            
+            <!-- Action Controls Row -->
+            <div class="prompt-actions-row">
+              <button class="btn-add-context" id="btn-add-context" title="Add File or Symbol Context">
+                <span class="codicon codicon-add"></span>
+                <span>Add Context</span>
+              </button>
+
+              <div class="prompt-actions-right">
+                <!-- Model Selector Dropdown -->
+                <div class="model-select-dropdown" id="model-select-dropdown" title="Select AI Model">
+                  <span class="model-label">Auto</span>
+                  <span class="codicon codicon-chevron-down"></span>
+                </div>
+                <!-- Settings Slider -->
+                <button class="btn-prompt-settings" id="btn-prompt-settings" title="Agent Tuning Settings">
+                  <span class="codicon codicon-sliders"></span>
+                </button>
+                <!-- Circular Submit Arrow -->
+                <button id="btn-prompt-run" class="btn-prompt-submit" title="Submit Instruction (Ctrl+Enter)">
+                  <span class="codicon codicon-arrow-up"></span>
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Bottom Mode Pills Row -->
+          <div class="prompt-footer-row">
+            <div class="mode-pill" id="pill-mode-local" title="Execution Environment">
+              <span>Local</span>
+              <span class="codicon codicon-chevron-down"></span>
+            </div>
+            <div class="mode-pill" id="pill-mode-approvals" title="Approval Gate">
+              <span>Default Approvals</span>
+              <span class="codicon codicon-chevron-down"></span>
+            </div>
+          </div>
+        </div>
+      </aside>
+    </div>
+
+    <!-- ZONE 6: STATUS BAR (22px, #007acc) -->
+    <footer id="statusbar" class="zone-statusbar">
+      <div class="status-left">
+        <!-- Remote Sandbox Indicator (>< #007acc) -->
+        <div class="status-item status-remote" id="status-remote" title="Remote Sandbox (NSCode)">
+          <span class="status-remote-glyph">&gt;&lt;</span>
+        </div>
+        <!-- Git Branch -->
+        <div class="status-item" id="status-git-branch" title="Git Branch: main*">
+          <span class="codicon codicon-git-branch"></span>
+          <span class="status-text">main*</span>
+        </div>
+        <!-- Sync -->
+        <div class="status-item" id="status-git-sync" title="Synchronize Changes">
+          <span class="codicon codicon-sync"></span>
+          <span class="status-text">0 &#x2193; 0 &#x2191;</span>
+        </div>
+        <!-- Errors & Warnings (Problems) -->
+        <div class="status-item status-diagnostics" id="status-diagnostics" title="Problems">
+          <span class="codicon codicon-error"></span>
+          <span class="status-text" id="status-error-count">0</span>
+          <span class="codicon codicon-warning"></span>
+          <span class="status-text" id="status-warning-count">0</span>
+        </div>
+        <!-- Sidecar Daemon (Discrete) -->
+        <div class="status-item" id="status-daemon" title="Sidecar JSON-RPC Daemon (ws://127.0.0.1:4949)">
+          <span class="status-text" id="daemon-status-text">Sidecar 4949</span>
+        </div>
+        <!-- Antigravity CLI (Preserved for tests) -->
+        <div class="status-item status-clickable" id="status-agy" title="Antigravity CLI: Ready">
+          <span class="codicon codicon-terminal"></span>
+          <span class="status-text" id="status-agy-text">agy: Ready</span>
+        </div>
+      </div>
+
+      <div class="status-right">
+        <!-- Preserved for test compatibility in desktop-workbench.test.ts -->
+        <div class="status-item status-metadata" id="status-big-o" style="display: none;" title="Algorithmic Complexity">
+          <span class="status-text" id="status-big-o-val">Big-O: O(n log n)</span>
+        </div>
+        <div class="status-item status-metadata" id="status-gate" style="display: none;" title="Anti-Slop Gate Status">
+          <span class="codicon codicon-lock" id="gate-lock-icon"></span>
+          <span class="status-text" id="gate-status-text">Gate: LOCKED</span>
+        </div>
+
+        <!-- Cursor Position -->
+        <div class="status-item" id="status-cursor" title="Cursor Position">
+          <span class="status-text" id="status-cursor-pos">Ln 14, Col 22</span>
+        </div>
+        <!-- Indentation -->
+        <div class="status-item" id="status-indent" title="Indentation">
+          <span class="status-text">Spaces: 4</span>
+        </div>
+        <!-- File Encoding -->
+        <div class="status-item" id="status-encoding" title="File Encoding">
+          <span class="status-text">UTF-8</span>
+        </div>
+        <!-- Line Ending -->
+        <div class="status-item" id="status-eol" title="Line Ending">
+          <span class="status-text">LF</span>
+        </div>
+        <!-- Language Mode -->
+        <div class="status-item status-clickable" id="status-language" title="Select Language Mode">
+          <span class="status-text" id="status-language-text">Python</span>
+        </div>
+        <!-- Prettier Integration -->
+        <div class="status-item status-clickable" id="status-prettier" title="Code Formatter: Prettier">
+          <span class="codicon codicon-check"></span>
+          <span class="status-text">Prettier</span>
+        </div>
+        <!-- Notifications Bell -->
+        <div class="status-item status-clickable" id="status-bell" title="Notifications">
+          <span class="codicon codicon-bell"></span>
+        </div>
+      </div>
+    </footer>
+
+    <!-- COMMAND PALETTE MODAL (R2) -->
+    <div id="command-palette-backdrop" class="palette-backdrop" style="display: none;">
+      <div id="command-palette-modal" class="palette-modal">
+        <div class="palette-input-wrapper">
+          <span class="codicon codicon-chevron-right palette-prompt-icon"></span>
+          <input
+            type="text"
+            id="command-palette-input"
+            class="palette-input"
+            placeholder="Type a command or search files..."
+            autocomplete="off"
+            spellcheck="false"
+          />
+        </div>
+        <div id="command-palette-results" class="palette-results">
+          <!-- Dynamic results populated by fuzzy search -->
+        </div>
+      </div>
+    <!-- SETTINGS MODAL (Milestone v0.1.1) -->
+    <div id="settings-modal" class="palette-backdrop" style="display: none;">
+      <div class="palette-modal settings-dialog">
+        <div class="modal-header-custom">
+          <div class="modal-title-custom">
+            <span class="codicon codicon-settings-gear"></span>
+            <span>Settings</span>
+          </div>
+          <button class="icon-action-btn" id="btn-close-settings" title="Close">
+            <span class="codicon codicon-close"></span>
+          </button>
+        </div>
+        <div class="settings-content-custom">
+          <div class="setting-row">
+            <div class="setting-info">
+              <span class="setting-title">Editor: Font Size</span>
+              <span class="setting-desc">Controls the font size in pixels for the editor.</span>
+            </div>
+            <input type="number" id="setting-font-size" class="setting-input" value="13" min="10" max="32" />
+          </div>
+          <div class="setting-row">
+            <div class="setting-info">
+              <span class="setting-title">Editor: Tab Size</span>
+              <span class="setting-desc">The number of spaces a tab is equal to.</span>
+            </div>
+            <select id="setting-tab-size" class="setting-select">
+              <option value="2">2 spaces</option>
+              <option value="4" selected>4 spaces</option>
+            </select>
+          </div>
+          <div class="setting-row">
+            <div class="setting-info">
+              <span class="setting-title">Editor: Word Wrap</span>
+              <span class="setting-desc">Controls how lines should wrap in the editor.</span>
+            </div>
+            <select id="setting-word-wrap" class="setting-select">
+              <option value="off" selected>Off</option>
+              <option value="on">On</option>
+            </select>
+          </div>
+          <div class="setting-row">
+            <div class="setting-info">
+              <span class="setting-title">Files: Auto Save</span>
+              <span class="setting-desc">Controls auto saving of dirty files.</span>
+            </div>
+            <select id="setting-auto-save" class="setting-select">
+              <option value="off" selected>Off</option>
+              <option value="afterDelay">After Delay (1s)</option>
+            </select>
+          </div>
+          <div class="setting-row">
+            <div class="setting-info">
+              <span class="setting-title">Antigravity Sidecar Port</span>
+              <span class="setting-desc">Local WebSocket daemon port for AI pair-programming.</span>
+            </div>
+            <input type="text" id="setting-sidecar-port" class="setting-input" value="4949" readonly style="opacity: 0.7;" />
+          </div>
+          <div class="setting-row">
+            <div class="setting-info">
+              <span class="setting-title">Application Version</span>
+              <span class="setting-desc">Current release build version.</span>
+            </div>
+            <span class="setting-badge-version">v0.1.1 (Source Control &amp; Tooling Patch)</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <script src="workbench.js"></script>
+</body>
+</html>

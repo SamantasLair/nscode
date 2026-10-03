@@ -1,0 +1,33 @@
+{
+  "name": "@antislop/theia-shell-extension",
+  "version": "0.1.1",
+  "description": "Native Eclipse Theia Shell Extension for AIAssistedAntiSlopIDE persistent 50:50 Lumino docking and unclosable Screen B widget",
+  "private": false,
+  "main": "./dist/browser/index.js",
+  "types": "./dist/browser/index.d.ts",
+  "theiaExtensions": [
+    {
+      "frontend": "./dist/browser/antislop-frontend-module"
+    }
+  ],
+  "exports": {
+    ".": {
+      "types": "./dist/browser/index.d.ts",
+      "default": "./dist/browser/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc",
+    "typecheck": "tsc --noEmit",
+    "clean": "rimraf dist tsconfig.tsbuildinfo"
+  },
+  "dependencies": {
+    "@antislop/protocol": "0.1.1"
+  },
+  "devDependencies": {
+    "@types/node": "^22.13.1",
+    "rimraf": "^6.0.1",
+    "typescript": "^5.7.3",
+    "vitest": "^3.0.7"
+  }
+}

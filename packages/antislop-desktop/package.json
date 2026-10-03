@@ -1,0 +1,77 @@
+{
+  "name": "@antislop/desktop",
+  "version": "0.1.1",
+  "description": "Make Coders Great Again. No Slop. - Standalone Electron desktop application for NSCode",
+  "author": "AntiSlop Team",
+  "main": "dist/main.js",
+  "private": true,
+  "scripts": {
+    "build": "tsc -b && node scripts/copy-assets.js",
+    "clean": "rimraf dist release",
+    "clean:legacy": "node scripts/clean-legacy-releases.js",
+    "predist": "node scripts/clean-legacy-releases.js",
+    "start": "electron dist/main.js",
+    "dist": "yarn predist && yarn build && electron-builder --win --x64"
+  },
+  "dependencies": {
+    "@antislop/protocol": "0.1.1",
+    "@antislop/sidecar": "0.1.1",
+    "ws": "^8.18.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.13.1",
+    "@types/ws": "^8.5.14",
+    "@vscode/codicons": "^0.0.46-24",
+    "electron": "34.5.8",
+    "electron-builder": "^25.1.8",
+    "monaco-editor": "^0.57.0",
+    "rimraf": "^6.0.1",
+    "typescript": "^5.7.3"
+  },
+  "build": {
+    "electronVersion": "34.5.8",
+    "appId": "com.noslop.code",
+    "productName": "NSCode",
+    "directories": {
+      "output": "release"
+    },
+    "files": [
+      "dist/**/*",
+      "src/workbench/**/*",
+      "node_modules/**/*",
+      "!node_modules/**/test/**",
+      "!node_modules/**/tests/**"
+    ],
+    "extraResources": [
+      {
+        "from": "../antislop-webview/dist",
+        "to": "webview-dist",
+        "filter": [
+          "**/*"
+        ]
+      }
+    ],
+    "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        },
+        {
+          "target": "portable",
+          "arch": [
+            "x64"
+          ]
+        }
+      ]
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true
+    }
+  }
+}

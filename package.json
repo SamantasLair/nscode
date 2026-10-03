@@ -1,0 +1,43 @@
+{
+  "name": "noslop-code",
+  "version": "0.1.1",
+  "private": true,
+  "description": "Make Coders Great Again. No Slop. - Active-cognition desktop IDE combating AI-induced developer skill atrophy",
+  "packageManager": "yarn@1.22.22",
+  "workspaces": [
+    "packages/*"
+  ],
+  "scripts": {
+    "build": "tsc -b",
+    "build:protocol": "corepack yarn --cwd packages/antislop-protocol build",
+    "build:sidecar": "corepack yarn --cwd packages/antislop-sidecar build",
+    "build:vscode": "corepack yarn --cwd packages/antislop-vscode-extension build",
+    "build:theia": "corepack yarn --cwd packages/theia-shell-extension build",
+    "build:webview": "corepack yarn --cwd packages/antislop-webview build",
+    "build:desktop": "corepack yarn --cwd packages/antislop-desktop build",
+    "dist:desktop": "corepack yarn --cwd packages/antislop-desktop dist",
+    "clean": "rimraf --glob packages/*/dist packages/*/tsconfig.tsbuildinfo dist release",
+    "clean:legacy": "corepack yarn --cwd packages/antislop-desktop clean:legacy",
+    "typecheck": "tsc -b",
+    "lint": "tsc -b",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:tier1": "vitest run packages/antislop-protocol tests/tier1-protocol",
+    "test:sidecar": "vitest run packages/antislop-sidecar",
+    "test:m3": "vitest run packages/antislop-vscode-extension packages/theia-shell-extension",
+    "test:m4": "vitest run packages/antislop-webview",
+    "test:coverage": "vitest run --coverage"
+  },
+  "devDependencies": {
+    "@types/node": "^22.13.1",
+    "rimraf": "^6.0.1",
+    "tsx": "^4.19.2",
+    "typescript": "^5.7.3",
+    "vitest": "^3.0.7",
+    "zod": "^3.24.2"
+  },
+  "engines": {
+    "node": ">=20.0.0",
+    "yarn": "1.22.22"
+  }
+}

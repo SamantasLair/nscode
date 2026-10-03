@@ -1,0 +1,30 @@
+{
+  "name": "@antislop/webview",
+  "version": "0.1.1",
+  "private": true,
+  "description": "Screen B active-cognition React/Vite webview UI for AIAssistedAntiSlopIDE",
+  "type": "module",
+  "main": "./dist/assets/webview-bundle.js",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc -b && vite build",
+    "preview": "vite preview",
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit",
+    "clean": "rimraf dist tsconfig.tsbuildinfo"
+  },
+  "dependencies": {
+    "@antislop/protocol": "0.1.1",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1"
+  },
+  "devDependencies": {
+    "@types/react": "^18.3.18",
+    "@types/react-dom": "^18.3.5",
+    "@vitejs/plugin-react": "^4.3.4",
+    "rimraf": "^6.0.1",
+    "typescript": "^5.7.3",
+    "vite": "^6.2.0",
+    "vitest": "^3.0.7"
+  }
+}

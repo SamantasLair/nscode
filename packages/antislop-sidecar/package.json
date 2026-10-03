@@ -1,0 +1,35 @@
+{
+  "name": "@antislop/sidecar",
+  "version": "0.1.1",
+  "description": "Stateless WebSocket JSON-RPC 2.0 daemon and pedagogical engine for AIAssistedAntiSlopIDE",
+  "private": false,
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "bin": {
+    "antislop-sidecar": "./dist/bin.js"
+  },
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc",
+    "typecheck": "tsc --noEmit",
+    "clean": "rimraf dist tsconfig.tsbuildinfo",
+    "start": "node ./dist/bin.js"
+  },
+  "dependencies": {
+    "@antislop/protocol": "0.1.1",
+    "ws": "^8.18.0",
+    "zod": "^3.24.2"
+  },
+  "devDependencies": {
+    "@types/node": "^22.13.1",
+    "@types/ws": "^8.5.14",
+    "rimraf": "^6.0.1",
+    "typescript": "^5.7.3",
+    "vitest": "^3.0.7"
+  }
+}

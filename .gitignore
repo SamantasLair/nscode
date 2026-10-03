@@ -1,0 +1,88 @@
+# ==============================================================================
+# NSCode Monorepo .gitignore
+# Make Coders Great Again. No Slop.
+# ==============================================================================
+
+# Dependencies
+node_modules/
+packages/*/node_modules/
+.pnp/
+.pnp.js
+.yarn/cache/
+.yarn/unplugged/
+.yarn/build-state.yml
+.yarn/install-state.gz
+
+# Build outputs & Bundles
+dist/
+build/
+out/
+packages/*/dist/
+*.tsbuildinfo
+
+# Electron & Desktop Releases (CRITICAL: Prevents committing 100MB+ binaries)
+release/
+packages/*/release/
+dist-electron/
+win-unpacked/
+*.exe
+*.blockmap
+*.dmg
+*.AppImage
+*.deb
+*.rpm
+*.zip
+*.tar.gz
+builder-debug.yml
+builder-effective-config.yaml
+__uninstaller*
+
+# Auto-copied Vendor Assets (rebuilt via `yarn build` from node_modules)
+packages/antislop-desktop/src/workbench/vs/
+packages/antislop-desktop/src/workbench/codicons/
+
+# Test & Coverage
+coverage/
+.nyc_output/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Agent Swarm, Scratch & Internal Memories
+.agents/
+scratch/
+_memory/
+
+# IDE & Editor Configurations
+.vscode/*
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+.idea/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+*.sublime-project
+*.sublime-workspace
+
+# OS Artifacts
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+Thumbs.db
+ehthumbs.db
+desktop.ini
+
+# Environment & Secret files
+.env
+.env.local
+.env.*.local
+*.pem
+*.key
+tmp/
+temp/
