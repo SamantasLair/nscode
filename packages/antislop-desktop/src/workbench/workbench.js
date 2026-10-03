@@ -160,6 +160,8 @@ let expandedDirs = new Set();
 let selectedTreePath = null;
 let navHistory = [];
 let navIndex = -1;
+let workspaceFileIndex = [];
+let currentScreenBMode = 'chat';
 
 // Controllers & Managers
 let docManager = null;
@@ -167,6 +169,196 @@ let multiGroupManager = null;
 let bottomResizer = null;
 let terminalController = null;
 let outputLogger = null;
+
+// =============================================================================
+// FOUNDATIONAL INTERNAL EDITOR EVENT BRIDGE (Milestone v0.2.1 - R4)
+// =============================================================================
+class EditorEventBridge {
+  constructor() {
+    this.listeners = new Map();
+  }
+
+  on(event, handler) {
+    if (!this.listeners.has(event)) {
+      this.listeners.set(event, new Set());
+    }
+    this.listeners.get(event).add(handler);
+    return () => this.off(event, handler);
+  }
+
+  addListener(event, handler) {
+    return this.on(event, handler);
+  }
+
+  off(event, handler) {
+    if (this.listeners.has(event)) {
+      this.listeners.get(event).delete(handler);
+    }
+  }
+
+  removeListener(event, handler) {
+    this.off(event, handler);
+  }
+
+  emit(event, data) {
+    if (this.listeners.has(event)) {
+      for (const handler of this.listeners.get(event)) {
+        try {
+          handler(data);
+        } catch (err) {
+          console.error(`[EditorEventBridge] Error executing listener for "${event}":`, err);
+        }
+      }
+    }
+
+    try {
+      if (typeof window !== 'undefined' && typeof window.dispatchEvent === 'function') {
+        window.dispatchEvent(new CustomEvent(event, { detail: data }));
+      }
+    } catch (_) {}
+
+    const webview = document.getElementById('webview-frame');
+    if (webview && webview.contentWindow) {
+      try {
+        webview.contentWindow.postMessage({
+          type: 'EDITOR_EVENT',
+          event,
+          payload: data,
+        }, '*');
+      } catch (_) {}
+    }
+  }
+}
+
+const editorEventBridge = new EditorEventBridge();
+if (typeof window !== 'undefined') {
+  window.editorEventBridge = editorEventBridge;
+}
+
+editorEventBridge.on('editor:fileSwitched', (data) => {
+  if (data && data.filePath && typeof updateScreenBBreadcrumb === 'function') {
+    updateScreenBBreadcrumb(data.filePath);
+  }
+});
+
+// =============================================================================
+// ASYNCHRONOUS DIRTY SAVE CONFIRMATION DIALOG (Milestone v0.2.1 - R2)
+// =============================================================================
+function showDirtySaveDialog(fileName) {
+  return new Promise((resolve) => {
+    const backdrop = document.getElementById('dirty-dialog-backdrop');
+    const title = document.getElementById('dirty-dialog-title');
+    const btnSave = document.getElementById('btn-dirty-save');
+    const btnDontSave = document.getElementById('btn-dirty-dontsave');
+    const btnCancel = document.getElementById('btn-dirty-cancel');
+
+    if (!backdrop || !btnSave) {
+      resolve('dontsave');
+      return;
+    }
+
+    if (title) {
+      title.textContent = `Do you want to save the changes you made to ${fileName}?`;
+    }
+
+    backdrop.style.display = 'flex';
+    if (typeof btnSave.focus === 'function') {
+      btnSave.focus();
+    }
+
+    const cleanup = (choice) => {
+      backdrop.style.display = 'none';
+      window.removeEventListener('keydown', handleKey, true);
+      btnSave.onclick = null;
+      btnDontSave.onclick = null;
+      btnCancel.onclick = null;
+      resolve(choice);
+    };
+
+    const handleKey = (e) => {
+      if (e.key === 'Escape') {
+        e.preventDefault();
+        e.stopPropagation();
+        cleanup('cancel');
+      }
+    };
+
+    window.addEventListener('keydown', handleKey, true);
+    btnSave.onclick = () => cleanup('save');
+    btnDontSave.onclick = () => cleanup('dontsave');
+    btnCancel.onclick = () => cleanup('cancel');
+  });
+}
+
+// =============================================================================
+// REAL-TIME CURSOR TELEMETRY & EVENT BROADCASTING (Milestone v0.2.1 - R3)
+// =============================================================================
+function updateCursorTelemetry(ed = editor) {
+  if (!ed || !statusCursorPos) return;
+  const pos = (ed.getPosition && ed.getPosition()) || { lineNumber: 1, column: 1 };
+  if (!pos) return;
+
+  const sel = (ed.getSelection && ed.getSelection()) || null;
+  let selectionCount = 0;
+
+  if (sel && typeof sel.isEmpty === 'function' && !sel.isEmpty()) {
+    const model = ed.getModel ? ed.getModel() : null;
+    if (model && typeof model.getValueInRange === 'function') {
+      const selectedText = model.getValueInRange(sel);
+      selectionCount = selectedText ? selectedText.length : 0;
+    }
+  }
+
+  if (selectionCount > 0) {
+    statusCursorPos.textContent = `Ln ${pos.lineNumber}, Col ${pos.column} (${selectionCount} selected)`;
+  } else {
+    statusCursorPos.textContent = `Ln ${pos.lineNumber}, Col ${pos.column}`;
+  }
+
+  const activeDoc = docManager?.documents?.get(docManager.activeDocId);
+  const filePath = activeDoc?.filePath || 'quicksort.py';
+
+  if (typeof editorEventBridge !== 'undefined') {
+    editorEventBridge.emit('editor:cursorChange', {
+      filePath,
+      lineNumber: pos.lineNumber,
+      column: pos.column,
+      selectionCount,
+      selection: sel,
+    });
+  }
+}
+
+// =============================================================================
+// SCREEN B MODE SWITCHER (Milestone v0.2.1 - R4)
+// =============================================================================
+function setScreenBMode(mode) {
+  currentScreenBMode = mode;
+  const tabs = document.querySelectorAll('.screen-b-mode-tab');
+  tabs.forEach((tab) => {
+    const isActive = tab.dataset.mode === mode;
+    tab.classList.toggle('active', isActive);
+    tab.setAttribute('aria-selected', isActive ? 'true' : 'false');
+  });
+
+  const chatContainer = document.getElementById('screen-b-view-chat') || document.getElementById('screen-b-interaction-container');
+  const planContainer = document.getElementById('screen-b-view-plan');
+  const reviewContainer = document.getElementById('screen-b-view-review');
+
+  if (chatContainer) chatContainer.style.display = (mode === 'chat') ? 'flex' : 'none';
+  if (planContainer) planContainer.style.display = (mode === 'plan') ? 'flex' : 'none';
+  if (reviewContainer) reviewContainer.style.display = (mode === 'review') ? 'flex' : 'none';
+
+  if (mode === 'plan' && typeof renderPlanView === 'function') {
+    renderPlanView();
+  } else if (mode === 'review' && typeof renderReviewPane === 'function') {
+    renderReviewPane();
+  }
+
+  if (typeof editorEventBridge !== 'undefined') {
+    editorEventBridge.emit('screenB:modeChanged', { mode });
+  }
+}
 
 // DOM Elements
 const editorMount = document.getElementById('editor-mount');
@@ -394,6 +586,14 @@ class DocumentManager {
             multiGroupManager.renderTabsForGroup('group-2');
           }
           this.renderOpenEditorsList();
+          if (typeof editorEventBridge !== 'undefined') {
+            editorEventBridge.emit('editor:dirtyChange', {
+              filePath: openDoc.filePath,
+              fileName: openDoc.fileName,
+              isDirty: dirtyNow,
+              docId: openDoc.id,
+            });
+          }
         }
       });
     }
@@ -464,21 +664,51 @@ class DocumentManager {
       updateScreenBBreadcrumb(targetDoc.filePath);
     }
 
+    // Broadcast file switched event (Milestone v0.2.1 - R4)
+    if (typeof editorEventBridge !== 'undefined') {
+      editorEventBridge.emit('editor:fileSwitched', {
+        filePath: targetDoc.filePath,
+        fileName: targetDoc.fileName,
+        language: targetDoc.language,
+        isDirty: targetDoc.isDirty,
+        docId: targetDoc.id,
+      });
+    }
+
     clearHighlights();
   }
 
-  closeTab(docId) {
-    if (multiGroupManager) {
-      multiGroupManager.closeTabInGroup(multiGroupManager.activeGroupId, docId);
-      return;
-    }
-
+  async closeTab(docId) {
     const doc = this.documents.get(docId);
-    if (!doc) return;
+    if (!doc) return false;
 
     if (doc.isDirty) {
-      const confirmClose = window.confirm(`File "${doc.fileName}" has unsaved changes. Close anyway?`);
-      if (!confirmClose) return;
+      const action = await showDirtySaveDialog(doc.fileName);
+      if (action === 'cancel') {
+        return false;
+      }
+      if (action === 'save') {
+        const saved = await this.saveDocument(docId);
+        if (!saved) return false;
+      }
+      // If 'dontsave', proceed to close without writing changes to disk
+    }
+
+    if (multiGroupManager) {
+      multiGroupManager.groups.forEach((group) => {
+        const idx = group.openDocIds.indexOf(docId);
+        if (idx !== -1) {
+          group.openDocIds.splice(idx, 1);
+          group.viewStates.delete(docId);
+          if (group.activeDocId === docId) {
+            group.activeDocId = group.openDocIds[Math.max(0, idx - 1)] || null;
+            if (group.activeDocId && group.editor) {
+              const nextDoc = this.documents.get(group.activeDocId);
+              if (nextDoc?.model) group.editor.setModel(nextDoc.model);
+            }
+          }
+        }
+      });
     }
 
     this.documents.delete(docId);
@@ -495,16 +725,26 @@ class DocumentManager {
         if (editor && editor.setModel) editor.setModel(null);
         if (windowTitle) windowTitle.textContent = 'NSCode';
         if (crumbFileName) crumbFileName.textContent = 'No file open';
+        if (crumbSymbolName) crumbSymbolName.textContent = '';
+        if (statusLanguageText) statusLanguageText.textContent = '';
       }
     }
 
     this.renderTabs();
+    if (multiGroupManager) {
+      multiGroupManager.renderTabsForGroup('group-1');
+      multiGroupManager.renderTabsForGroup('group-2');
+    }
     this.renderOpenEditorsList();
+    return true;
   }
 
-  closeAllTabs() {
+  async closeAllTabs() {
     const ids = Array.from(this.documents.keys());
-    ids.forEach(id => this.closeTab(id));
+    for (const id of ids) {
+      const closed = await this.closeTab(id);
+      if (!closed) break;
+    }
   }
 
   handleFileRenamed(oldPath, newPath) {
@@ -695,10 +935,9 @@ class DocumentManager {
     this.renderOpenEditorsList();
   }
 
-  async saveActiveDocument() {
-    if (!this.activeDocId) return;
-    const doc = this.documents.get(this.activeDocId);
-    if (!doc || !doc.model) return;
+  async saveDocument(docId) {
+    const doc = this.documents.get(docId);
+    if (!doc || !doc.model) return false;
 
     const content = doc.model.getValue();
 
@@ -714,10 +953,20 @@ class DocumentManager {
             multiGroupManager.renderTabsForGroup('group-2');
           }
           this.renderOpenEditorsList();
+          if (typeof editorEventBridge !== 'undefined') {
+            editorEventBridge.emit('editor:dirtyChange', {
+              filePath: doc.filePath,
+              fileName: doc.fileName,
+              isDirty: false,
+              docId: doc.id,
+            });
+          }
           console.log(`[DocumentManager] Saved file ${doc.filePath}`);
+          return true;
         }
       } catch (err) {
         console.error('[DocumentManager] Save failed:', err);
+        return false;
       }
     } else {
       // Memory / preset save
@@ -729,7 +978,22 @@ class DocumentManager {
         multiGroupManager.renderTabsForGroup('group-2');
       }
       this.renderOpenEditorsList();
+      if (typeof editorEventBridge !== 'undefined') {
+        editorEventBridge.emit('editor:dirtyChange', {
+          filePath: doc.filePath,
+          fileName: doc.fileName,
+          isDirty: false,
+          docId: doc.id,
+        });
+      }
+      return true;
     }
+    return false;
+  }
+
+  async saveActiveDocument() {
+    if (!this.activeDocId) return false;
+    return await this.saveDocument(this.activeDocId);
   }
 
   renderTabs() {
@@ -738,7 +1002,7 @@ class DocumentManager {
 
     this.documents.forEach((doc) => {
       const tab = document.createElement('div');
-      tab.className = `workbench-tab ${doc.id === this.activeDocId ? 'active' : ''}`;
+      tab.className = `workbench-tab ${doc.id === this.activeDocId ? 'active' : ''} ${doc.isDirty ? 'is-dirty' : ''}`;
       tab.title = doc.filePath;
       tab.dataset.id = doc.id;
 
@@ -746,7 +1010,7 @@ class DocumentManager {
       tab.innerHTML = `
         <span class="tab-icon ${iconClass}"></span>
         <span class="tab-title">${doc.fileName}</span>
-        ${doc.isDirty ? '<span class="tab-dirty-indicator"></span>' : `<span class="codicon codicon-close tab-close-btn" data-close-id="${doc.id}"></span>`}
+        <span class="tab-close-btn codicon ${doc.isDirty ? 'is-dirty' : 'codicon-close'}" data-close-id="${doc.id}" title="${doc.isDirty ? 'Unsaved changes (close to save)' : 'Close (Ctrl+W)'}"></span>
       `;
 
       tab.addEventListener('click', (e) => {
@@ -769,14 +1033,14 @@ class DocumentManager {
 
     this.documents.forEach((doc) => {
       const item = document.createElement('div');
-      item.className = `open-editor-item ${doc.id === this.activeDocId ? 'active' : ''}`;
+      item.className = `open-editor-item ${doc.id === this.activeDocId ? 'active' : ''} ${doc.isDirty ? 'is-dirty' : ''}`;
       item.dataset.id = doc.id;
 
       const iconClass = this.getFileIconClass(doc.fileName);
       item.innerHTML = `
         <span class="open-editor-icon ${iconClass}"></span>
         <span>${doc.fileName}</span>
-        ${doc.isDirty ? '<span class="open-editor-dirty"></span>' : `<span class="codicon codicon-close open-editor-close"></span>`}
+        <span class="open-editor-close codicon ${doc.isDirty ? 'is-dirty' : 'codicon-close'}" data-close-id="${doc.id}"></span>
       `;
 
       item.addEventListener('click', (e) => {
@@ -920,15 +1184,25 @@ class MultiGroupEditorManager {
         tabSize: 4,
       });
 
-      group.editor.onDidChangeCursorPosition((e) => {
-        if (this.activeGroupId === groupId && statusCursorPos) {
-          statusCursorPos.textContent = `Ln ${e.position.lineNumber}, Col ${e.position.column}`;
+      group.editor.onDidChangeCursorPosition(() => {
+        if (this.activeGroupId === groupId) {
+          updateCursorTelemetry(group.editor);
+        }
+      });
+
+      group.editor.onDidChangeCursorSelection(() => {
+        if (this.activeGroupId === groupId) {
+          updateCursorTelemetry(group.editor);
         }
       });
 
       group.editor.onDidFocusEditorWidget(() => {
         this.setActiveGroup(groupId);
       });
+
+      if (typeof registerEditorActions === 'function') {
+        registerEditorActions(group.editor);
+      }
     }
     return group.editor;
   }
@@ -1049,29 +1323,10 @@ class MultiGroupEditorManager {
     }
   }
 
-  closeTabInGroup(groupId, docId) {
-    const group = this.groups.get(groupId);
-    if (!group) return;
-    const idx = group.openDocIds.indexOf(docId);
-    if (idx === -1) return;
-    group.openDocIds.splice(idx, 1);
-    group.viewStates.delete(docId);
-
-    if (group.activeDocId === docId) {
-      if (group.openDocIds.length > 0) {
-        const nextId = group.openDocIds[Math.max(0, idx - 1)];
-        this.switchTabInGroup(groupId, nextId);
-      } else {
-        group.activeDocId = null;
-        if (groupId === 'group-2') {
-          this.closeGroup('group-2');
-        } else if (docManager.documents.size > 0) {
-          const first = Array.from(docManager.documents.keys())[0];
-          this.openDocumentInGroup('group-1', first);
-        }
-      }
+  async closeTabInGroup(groupId, docId) {
+    if (docManager) {
+      return await docManager.closeTab(docId);
     }
-    this.renderTabsForGroup(groupId);
   }
 
   renderTabsForGroup(groupId) {
@@ -1083,7 +1338,7 @@ class MultiGroupEditorManager {
       const doc = docManager.documents.get(docId);
       if (!doc) return;
       const tab = document.createElement('div');
-      tab.className = `workbench-tab ${docId === group.activeDocId ? 'active' : ''}`;
+      tab.className = `workbench-tab ${docId === group.activeDocId ? 'active' : ''} ${doc.isDirty ? 'is-dirty' : ''}`;
       tab.title = doc.filePath;
       tab.dataset.id = docId;
 
@@ -1091,7 +1346,7 @@ class MultiGroupEditorManager {
       tab.innerHTML = `
         <span class="tab-icon ${iconClass}"></span>
         <span class="tab-title">${doc.fileName}</span>
-        ${doc.isDirty ? '<span class="tab-dirty-indicator"></span>' : `<span class="codicon codicon-close tab-close-btn" data-close-id="${docId}"></span>`}
+        <span class="tab-close-btn codicon ${doc.isDirty ? 'is-dirty' : 'codicon-close'}" data-close-id="${docId}" title="${doc.isDirty ? 'Unsaved changes (close to save)' : 'Close (Ctrl+W)'}"></span>
       `;
 
       tab.addEventListener('click', (e) => {
@@ -1695,24 +1950,195 @@ function toggleAutoSave(item) {
 }
 
 // =============================================================================
-// COMMAND PALETTE FUZZY SEARCH (R2)
+// COMMAND PALETTE FUZZY SEARCH & WORKSPACE FILE INDEXING (Milestone v0.2.1 - R1 & R3)
 // =============================================================================
-function fuzzyScore(query, target) {
-  query = query.toLowerCase();
-  target = target.toLowerCase();
-  if (target === query) return 1000;
-  if (target.startsWith(query)) return 500 - target.length;
+
+function fuzzyMatch(query, target) {
+  if (!query) return { score: 100, matches: [] };
+  if (!target) return { score: -1, matches: [] };
+
+  const qLower = query.toLowerCase();
+  const tLower = target.toLowerCase();
+
+  if (tLower === qLower) {
+    const matches = [];
+    for (let i = 0; i < target.length; i++) matches.push(i);
+    return { score: 1000, matches };
+  }
+
+  if (tLower.startsWith(qLower)) {
+    const matches = [];
+    for (let i = 0; i < query.length; i++) matches.push(i);
+    return { score: 500 - target.length, matches };
+  }
+
   let score = 0;
   let targetIdx = 0;
-  for (let qIdx = 0; qIdx < query.length; qIdx++) {
-    const char = query[qIdx];
-    const matchIdx = target.indexOf(char, targetIdx);
-    if (matchIdx === -1) return -1;
-    if (matchIdx === targetIdx) score += 20;
-    if (matchIdx === 0 || target[matchIdx - 1] === ' ' || target[matchIdx - 1] === ':') score += 30;
+  let lastMatchIdx = -2;
+  const matches = [];
+
+  for (let qIdx = 0; qIdx < qLower.length; qIdx++) {
+    const char = qLower[qIdx];
+    const matchIdx = tLower.indexOf(char, targetIdx);
+    if (matchIdx === -1) {
+      return { score: -1, matches: [] };
+    }
+
+    if (matchIdx === targetIdx) {
+      score += 20;
+    }
+    if (matchIdx === lastMatchIdx + 1) {
+      score += 25; // consecutive match bonus
+    }
+
+    const prevChar = matchIdx > 0 ? target[matchIdx - 1] : '';
+    const currChar = target[matchIdx];
+    const isWordBoundary = matchIdx === 0 ||
+      prevChar === ' ' || prevChar === '/' || prevChar === '\\' ||
+      prevChar === '-' || prevChar === '_' || prevChar === '.' || prevChar === ':';
+    const isCamelCase = matchIdx > 0 && prevChar >= 'a' && prevChar <= 'z' && currChar >= 'A' && currChar <= 'Z';
+
+    if (isWordBoundary || isCamelCase) {
+      score += 35; // word boundary bonus
+    }
+
+    matches.push(matchIdx);
+    lastMatchIdx = matchIdx;
     targetIdx = matchIdx + 1;
   }
-  return score - (target.length - query.length);
+
+  score -= (target.length - query.length);
+  return { score, matches };
+}
+
+function fuzzyScore(query, target) {
+  return fuzzyMatch(query, target).score;
+}
+
+function renderHighlightedText(text, matchIndices) {
+  if (!text) return '';
+  if (!matchIndices || matchIndices.length === 0) return escapeHtml(text);
+  const matchSet = new Set(matchIndices);
+  let html = '';
+  let inHighlight = false;
+
+  for (let i = 0; i < text.length; i++) {
+    const isMatch = matchSet.has(i);
+    if (isMatch && !inHighlight) {
+      html += '<span class="palette-highlight">';
+      inHighlight = true;
+    } else if (!isMatch && inHighlight) {
+      html += '</span>';
+      inHighlight = false;
+    }
+    html += escapeHtml(text[i]);
+  }
+  if (inHighlight) {
+    html += '</span>';
+  }
+  return html;
+}
+
+function resolveFileIconClass(filename) {
+  if (docManager && typeof docManager.getFileIconClass === 'function') {
+    return docManager.getFileIconClass(filename);
+  }
+  if (!filename) return 'codicon codicon-file file-icon-default';
+  const lower = filename.toLowerCase();
+  const ext = lower.includes('.') ? lower.split('.').pop() : '';
+
+  if (lower === '.gitignore') return 'codicon codicon-git-commit file-icon-git';
+  if (lower === 'dockerfile') return 'codicon codicon-server-process file-icon-docker';
+  if (lower === 'package.json') return 'codicon codicon-package file-icon-npm';
+  if (lower === 'tsconfig.json') return 'codicon codicon-settings-gear file-icon-ts';
+  if (lower.startsWith('.env')) return 'codicon codicon-gear file-icon-config';
+  if (lower === 'readme.md') return 'codicon codicon-book file-icon-markdown';
+
+  switch (ext) {
+    case 'ts': return 'codicon codicon-file-code file-icon-ts';
+    case 'tsx': return 'codicon codicon-file-code file-icon-react';
+    case 'js':
+    case 'mjs':
+    case 'cjs': return 'codicon codicon-file-code file-icon-js';
+    case 'jsx': return 'codicon codicon-file-code file-icon-react';
+    case 'py': return 'codicon codicon-file-code file-icon-python';
+    case 'json': return 'codicon codicon-json file-icon-json';
+    case 'html': return 'codicon codicon-file-code file-icon-html';
+    case 'css': return 'codicon codicon-paintcan file-icon-css';
+    case 'md': return 'codicon codicon-markdown file-icon-markdown';
+    case 'c':
+    case 'h': return 'codicon codicon-file-code file-icon-c';
+    case 'cpp':
+    case 'hpp': return 'codicon codicon-file-code file-icon-cpp';
+    case 'rs': return 'codicon codicon-file-code file-icon-rust';
+    case 'go': return 'codicon codicon-file-code file-icon-go';
+    case 'php': return 'codicon codicon-file-code file-icon-php';
+    default: return 'codicon codicon-file file-icon-default';
+  }
+}
+
+function flattenWorkspaceTree(tree, rootPath = '') {
+  const result = [];
+  const EXCLUSIONS = new Set(['node_modules', '.git', 'dist', 'release', '.gemini', '.idea', '.vscode', 'build', 'out']);
+
+  function recurse(nodes) {
+    if (!Array.isArray(nodes)) return;
+    for (const node of nodes) {
+      if (!node) continue;
+      if (node.isDirectory) {
+        if (EXCLUSIONS.has(node.name) || (node.name && node.name.startsWith('.'))) {
+          continue;
+        }
+        if (node.children && node.children.length > 0) {
+          recurse(node.children);
+        }
+      } else {
+        const normPath = (node.path || '').replace(/\\/g, '/');
+        const relPath = (node.relativePath || node.name || '').replace(/\\/g, '/');
+        result.push({
+          id: node.path || node.name,
+          name: node.name,
+          path: node.path || node.name,
+          relativePath: relPath,
+          iconClass: resolveFileIconClass(node.name),
+        });
+      }
+    }
+  }
+
+  recurse(tree);
+  return result;
+}
+
+async function updateWorkspaceFileIndex() {
+  if (window.electronFS && typeof window.electronFS.listFiles === 'function') {
+    try {
+      const files = await window.electronFS.listFiles({ maxDepth: 10 });
+      if (Array.isArray(files) && files.length > 0) {
+        workspaceFileIndex = files.map((f) => ({
+          id: f.path,
+          name: f.name,
+          path: f.path,
+          relativePath: (f.relativePath || f.name).replace(/\\/g, '/'),
+          iconClass: resolveFileIconClass(f.name),
+        }));
+        return workspaceFileIndex;
+      }
+    } catch (err) {
+      console.warn('[updateWorkspaceFileIndex] electronFS.listFiles error:', err);
+    }
+  }
+
+  if (workspaceTree && workspaceTree.length > 0) {
+    workspaceFileIndex = flattenWorkspaceTree(workspaceTree, currentWorkspaceRoot || '');
+    return workspaceFileIndex;
+  }
+
+  return workspaceFileIndex;
+}
+
+function getWorkspaceFileIndex() {
+  return workspaceFileIndex;
 }
 
 const COMMAND_REGISTRY = [
@@ -1741,7 +2167,7 @@ const COMMAND_REGISTRY = [
   { id: 'antislop.analyze', title: 'AntiSlop: Run Active Code Analysis', category: 'AntiSlop', shortcut: 'Ctrl+Shift+B', action: () => triggerAnalysis() },
   { id: 'antislop.prompt', title: 'AntiSlop: Focus AI Instruction Prompt Box', category: 'AntiSlop', action: () => { secondaryResizer.expand(); promptInputBox?.focus(); } },
   { id: 'antislop.reconnect', title: 'AntiSlop: Reconnect Sidecar Daemon (4949)', category: 'AntiSlop', action: () => connectSidecar() },
-  { id: 'go.line', title: 'Go: Go to Line...', category: 'Go', shortcut: 'Ctrl+G', action: () => editor?.trigger?.('menu', 'editor.action.gotoLine', null) },
+  { id: 'go.line', title: 'Go: Go to Line...', category: 'Go', shortcut: 'Ctrl+G', action: () => openCommandPalette(':') },
   { id: 'go.symbol', title: 'Go: Go to Symbol...', category: 'Go', shortcut: 'Ctrl+Shift+O', action: () => editor?.trigger?.('menu', 'editor.action.quickOutline', null) },
   { id: 'go.back', title: 'Go: Back', category: 'Go', shortcut: 'Alt+Left', action: () => navigateBack() },
   { id: 'go.forward', title: 'Go: Forward', category: 'Go', shortcut: 'Alt+Right', action: () => navigateForward() },
@@ -1749,6 +2175,10 @@ const COMMAND_REGISTRY = [
 
 let selectedPaletteIndex = 0;
 let paletteItems = [];
+
+function getPaletteItems() {
+  return paletteItems;
+}
 
 function openCommandPalette(initialQuery = '>') {
   const backdrop = document.getElementById('command-palette-backdrop');
@@ -1774,46 +2204,180 @@ function closeCommandPalette() {
 
 function updatePaletteResults(rawQuery) {
   const resultsContainer = document.getElementById('command-palette-results');
+  const promptIcon = document.getElementById('command-palette-prompt-icon') || document.querySelector('.palette-prompt-icon');
+  const input = document.getElementById('command-palette-input');
   if (!resultsContainer) return;
   resultsContainer.innerHTML = '';
 
   const isCommandMode = rawQuery.startsWith('>');
-  const query = isCommandMode ? rawQuery.substring(1).trim() : rawQuery.trim();
+  const isLineMode = rawQuery.startsWith(':');
 
   paletteItems = [];
 
   if (isCommandMode) {
-    // Search Commands
-    COMMAND_REGISTRY.forEach(cmd => {
-      const score = query ? fuzzyScore(query, cmd.title) : 100;
-      if (score > 0) {
-        paletteItems.push({ ...cmd, score });
-      }
-    });
-    paletteItems.sort((a, b) => b.score - a.score);
-  } else {
-    // Search Files (Open Documents + Preset Samples + Workspace)
-    const filePool = new Map();
-    docManager.documents.forEach(d => filePool.set(d.id, d.fileName));
-    Object.keys(SAMPLES).forEach(s => filePool.set(s, s));
+    if (promptIcon) promptIcon.className = 'codicon codicon-chevron-right palette-prompt-icon';
+    if (input) input.placeholder = 'Type a command to run';
 
-    filePool.forEach((fileName, id) => {
-      const score = query ? fuzzyScore(query, fileName) : 100;
-      if (score > 0) {
+    const query = rawQuery.substring(1).trim();
+    COMMAND_REGISTRY.forEach((cmd) => {
+      const matchRes = query ? fuzzyMatch(query, cmd.title) : { score: 100, matches: [] };
+      if (matchRes.score > 0) {
         paletteItems.push({
-          id,
-          title: fileName,
-          category: 'File',
-          action: () => docManager.openFile(id, undefined, true),
-          score,
+          ...cmd,
+          score: matchRes.score,
+          matchIndices: matchRes.matches,
         });
       }
     });
     paletteItems.sort((a, b) => b.score - a.score);
+  } else if (isLineMode) {
+    if (promptIcon) promptIcon.className = 'codicon codicon-go-to-file palette-prompt-icon';
+    const activeEditor = editor;
+    const model = activeEditor?.getModel?.();
+    const maxLine = model?.getLineCount?.() || 1;
+    const currentPos = activeEditor?.getPosition?.() || { lineNumber: 1, column: 1 };
+    const lineQuery = rawQuery.substring(1).trim();
+
+    if (!lineQuery) {
+      if (input) input.placeholder = `Current line: ${currentPos.lineNumber}. Type a line number between 1 and ${maxLine} to navigate to`;
+      resultsContainer.innerHTML = `
+        <div class="palette-item selected">
+          <div class="palette-item-left">
+            <span class="palette-item-icon codicon codicon-go-to-file"></span>
+            <span class="palette-item-title">Current line: ${currentPos.lineNumber}, Column: ${currentPos.column}. Type a line number between 1 and ${maxLine}.</span>
+          </div>
+        </div>`;
+      paletteItems = [{
+        id: 'go.line.current',
+        action: () => {},
+      }];
+      selectedPaletteIndex = 0;
+      return;
+    }
+
+    const parts = lineQuery.split(':');
+    const parsedLine = parseInt(parts[0], 10);
+    const parsedCol = parts.length > 1 ? parseInt(parts[1], 10) : 1;
+
+    if (isNaN(parsedLine)) {
+      resultsContainer.innerHTML = '<div class="palette-empty">Invalid line number.</div>';
+      paletteItems = [];
+      return;
+    }
+
+    const targetLine = Math.min(Math.max(1, parsedLine), maxLine);
+    const targetCol = Math.max(1, parsedCol || 1);
+
+    resultsContainer.innerHTML = `
+      <div class="palette-item selected">
+        <div class="palette-item-left">
+          <span class="palette-item-icon codicon codicon-go-to-file"></span>
+          <span class="palette-item-title">Go to line ${targetLine}${parts.length > 1 ? ', column ' + targetCol : ''} (Range: 1 - ${maxLine})</span>
+        </div>
+      </div>`;
+
+    paletteItems = [{
+      id: 'go.line.execute',
+      score: 100,
+      action: () => {
+        if (activeEditor) {
+          if (typeof activeEditor.revealLineInCenter === 'function') {
+            activeEditor.revealLineInCenter(targetLine);
+          }
+          if (typeof activeEditor.setPosition === 'function') {
+            activeEditor.setPosition({ lineNumber: targetLine, column: targetCol });
+          }
+          if (typeof activeEditor.focus === 'function') {
+            activeEditor.focus();
+          }
+        }
+      },
+    }];
+    selectedPaletteIndex = 0;
+    return;
+  } else {
+    // Quick Open Mode
+    if (promptIcon) promptIcon.className = 'codicon codicon-search palette-prompt-icon';
+    if (input) input.placeholder = 'Search files by name (type > for commands, : for line)';
+
+    const query = rawQuery.trim();
+
+    // Determine file candidate pool
+    let candidates = workspaceFileIndex;
+    if (!candidates || candidates.length === 0) {
+      const poolMap = new Map();
+      if (docManager && docManager.documents) {
+        docManager.documents.forEach((d) => {
+          poolMap.set(d.id, { name: d.fileName, path: d.filePath || d.id, relativePath: d.fileName });
+        });
+      }
+      if (typeof SAMPLES !== 'undefined') {
+        Object.keys(SAMPLES).forEach((s) => {
+          if (!poolMap.has(s)) poolMap.set(s, { name: s, path: s, relativePath: s });
+        });
+      }
+      candidates = Array.from(poolMap.values()).map((item) => ({
+        id: item.path,
+        name: item.name,
+        path: item.path,
+        relativePath: item.relativePath,
+        iconClass: resolveFileIconClass(item.name),
+      }));
+    }
+
+    candidates.forEach((item) => {
+      let matchRes;
+      let highlightedName = '';
+      let highlightedPath = '';
+
+      if (!query) {
+        matchRes = { score: 100, matches: [] };
+        highlightedName = escapeHtml(item.name);
+        highlightedPath = escapeHtml(item.relativePath);
+      } else if (query.includes('/') || query.includes('\\')) {
+        matchRes = fuzzyMatch(query, item.relativePath);
+        if (matchRes.score > 0) {
+          highlightedName = escapeHtml(item.name);
+          highlightedPath = renderHighlightedText(item.relativePath, matchRes.matches);
+        }
+      } else {
+        matchRes = fuzzyMatch(query, item.name);
+        if (matchRes.score > 0) {
+          matchRes.score += 100; // Filename direct match bonus
+          highlightedName = renderHighlightedText(item.name, matchRes.matches);
+          highlightedPath = escapeHtml(item.relativePath);
+        } else {
+          matchRes = fuzzyMatch(query, item.relativePath);
+          if (matchRes.score > 0) {
+            highlightedName = escapeHtml(item.name);
+            highlightedPath = renderHighlightedText(item.relativePath, matchRes.matches);
+          }
+        }
+      }
+
+      if (matchRes && matchRes.score > 0) {
+        paletteItems.push({
+          id: item.path || item.id,
+          title: item.name,
+          category: 'File',
+          path: item.path,
+          relativePath: item.relativePath,
+          iconClass: item.iconClass || resolveFileIconClass(item.name),
+          highlightedName,
+          highlightedPath,
+          score: matchRes.score,
+          action: () => {
+            if (docManager) docManager.openFile(item.path, undefined, true);
+          },
+        });
+      }
+    });
+
+    paletteItems.sort((a, b) => b.score - a.score);
   }
 
   if (paletteItems.length === 0) {
-    resultsContainer.innerHTML = '<div class="palette-empty">No matching commands or files found.</div>';
+    resultsContainer.innerHTML = `<div class="palette-empty">${isCommandMode ? 'No matching commands found.' : 'No matching files found.'}</div>`;
     return;
   }
 
@@ -1824,13 +2388,24 @@ function updatePaletteResults(rawQuery) {
   paletteItems.forEach((item, idx) => {
     const row = document.createElement('div');
     row.className = `palette-item ${idx === selectedPaletteIndex ? 'selected' : ''}`;
-    row.innerHTML = `
-      <div class="palette-item-left">
-        <span class="palette-item-category">${item.category}:</span>
-        <span class="palette-item-title">${item.title}</span>
-      </div>
-      ${item.shortcut ? `<span class="palette-item-shortcut">${item.shortcut}</span>` : ''}
-    `;
+
+    if (item.category === 'File') {
+      row.innerHTML = `
+        <div class="palette-item-left">
+          <span class="palette-item-icon ${item.iconClass || 'codicon codicon-file'}"></span>
+          <span class="palette-item-name">${item.highlightedName || escapeHtml(item.title)}</span>
+          <span class="palette-item-path">${item.highlightedPath || escapeHtml(item.relativePath || '')}</span>
+        </div>
+      `;
+    } else {
+      row.innerHTML = `
+        <div class="palette-item-left">
+          <span class="palette-item-category">${item.category}:</span>
+          <span class="palette-item-title">${renderHighlightedText(item.title, item.matchIndices)}</span>
+        </div>
+        ${item.shortcut ? `<span class="palette-item-shortcut">${item.shortcut}</span>` : ''}
+      `;
+    }
 
     row.addEventListener('click', () => {
       closeCommandPalette();
@@ -1883,8 +2458,61 @@ function initCommandPalette() {
         }
       } else if (e.key === 'Escape') {
         closeCommandPalette();
+      } else if ((e.key === 'p' || e.key === 'P') && (e.ctrlKey || e.metaKey) && !e.shiftKey) {
+        e.preventDefault();
+        input.value = '';
+        selectedPaletteIndex = 0;
+        updatePaletteResults(input.value);
+      } else if ((e.key === 'g' || e.key === 'G') && (e.ctrlKey || e.metaKey) && !e.shiftKey) {
+        e.preventDefault();
+        input.value = ':';
+        selectedPaletteIndex = 0;
+        updatePaletteResults(input.value);
       }
     });
+  }
+
+  const statusCursor = document.getElementById('status-cursor');
+  if (statusCursor) {
+    statusCursor.addEventListener('click', () => openCommandPalette(':'));
+  }
+
+  document.querySelectorAll('.screen-b-mode-tab').forEach((tab) => {
+    tab.addEventListener('click', () => {
+      if (tab.dataset.mode) setScreenBMode(tab.dataset.mode);
+    });
+  });
+
+  // Screen B Plan Mode Toolbar Controls (Milestone v0.2.2 - R3)
+  const btnPlanPause = document.getElementById('btn-plan-pause');
+  if (btnPlanPause) {
+    btnPlanPause.addEventListener('click', () => pauseTaskPlan());
+  }
+  const btnPlanResume = document.getElementById('btn-plan-resume');
+  if (btnPlanResume) {
+    btnPlanResume.addEventListener('click', () => resumeTaskPlan());
+  }
+  const btnPlanCancel = document.getElementById('btn-plan-cancel');
+  if (btnPlanCancel) {
+    btnPlanCancel.addEventListener('click', () => cancelTaskPlan());
+  }
+  const btnClearLogs = document.getElementById('btn-plan-clear-logs');
+  if (btnClearLogs) {
+    btnClearLogs.addEventListener('click', () => {
+      const consoleEl = document.getElementById('plan-logs-console') || document.getElementById('screen-b-plan-logs');
+      if (consoleEl) consoleEl.innerHTML = '';
+      if (currentTaskPlan) currentTaskPlan.logs = [];
+    });
+  }
+
+  // Screen B Review Mode Bulk Actions (Milestone v0.2.2 - R4)
+  const btnAcceptAll = document.getElementById('btn-review-accept-all');
+  if (btnAcceptAll) {
+    btnAcceptAll.addEventListener('click', () => acceptAllReviewDiffs());
+  }
+  const btnDiscardAll = document.getElementById('btn-review-discard-all');
+  if (btnDiscardAll) {
+    btnDiscardAll.addEventListener('click', () => discardAllReviewDiffs());
   }
 }
 
@@ -1893,7 +2521,9 @@ function renderSelectedPaletteIndex() {
   items.forEach((item, idx) => {
     item.classList.toggle('selected', idx === selectedPaletteIndex);
     if (idx === selectedPaletteIndex) {
-      item.scrollIntoView({ block: 'nearest' });
+      if (typeof item.scrollIntoView === 'function') {
+        item.scrollIntoView({ block: 'nearest' });
+      }
     }
   });
 }
@@ -1903,6 +2533,18 @@ function renderSelectedPaletteIndex() {
 // =============================================================================
 async function openWorkspaceFolder() {
   if (!window.electronFS) return;
+  if (docManager && docManager.documents) {
+    for (const doc of docManager.documents.values()) {
+      if (doc.isDirty) {
+        const choice = await showDirtySaveDialog(doc.fileName);
+        if (choice === 'save') {
+          await docManager.saveDocument(doc.id);
+        } else if (choice === 'cancel') {
+          return;
+        }
+      }
+    }
+  }
   try {
     const res = await window.electronFS.openDirectory();
     if (res && !res.canceled && res.path) {
@@ -1916,6 +2558,7 @@ async function openWorkspaceFolder() {
       }
 
       await refreshWorkspaceTree();
+      await updateWorkspaceFileIndex();
       if (scmController) scmController.refresh();
       showSidebarView('explorer');
     }
@@ -1931,6 +2574,7 @@ async function refreshWorkspaceTree() {
     const nodes = (res && (res.nodes || res.tree)) || [];
     workspaceTree = nodes;
     renderWorkspaceTree(workspaceTree, workspaceFileTree, 0);
+    await updateWorkspaceFileIndex();
   } catch (err) {
     console.error('[Workbench] Error reading directory:', err);
   }
@@ -2940,11 +3584,31 @@ function initEditor() {
         tabSize: 4,
       });
 
-      editor.onDidChangeCursorPosition((e) => {
-        if (statusCursorPos) {
-          statusCursorPos.textContent = `Ln ${e.position.lineNumber}, Col ${e.position.column}`;
-        }
+      editor.onDidChangeCursorPosition(() => {
+        updateCursorTelemetry(editor);
       });
+      editor.onDidChangeCursorSelection(() => {
+        updateCursorTelemetry(editor);
+      });
+
+      if (typeof editor.addCommand === 'function' && window.monaco && window.monaco.KeyMod && window.monaco.KeyCode) {
+        editor.addCommand(window.monaco.KeyMod.CtrlCmd | window.monaco.KeyCode.KeyP, () => {
+          openCommandPalette('');
+        });
+        editor.addCommand(window.monaco.KeyMod.CtrlCmd | window.monaco.KeyMod.Shift | window.monaco.KeyCode.KeyP, () => {
+          openCommandPalette('>');
+        });
+        editor.addCommand(window.monaco.KeyMod.CtrlCmd | window.monaco.KeyCode.KeyG, () => {
+          openCommandPalette(':');
+        });
+        editor.addCommand(window.monaco.KeyMod.CtrlCmd | window.monaco.KeyCode.KeyS, () => {
+          if (docManager) docManager.saveActiveDocument();
+        });
+      }
+
+      if (typeof registerEditorActions === 'function') {
+        registerEditorActions(editor);
+      }
 
       console.log('[Workbench] Offline Monaco Editor successfully mounted.');
 
@@ -3088,8 +3752,22 @@ function renderTargetStack() {
     card.dataset.filePath = target.filePath;
     card.dataset.startLine = target.startLine.toString();
     if (target.endLine) card.dataset.endLine = target.endLine.toString();
+    if (typeof card.setAttribute === 'function') {
+      card.setAttribute('data-target-id', target.id);
+      card.setAttribute('data-file-path', target.filePath);
+      card.setAttribute('data-start-line', target.startLine.toString());
+      if (target.endLine) card.setAttribute('data-end-line', target.endLine.toString());
+    }
 
-    const rangeText = target.endLine ? `:${target.startLine}-${target.endLine}` : `:${target.startLine}`;
+    const rangeText = (target.endLine && target.endLine !== target.startLine)
+      ? `:${target.startLine}-${target.endLine}`
+      : `:${target.startLine}`;
+
+    const snippetText = target.codeSnippet || target.snippet || '';
+    const snippetHtml = snippetText ? `
+      <div class="target-code-preview" title="${escapeHtml(snippetText)}">
+        <code>${escapeHtml(snippetText.length > 120 ? snippetText.substring(0, 120) + '...' : snippetText)}</code>
+      </div>` : '';
 
     card.innerHTML = `
       <div class="target-card-main">
@@ -3097,6 +3775,7 @@ function renderTargetStack() {
         <span class="target-file-badge target-path" title="${target.filePath}">${target.filePath}</span>
         <span class="target-range-badge">${rangeText}</span>
       </div>
+      ${snippetHtml}
       <div class="target-card-actions">
         <button class="target-btn-reveal" title="Sorot di Layar A (Zero-Buffer)">
           <span class="codicon codicon-go-to-file"></span>
@@ -3340,14 +4019,981 @@ function renderTechnicalSummaryCard(guidanceData, target) {
 function updateScreenBBreadcrumb(filePath) {
   const wsEl = document.getElementById('screen-b-ws-name');
   const fileEl = document.getElementById('screen-b-active-file') || document.getElementById('secondary-breadcrumb');
-  if (currentWorkspaceRoot && wsEl) {
-    const wsName = currentWorkspaceRoot.replace(/\\/g, '/').split('/').pop() || 'WORKSPACE';
-    wsEl.textContent = wsName;
+  const wsRoot = (typeof currentWorkspaceRoot !== 'undefined' && currentWorkspaceRoot) || (typeof window !== 'undefined' && window.currentWorkspaceRoot);
+  if (wsEl) {
+    if (wsRoot) {
+      const wsName = wsRoot.replace(/\\/g, '/').split('/').filter(Boolean).pop() || 'WORKSPACE';
+      wsEl.textContent = wsName.toUpperCase();
+    } else if (!wsEl.textContent) {
+      wsEl.textContent = 'WORKSPACE';
+    }
   }
   if (filePath && fileEl) {
     const fileName = filePath.replace(/\\/g, '/').split('/').pop() || filePath;
     fileEl.textContent = fileName;
   }
+}
+
+// =============================================================================
+// CONTEXT BRIDGE & RELATIVE PATH UTILITIES (Milestone v0.2.2 - R1)
+// =============================================================================
+
+function toRelativeWorkspacePath(fullPath) {
+  if (!fullPath || typeof fullPath !== 'string') return '';
+  const wsRoot = (typeof currentWorkspaceRoot !== 'undefined' && currentWorkspaceRoot)
+    || (typeof window !== 'undefined' && window.currentWorkspaceRoot);
+  let norm = fullPath.replace(/\\/g, '/');
+  if (wsRoot) {
+    let normRoot = wsRoot.replace(/\\/g, '/').replace(/\/+$/, '');
+    if (norm.startsWith(normRoot)) {
+      norm = norm.substring(normRoot.length).replace(/^\/+/, '');
+    }
+  }
+  return norm || fullPath;
+}
+
+function getActiveDocumentRelativePath() {
+  let rawPath = '';
+  if (docManager && docManager.activeDocId) {
+    const activeDoc = docManager.documents ? docManager.documents.get(docManager.activeDocId) : null;
+    rawPath = activeDoc?.filePath || docManager.activeDocId;
+  } else if (editor && typeof editor.getModel === 'function') {
+    const model = editor.getModel();
+    if (model && model.uri) {
+      rawPath = model.uri.fsPath || model.uri.path || '';
+    }
+  }
+  if (!rawPath) rawPath = 'quicksort.py';
+  return toRelativeWorkspacePath(rawPath);
+}
+
+function registerEditorActions(editorInstance) {
+  if (!editorInstance || typeof editorInstance.addAction !== 'function') return;
+
+  editorInstance.addAction({
+    id: 'sendToScreenB',
+    label: 'Kirim ke Screen B',
+    keybindings: (window.monaco && window.monaco.KeyMod && window.monaco.KeyCode)
+      ? [window.monaco.KeyMod.CtrlCmd | window.monaco.KeyMod.Alt | window.monaco.KeyCode.KeyA]
+      : [],
+    contextMenuGroupId: 'navigation',
+    contextMenuOrder: 1.5,
+    run: (ed) => {
+      sendSelectionToScreenB(ed || editorInstance);
+    },
+  });
+}
+
+function sendSelectionToScreenB(ed = editor) {
+  const currentEd = ed || (typeof multiGroupManager !== 'undefined' && multiGroupManager?.getActiveEditor ? multiGroupManager.getActiveEditor() : editor);
+  if (!currentEd) return null;
+
+  const relPath = getActiveDocumentRelativePath();
+  let startLine = 1;
+  let endLine = undefined;
+  let selectedSnippet = '';
+
+  const sel = (currentEd.getSelection && currentEd.getSelection()) || null;
+  const pos = (currentEd.getPosition && currentEd.getPosition()) || { lineNumber: 1, column: 1 };
+  const model = (currentEd.getModel && currentEd.getModel()) || null;
+
+  if (sel && typeof sel.isEmpty === 'function' && !sel.isEmpty()) {
+    startLine = Math.min(sel.startLineNumber, sel.endLineNumber);
+    endLine = Math.max(sel.startLineNumber, sel.endLineNumber);
+    if (model && typeof model.getValueInRange === 'function') {
+      selectedSnippet = model.getValueInRange(sel);
+    }
+  } else if (pos) {
+    startLine = pos.lineNumber || 1;
+    endLine = startLine;
+    if (model && typeof model.getLineContent === 'function') {
+      selectedSnippet = model.getLineContent(startLine);
+    }
+  }
+
+  const isRange = endLine && endLine !== startLine;
+  const targetId = `target-ctx-${Date.now()}-${targetStack.length}`;
+  const target = {
+    id: targetId,
+    filePath: relPath,
+    startLine: startLine,
+    endLine: endLine,
+    label: `${relPath}:${startLine}${isRange ? '-' + endLine : ''}`,
+    codeSnippet: selectedSnippet || '',
+    snippet: selectedSnippet || '',
+    isContextCard: true,
+    createdAt: Date.now(),
+  };
+
+  // Add to target stack, updating existing card if present
+  const existingIdx = targetStack.findIndex(t =>
+    t.filePath === target.filePath &&
+    t.startLine === target.startLine &&
+    t.endLine === target.endLine
+  );
+
+  if (existingIdx >= 0) {
+    targetStack[existingIdx].codeSnippet = selectedSnippet || targetStack[existingIdx].codeSnippet;
+    targetStack[existingIdx].snippet = selectedSnippet || targetStack[existingIdx].snippet;
+    targetStack[existingIdx].isContextCard = true;
+  } else {
+    targetStack.push(target);
+  }
+
+  renderTargetStack();
+
+  // Switch Screen B to Chat mode
+  if (typeof setScreenBMode === 'function') {
+    setScreenBMode('chat');
+  }
+
+  // Expand secondary sidebar if collapsed
+  if (typeof secondaryResizer !== 'undefined' && secondaryResizer && typeof secondaryResizer.expand === 'function') {
+    secondaryResizer.expand();
+  } else {
+    const secSidebar = document.getElementById('secondary-sidebar');
+    if (secSidebar) secSidebar.classList.remove('collapsed');
+  }
+
+  // Focus prompt input box
+  const promptBox = document.getElementById('prompt-input-box');
+  if (promptBox && typeof promptBox.focus === 'function') {
+    promptBox.focus();
+  }
+
+  // Broadcast through EditorEventBridge
+  if (typeof editorEventBridge !== 'undefined') {
+    editorEventBridge.emit('screenB:contextBridged', {
+      filePath: relPath,
+      startLine,
+      endLine,
+      codeSnippet: selectedSnippet,
+      target,
+    });
+  }
+
+  return target;
+}
+
+// =============================================================================
+// AGENTIC TASK PLAN STATE MACHINE & PROGRESS DISPATCHER (Milestone v0.2.2 - R2/R3)
+// =============================================================================
+
+let currentTaskPlan = null;
+
+function createTaskPlan(planData) {
+  if (!planData || !planData.title) {
+    throw new Error('Task plan requires a valid title.');
+  }
+
+  const subtasks = Array.isArray(planData.subtasks) ? planData.subtasks.map((st, idx) => ({
+    id: st.id || `subtask-${Date.now()}-${idx}`,
+    title: st.title || `Subtask ${idx + 1}`,
+    status: st.status || (idx === 0 ? 'in_progress' : 'pending'),
+    description: st.description || '',
+    targetFiles: Array.isArray(st.targetFiles) ? st.targetFiles : [],
+    collapsed: false,
+  })) : [];
+
+  currentTaskPlan = {
+    id: planData.id || `plan-${Date.now()}`,
+    title: planData.title,
+    status: planData.status || 'in_progress',
+    subtasks,
+    currentSubtaskIndex: 0,
+    progress: 0,
+    logs: [
+      {
+        timestamp: new Date().toLocaleTimeString('id-ID', { hour12: false }),
+        message: `Plan "${planData.title}" initialized with ${subtasks.length} subtask(s).`,
+        level: 'info',
+      }
+    ],
+    createdAt: Date.now(),
+    updatedAt: Date.now(),
+  };
+
+  const completedCount = subtasks.filter(s => s.status === 'completed').length;
+  currentTaskPlan.progress = subtasks.length > 0 ? Math.round((completedCount / subtasks.length) * 100) : 0;
+
+  // Automatic Mode Morphing: Activate Plan Mode
+  setScreenBMode('plan');
+  renderPlanView();
+
+  if (typeof editorEventBridge !== 'undefined') {
+    editorEventBridge.emit('screenB:planUpdate', {
+      plan: currentTaskPlan,
+      action: 'created',
+    });
+    editorEventBridge.emit('screenB:taskProgress', {
+      planId: currentTaskPlan.id,
+      subtaskId: subtasks[0]?.id,
+      status: subtasks[0]?.status || 'in_progress',
+      progress: currentTaskPlan.progress,
+      logMessage: currentTaskPlan.logs[0].message,
+    });
+  }
+
+  return currentTaskPlan;
+}
+
+function getTaskPlan() {
+  return currentTaskPlan;
+}
+
+function pauseTaskPlan() {
+  if (!currentTaskPlan || currentTaskPlan.status !== 'in_progress') return false;
+  currentTaskPlan.status = 'paused';
+  currentTaskPlan.updatedAt = Date.now();
+  addExecutionLog('Plan execution paused by user.', 'warn');
+
+  renderPlanView();
+
+  if (typeof editorEventBridge !== 'undefined') {
+    editorEventBridge.emit('screenB:planUpdate', {
+      plan: currentTaskPlan,
+      action: 'paused',
+    });
+    editorEventBridge.emit('screenB:taskProgress', {
+      planId: currentTaskPlan.id,
+      status: 'paused',
+      progress: currentTaskPlan.progress,
+      logMessage: 'Plan execution paused by user.',
+    });
+  }
+  return true;
+}
+
+function resumeTaskPlan() {
+  if (!currentTaskPlan || currentTaskPlan.status !== 'paused') return false;
+  currentTaskPlan.status = 'in_progress';
+  currentTaskPlan.updatedAt = Date.now();
+  addExecutionLog('Plan execution resumed.', 'info');
+
+  renderPlanView();
+
+  if (typeof editorEventBridge !== 'undefined') {
+    editorEventBridge.emit('screenB:planUpdate', {
+      plan: currentTaskPlan,
+      action: 'resumed',
+    });
+    editorEventBridge.emit('screenB:taskProgress', {
+      planId: currentTaskPlan.id,
+      status: 'in_progress',
+      progress: currentTaskPlan.progress,
+      logMessage: 'Plan execution resumed.',
+    });
+  }
+  return true;
+}
+
+function cancelTaskPlan() {
+  if (!currentTaskPlan || (currentTaskPlan.status !== 'in_progress' && currentTaskPlan.status !== 'paused')) {
+    return false;
+  }
+  currentTaskPlan.status = 'cancelled';
+  currentTaskPlan.updatedAt = Date.now();
+  currentTaskPlan.subtasks.forEach(st => {
+    if (st.status === 'in_progress') st.status = 'failed';
+  });
+  addExecutionLog('Plan execution cancelled by user.', 'error');
+
+  renderPlanView();
+
+  if (typeof editorEventBridge !== 'undefined') {
+    editorEventBridge.emit('screenB:planUpdate', {
+      plan: currentTaskPlan,
+      action: 'cancelled',
+    });
+    editorEventBridge.emit('screenB:taskProgress', {
+      planId: currentTaskPlan.id,
+      status: 'cancelled',
+      progress: currentTaskPlan.progress,
+      logMessage: 'Plan execution cancelled by user.',
+    });
+  }
+  return true;
+}
+
+function advanceSubtask(subtaskId, resultStatus, logMessage) {
+  if (!currentTaskPlan) return false;
+  const subtask = currentTaskPlan.subtasks.find(st => st.id === subtaskId);
+  if (!subtask) return false;
+
+  subtask.status = resultStatus;
+  currentTaskPlan.updatedAt = Date.now();
+
+  const completedCount = currentTaskPlan.subtasks.filter(st => st.status === 'completed').length;
+  currentTaskPlan.progress = Math.round((completedCount / currentTaskPlan.subtasks.length) * 100);
+
+  if (resultStatus === 'completed') {
+    const nextPending = currentTaskPlan.subtasks.find(st => st.status === 'pending');
+    if (nextPending && currentTaskPlan.status === 'in_progress') {
+      nextPending.status = 'in_progress';
+      currentTaskPlan.currentSubtaskIndex = currentTaskPlan.subtasks.indexOf(nextPending);
+    } else if (completedCount === currentTaskPlan.subtasks.length) {
+      currentTaskPlan.status = 'completed';
+      currentTaskPlan.progress = 100;
+      addExecutionLog('All plan subtasks completed successfully.', 'info');
+      if (currentReviewDiffs.length > 0) {
+        setScreenBMode('review');
+      }
+    }
+  }
+
+  if (logMessage) {
+    addExecutionLog(logMessage, resultStatus === 'failed' ? 'error' : 'info', subtaskId);
+  }
+
+  renderPlanView();
+
+  if (typeof editorEventBridge !== 'undefined') {
+    editorEventBridge.emit('screenB:taskProgress', {
+      planId: currentTaskPlan.id,
+      subtaskId,
+      status: resultStatus,
+      progress: currentTaskPlan.progress,
+      logMessage: logMessage || `Subtask "${subtask.title}" status updated to ${resultStatus}.`,
+    });
+    editorEventBridge.emit('screenB:planUpdate', {
+      plan: currentTaskPlan,
+      action: 'subtaskProgress',
+    });
+  }
+  return true;
+}
+
+function addExecutionLog(message, level = 'info', subtaskId = undefined) {
+  const entry = {
+    timestamp: new Date().toLocaleTimeString('id-ID', { hour12: false }),
+    message,
+    level,
+    subtaskId,
+  };
+  if (currentTaskPlan) {
+    if (!Array.isArray(currentTaskPlan.logs)) currentTaskPlan.logs = [];
+    currentTaskPlan.logs.push(entry);
+  }
+
+  const consoleEl = document.getElementById('plan-logs-console') || document.getElementById('screen-b-plan-logs');
+  if (consoleEl) {
+    const row = document.createElement('div');
+    row.className = `plan-log-entry level-${level}`;
+    row.innerHTML = `<span class="log-timestamp">[${entry.timestamp}]</span><span class="log-message">${escapeHtml(message)}</span>`;
+    consoleEl.appendChild(row);
+    if (typeof consoleEl.scrollTop !== 'undefined' && typeof consoleEl.scrollHeight !== 'undefined') {
+      consoleEl.scrollTop = consoleEl.scrollHeight;
+    }
+  }
+
+  if (typeof editorEventBridge !== 'undefined' && currentTaskPlan) {
+    editorEventBridge.emit('screenB:taskProgress', {
+      planId: currentTaskPlan.id,
+      subtaskId,
+      progress: currentTaskPlan.progress,
+      logMessage: message,
+    });
+  }
+}
+
+function renderPlanView() {
+  const emptyPane = document.getElementById('plan-empty-pane');
+  const activePane = document.getElementById('plan-active-pane');
+  if (!emptyPane || !activePane) return;
+
+  if (!currentTaskPlan) {
+    emptyPane.style.display = 'flex';
+    activePane.style.display = 'none';
+    return;
+  }
+
+  emptyPane.style.display = 'none';
+  activePane.style.display = 'flex';
+
+  const titleEl = document.getElementById('plan-title') || document.getElementById('plan-title-text');
+  if (titleEl) titleEl.textContent = currentTaskPlan.title;
+
+  const badgeEl = document.getElementById('plan-status-badge');
+  if (badgeEl) {
+    badgeEl.textContent = currentTaskPlan.status.replace('_', ' ').toUpperCase();
+    badgeEl.className = `plan-status-badge status-badge-${currentTaskPlan.status.replace('_', '')}`;
+  }
+
+  const btnPause = document.getElementById('btn-plan-pause');
+  const btnResume = document.getElementById('btn-plan-resume');
+  const btnCancel = document.getElementById('btn-plan-cancel');
+
+  if (btnPause && btnResume) {
+    if (currentTaskPlan.status === 'in_progress') {
+      btnPause.style.display = 'inline-flex';
+      btnResume.style.display = 'none';
+      btnPause.disabled = false;
+      if (btnCancel) btnCancel.disabled = false;
+    } else if (currentTaskPlan.status === 'paused') {
+      btnPause.style.display = 'none';
+      btnResume.style.display = 'inline-flex';
+      btnResume.disabled = false;
+      if (btnCancel) btnCancel.disabled = false;
+    } else {
+      btnPause.style.display = 'inline-flex';
+      btnPause.disabled = true;
+      btnResume.style.display = 'none';
+      if (btnCancel) btnCancel.disabled = true;
+    }
+  }
+
+  const progressFill = document.getElementById('plan-progress-bar-fill');
+  if (progressFill) progressFill.style.width = `${currentTaskPlan.progress}%`;
+
+  const progressText = document.getElementById('plan-progress-text');
+  if (progressText) {
+    const completed = currentTaskPlan.subtasks.filter(s => s.status === 'completed').length;
+    progressText.textContent = `${completed} / ${currentTaskPlan.subtasks.length} subtasks completed (${currentTaskPlan.progress}%)`;
+  }
+
+  // Render Subtasks
+  const subtaskList = document.getElementById('plan-subtask-list') || document.getElementById('screen-b-plan-checklist');
+  const subtaskCount = document.getElementById('plan-subtask-count');
+  if (subtaskCount) subtaskCount.textContent = currentTaskPlan.subtasks.length.toString();
+
+  if (subtaskList) {
+    subtaskList.innerHTML = '';
+    currentTaskPlan.subtasks.forEach((st) => {
+      const item = document.createElement('div');
+      item.className = `plan-subtask-item status-${st.status}`;
+      item.dataset.subtaskId = st.id;
+      if (typeof item.setAttribute === 'function') {
+        item.setAttribute('data-subtask-id', st.id);
+      }
+
+      let iconClass = 'codicon-circle-outline';
+      if (st.status === 'in_progress') iconClass = 'codicon-loading codicon-modifier-spin';
+      else if (st.status === 'completed') iconClass = 'codicon-pass-filled';
+      else if (st.status === 'failed') iconClass = 'codicon-error';
+
+      const targetTags = st.targetFiles.map(fp => `
+        <span class="subtask-target-tag" data-file-path="${fp}">
+          <span class="codicon ${resolveFileIconClass(fp)}"></span>
+          <span class="file-path-text">${escapeHtml(fp)}</span>
+        </span>
+      `).join('');
+
+      item.innerHTML = `
+        <div class="subtask-header">
+          <span class="codicon codicon-chevron-down subtask-chevron ${st.collapsed ? 'collapsed' : ''}"></span>
+          <span class="codicon ${iconClass} subtask-status-icon"></span>
+          <span class="subtask-title" title="${escapeHtml(st.title)}">${escapeHtml(st.title)}</span>
+          <span class="subtask-status-text">${st.status.replace('_', ' ')}</span>
+        </div>
+        <div class="subtask-body ${st.collapsed ? 'collapsed' : ''}">
+          ${st.description ? `<div class="subtask-desc">${escapeHtml(st.description)}</div>` : ''}
+          ${st.targetFiles.length > 0 ? `
+            <div class="subtask-targets">
+              <span class="subtask-targets-label">Target Files:</span>
+              <div class="subtask-target-tags">${targetTags}</div>
+            </div>
+          ` : ''}
+        </div>
+      `;
+
+      const header = item.querySelector('.subtask-header');
+      if (header) {
+        header.addEventListener('click', () => {
+          st.collapsed = !st.collapsed;
+          const chev = item.querySelector('.subtask-chevron');
+          const body = item.querySelector('.subtask-body');
+          if (chev) chev.classList.toggle('collapsed', st.collapsed);
+          if (body) body.classList.toggle('collapsed', st.collapsed);
+        });
+      }
+
+      subtaskList.appendChild(item);
+    });
+  }
+
+  // Render Affected Files Grouping
+  const affectedList = document.getElementById('plan-affected-list') || document.getElementById('screen-b-plan-files');
+  const affectedCount = document.getElementById('plan-affected-count');
+  const fileMap = new Map();
+  currentTaskPlan.subtasks.forEach(st => {
+    st.targetFiles.forEach(fp => {
+      fileMap.set(fp, (fileMap.get(fp) || 0) + 1);
+    });
+  });
+
+  if (affectedCount) affectedCount.textContent = fileMap.size.toString();
+  if (affectedList) {
+    affectedList.innerHTML = '';
+    fileMap.forEach((count, fp) => {
+      const fileRow = document.createElement('div');
+      fileRow.className = 'plan-affected-file-item';
+      fileRow.innerHTML = `
+        <div style="display:flex; align-items:center; gap:6px;">
+          <span class="codicon ${resolveFileIconClass(fp)}"></span>
+          <span class="file-path">${escapeHtml(fp)}</span>
+        </div>
+        <span style="font-size:10px; color:#858585;">${count} subtask(s)</span>
+      `;
+      affectedList.appendChild(fileRow);
+    });
+  }
+}
+
+// =============================================================================
+// ZERO-BUFFER DIFF PREVIEW & REVIEW CONTROLLER (Milestone v0.2.2 - R2/R4)
+// =============================================================================
+
+let diffEditor = null;
+let currentReviewDiffs = [];
+let activeDiffReviewId = null;
+
+function computeDiffStats(origText = '', propText = '') {
+  if (origText === propText) return { added: 0, deleted: 0 };
+  const origLines = (origText || '').split('\n');
+  const propLines = (propText || '').split('\n');
+  const origSet = new Set(origLines);
+  const propSet = new Set(propLines);
+  let added = 0;
+  let deleted = 0;
+  for (const line of propLines) {
+    if (!origSet.has(line)) added++;
+  }
+  for (const line of origLines) {
+    if (!propSet.has(line)) deleted++;
+  }
+  if (added === 0 && deleted === 0 && origLines.length !== propLines.length) {
+    if (propLines.length > origLines.length) {
+      added = propLines.length - origLines.length;
+    } else {
+      deleted = origLines.length - propLines.length;
+    }
+  }
+  return { added, deleted };
+}
+
+function normalizeDiffItem(diffItem, index = 0) {
+  const orig = diffItem.originalContent || diffItem.original || '';
+  const prop = diffItem.proposedContent || diffItem.proposed || diffItem.modified || '';
+  const stats = computeDiffStats(orig, prop);
+
+  return {
+    id: diffItem.id || `diff-${Date.now()}-${index}`,
+    filePath: diffItem.filePath || diffItem.path || 'quicksort.py',
+    originalContent: orig,
+    proposedContent: prop,
+    linesAdded: typeof diffItem.linesAdded === 'number' ? diffItem.linesAdded : (typeof diffItem.additions === 'number' ? diffItem.additions : stats.added),
+    linesDeleted: typeof diffItem.linesDeleted === 'number' ? diffItem.linesDeleted : (typeof diffItem.deletions === 'number' ? diffItem.deletions : stats.deleted),
+    status: diffItem.status || 'pending',
+    description: diffItem.description || '',
+  };
+}
+
+function setReviewDiffs(diffs) {
+  const list = Array.isArray(diffs) ? diffs : [];
+  currentReviewDiffs = list.map((d, i) => normalizeDiffItem(d, i));
+  setScreenBMode('review');
+  renderReviewPane();
+
+  if (typeof editorEventBridge !== 'undefined') {
+    editorEventBridge.emit('screenB:reviewUpdate', { diffs: currentReviewDiffs });
+  }
+  return currentReviewDiffs;
+}
+
+function addReviewDiff(diffItem) {
+  if (!diffItem) return null;
+  const item = normalizeDiffItem(diffItem, currentReviewDiffs.length);
+  const existingIdx = currentReviewDiffs.findIndex(d => d.filePath === item.filePath);
+  if (existingIdx >= 0) {
+    currentReviewDiffs[existingIdx] = item;
+  } else {
+    currentReviewDiffs.push(item);
+  }
+  setScreenBMode('review');
+  renderReviewPane();
+
+  if (typeof editorEventBridge !== 'undefined') {
+    editorEventBridge.emit('screenB:reviewUpdate', { diffs: currentReviewDiffs });
+  }
+  return item;
+}
+
+function getReviewDiffs() {
+  return currentReviewDiffs;
+}
+
+function renderReviewPane() {
+  const emptyPane = document.getElementById('review-empty-pane');
+  const activePane = document.getElementById('review-active-pane');
+  const listEl = document.getElementById('review-file-list') || document.getElementById('screen-b-review-list');
+  if (listEl) {
+    listEl.innerHTML = '';
+  }
+  if (!emptyPane || !activePane) return;
+
+  if (currentReviewDiffs.length === 0) {
+    emptyPane.style.display = 'flex';
+    activePane.style.display = 'none';
+    const countEl = document.getElementById('review-file-count') || document.getElementById('review-count-badge');
+    if (countEl) countEl.textContent = '0 files modified';
+    const addBadge = document.getElementById('review-total-added');
+    if (addBadge) addBadge.textContent = '+0';
+    const delBadge = document.getElementById('review-total-deleted');
+    if (delBadge) delBadge.textContent = '-0';
+    return;
+  }
+
+  emptyPane.style.display = 'none';
+  activePane.style.display = 'flex';
+
+  const countEl = document.getElementById('review-file-count') || document.getElementById('review-count-badge');
+  if (countEl) countEl.textContent = `${currentReviewDiffs.length} file(s) modified`;
+
+  const totalAdd = currentReviewDiffs.reduce((acc, d) => acc + (d.linesAdded || 0), 0);
+  const totalDel = currentReviewDiffs.reduce((acc, d) => acc + (d.linesDeleted || 0), 0);
+
+  const addBadge = document.getElementById('review-total-added');
+  if (addBadge) addBadge.textContent = `+${totalAdd}`;
+  const delBadge = document.getElementById('review-total-deleted');
+  if (delBadge) delBadge.textContent = `-${totalDel}`;
+
+  if (listEl) {
+    currentReviewDiffs.forEach(diff => {
+      const card = document.createElement('div');
+      card.className = 'review-file-card review-card';
+      card.dataset.diffId = diff.id;
+      card.dataset.filePath = diff.filePath;
+      if (typeof card.setAttribute === 'function') {
+        card.setAttribute('data-diff-id', diff.id);
+        card.setAttribute('data-review-id', diff.id);
+        card.setAttribute('data-file-path', diff.filePath);
+      }
+
+      const isApplied = diff.status === 'applied' || diff.status === 'accepted';
+      const isDiscarded = diff.status === 'discarded';
+
+      card.innerHTML = `
+        <div class="review-file-header review-card-header">
+          <div class="review-file-ident">
+            <span class="codicon ${resolveFileIconClass(diff.filePath)} review-file-icon"></span>
+            <span class="review-file-path" title="${escapeHtml(diff.filePath)}">${escapeHtml(diff.filePath)}</span>
+          </div>
+          <div class="review-diff-counters review-diff-badges">
+            <span class="diff-added diff-badge diff-badge-add">+${diff.linesAdded || 0}</span>
+            <span class="diff-deleted diff-badge diff-badge-del">-${diff.linesDeleted || 0}</span>
+          </div>
+        </div>
+        ${diff.description ? `<div class="review-file-desc">${escapeHtml(diff.description)}</div>` : ''}
+        <div class="review-file-actions review-card-actions">
+          ${isApplied ? `
+            <span class="review-status-applied"><span class="codicon codicon-pass-filled"></span> Applied</span>
+          ` : isDiscarded ? `
+            <span class="review-status-discarded"><span class="codicon codicon-discard"></span> Discarded</span>
+          ` : `
+            <button class="review-action-btn btn-review-diff" title="Review Diff in Layar A (Zero-Buffer)">
+              <span class="codicon codicon-diff"></span>
+              <span>Review Diff</span>
+            </button>
+            <button class="review-action-btn btn-review-accept" title="Accept Changes and Write to Disk">
+              <span class="codicon codicon-check"></span>
+              <span>Accept</span>
+            </button>
+            <button class="review-action-btn btn-review-discard" title="Discard Changes">
+              <span class="codicon codicon-discard"></span>
+              <span>Discard</span>
+            </button>
+          `}
+        </div>
+      `;
+
+      const btnDiff = card.querySelector('.btn-review-diff');
+      if (btnDiff) {
+        btnDiff.addEventListener('click', () => {
+          openReviewDiff(diff.id);
+        });
+      }
+
+      const btnAccept = card.querySelector('.btn-review-accept');
+      if (btnAccept) {
+        btnAccept.addEventListener('click', async () => {
+          await acceptReviewDiff(diff.id);
+        });
+      }
+
+      const btnDiscard = card.querySelector('.btn-review-discard');
+      if (btnDiscard) {
+        btnDiscard.addEventListener('click', () => {
+          discardReviewDiff(diff.id);
+        });
+      }
+
+      listEl.appendChild(card);
+    });
+  }
+}
+
+async function openReviewDiff(reviewItemOrId) {
+  let diffItem = null;
+  if (typeof reviewItemOrId === 'string') {
+    diffItem = currentReviewDiffs.find(d => d.id === reviewItemOrId || d.filePath === reviewItemOrId);
+  } else if (reviewItemOrId && typeof reviewItemOrId === 'object') {
+    diffItem = reviewItemOrId;
+  }
+  if (!diffItem) return false;
+
+  const diffMount = document.getElementById('diff-editor-mount');
+  const editorMount = document.getElementById('editor-mount');
+  if (!diffMount || !editorMount) return false;
+
+  // Save current editor view state if open
+  if (docManager && docManager.activeDocId) {
+    const activeDoc = docManager.documents ? docManager.documents.get(docManager.activeDocId) : null;
+    if (activeDoc && editor && typeof editor.saveViewState === 'function') {
+      activeDoc.viewState = editor.saveViewState();
+    }
+  }
+
+  // Switch display: hide editor mount, show diff mount
+  editorMount.style.display = 'none';
+  diffMount.style.display = 'block';
+
+  // Instantiate diff editor if needed
+  if (!diffEditor && window.monaco && window.monaco.editor) {
+    diffEditor = window.monaco.editor.createDiffEditor(diffMount, {
+      theme: 'vs-dark',
+      automaticLayout: true,
+      readOnly: true,
+      renderSideBySide: true,
+    });
+  }
+
+  // Resolve original baseline
+  let origContent = diffItem.originalContent;
+  if (typeof origContent !== 'string') {
+    let openDoc = null;
+    if (docManager && docManager.documents) {
+      for (const [id, doc] of docManager.documents) {
+        if (id === diffItem.filePath || doc.filePath === diffItem.filePath || toRelativeWorkspacePath(doc.filePath) === toRelativeWorkspacePath(diffItem.filePath)) {
+          openDoc = doc;
+          break;
+        }
+      }
+    }
+    if (openDoc && openDoc.model && typeof openDoc.model.getValue === 'function') {
+      origContent = openDoc.model.getValue();
+    } else if (window.electronFS && typeof window.electronFS.readFile === 'function') {
+      try {
+        const readRes = await window.electronFS.readFile(diffItem.filePath);
+        origContent = (readRes && typeof readRes === 'object' && 'content' in readRes) ? readRes.content : (readRes || '');
+      } catch {
+        origContent = '';
+      }
+    } else {
+      origContent = '';
+    }
+  }
+
+  const propContent = diffItem.proposedContent || '';
+
+  if (diffEditor && window.monaco && window.monaco.editor) {
+    const lang = (docManager && typeof docManager.detectLanguage === 'function')
+      ? docManager.detectLanguage(diffItem.filePath)
+      : 'plaintext';
+
+    const origUri = (window.monaco.Uri && typeof window.monaco.Uri.parse === 'function')
+      ? window.monaco.Uri.parse(`agent-orig://${diffItem.filePath}`)
+      : { toString: () => `agent-orig://${diffItem.filePath}` };
+
+    let origModel = null;
+    if (window.monaco.editor && typeof window.monaco.editor.getModel === 'function') {
+      const found = window.monaco.editor.getModel(origUri);
+      if (found && found.uri && typeof found.uri.toString === 'function' && found.uri.toString().startsWith('agent-orig://')) {
+        origModel = found;
+      }
+    }
+
+    if (!origModel && window.monaco.editor && typeof window.monaco.editor.createModel === 'function') {
+      origModel = window.monaco.editor.createModel(origContent, lang, origUri);
+    } else if (origModel && typeof origModel.setValue === 'function') {
+      origModel.setValue(origContent);
+    }
+
+    const propUri = (window.monaco.Uri && typeof window.monaco.Uri.parse === 'function')
+      ? window.monaco.Uri.parse(`agent-proposed://${diffItem.filePath}`)
+      : { toString: () => `agent-proposed://${diffItem.filePath}` };
+
+    let propModel = null;
+    if (window.monaco.editor && typeof window.monaco.editor.getModel === 'function') {
+      const found = window.monaco.editor.getModel(propUri);
+      if (found && found.uri && typeof found.uri.toString === 'function' && found.uri.toString().startsWith('agent-proposed://')) {
+        propModel = found;
+      }
+    }
+
+    if (!propModel && window.monaco.editor && typeof window.monaco.editor.createModel === 'function') {
+      propModel = window.monaco.editor.createModel(propContent, lang, propUri);
+    } else if (propModel && typeof propModel.setValue === 'function') {
+      propModel.setValue(propContent);
+    }
+
+    if (typeof diffEditor.setModel === 'function') {
+      diffEditor.setModel({
+        original: origModel,
+        modified: propModel,
+      });
+    }
+  }
+
+  const fileName = diffItem.filePath.replace(/\\/g, '/').split('/').pop() || diffItem.filePath;
+  const tabTitle = `${fileName} (Review Proposed Diff)`;
+  if (crumbFileName) crumbFileName.textContent = tabTitle;
+  if (crumbSymbolName) crumbSymbolName.textContent = 'diff';
+  if (windowTitle) windowTitle.textContent = `${tabTitle} — NSCode`;
+
+  activeDiffReviewId = diffItem.id;
+
+  if (typeof editorEventBridge !== 'undefined') {
+    editorEventBridge.emit('screenA:diffReview', diffItem);
+    editorEventBridge.emit('screenB:diffOpened', { diffId: diffItem.id, filePath: diffItem.filePath });
+  }
+
+  return true;
+}
+
+function closeReviewDiff() {
+  const diffMount = document.getElementById('diff-editor-mount');
+  const editorMount = document.getElementById('editor-mount');
+  if (diffMount) diffMount.style.display = 'none';
+  if (editorMount) editorMount.style.display = 'block';
+
+  // Restore active document model and view state in editor
+  if (docManager && docManager.activeDocId) {
+    const activeDoc = docManager.documents ? docManager.documents.get(docManager.activeDocId) : null;
+    if (activeDoc && activeDoc.model && editor && typeof editor.setModel === 'function') {
+      editor.setModel(activeDoc.model);
+      if (activeDoc.viewState && typeof editor.restoreViewState === 'function') {
+        editor.restoreViewState(activeDoc.viewState);
+      }
+    }
+    if (typeof docManager.syncActiveChrome === 'function') {
+      docManager.syncActiveChrome(docManager.activeDocId);
+    }
+  }
+
+  if (editor && typeof editor.focus === 'function') {
+    editor.focus();
+  }
+
+  activeDiffReviewId = null;
+
+  if (typeof editorEventBridge !== 'undefined') {
+    editorEventBridge.emit('screenB:diffClosed', {});
+  }
+}
+
+async function acceptReviewDiff(diffId) {
+  const diff = currentReviewDiffs.find(d => d.id === diffId);
+  if (!diff) return false;
+
+  // 1. Write proposed content to disk via FS bridge
+  if (window.electronFS && typeof window.electronFS.writeFile === 'function') {
+    await window.electronFS.writeFile(diff.filePath, diff.proposedContent);
+  }
+
+  // 2. Buffer Synchronization: update active model and clear dirty state
+  if (docManager && docManager.documents) {
+    let openDoc = null;
+    for (const [id, doc] of docManager.documents) {
+      if (id === diff.filePath || doc.filePath === diff.filePath || toRelativeWorkspacePath(doc.filePath) === toRelativeWorkspacePath(diff.filePath)) {
+        openDoc = doc;
+        break;
+      }
+    }
+    if (openDoc && openDoc.model) {
+      if (typeof openDoc.model.setValue === 'function') {
+        openDoc.model.setValue(diff.proposedContent);
+      }
+      if (typeof openDoc.model.getAlternativeVersionId === 'function') {
+        openDoc.initialVersionId = openDoc.model.getAlternativeVersionId();
+      }
+      openDoc.isDirty = false;
+      if (typeof docManager.renderTabs === 'function') {
+        docManager.renderTabs();
+      }
+      if (typeof editorEventBridge !== 'undefined') {
+        editorEventBridge.emit('editor:dirtyChange', { isDirty: false, filePath: diff.filePath });
+      }
+    }
+  }
+
+  // 3. Update status & mark applied, then remove from pending review diffs
+  diff.status = 'applied';
+  diff.applied = true;
+  diff.accepted = true;
+  currentReviewDiffs = currentReviewDiffs.filter(d => d.id !== diffId);
+
+  // 4. Close diff editor
+  closeReviewDiff();
+
+  // 5. Re-render review pane
+  renderReviewPane();
+
+  // 6. Broadcast event
+  if (typeof editorEventBridge !== 'undefined') {
+    editorEventBridge.emit('screenB:diffAccepted', { diffId, filePath: diff.filePath });
+    editorEventBridge.emit('screenB:reviewAccepted', { diffId, filePath: diff.filePath });
+  }
+
+  return true;
+}
+
+function discardReviewDiff(diffId) {
+  const diff = currentReviewDiffs.find(d => d.id === diffId);
+  if (!diff) return false;
+
+  diff.status = 'discarded';
+  diff.discarded = true;
+  currentReviewDiffs = currentReviewDiffs.filter(d => d.id !== diffId);
+
+  // Close diff editor
+  closeReviewDiff();
+
+  // Re-render review pane
+  renderReviewPane();
+
+  if (typeof editorEventBridge !== 'undefined') {
+    editorEventBridge.emit('screenB:diffDiscarded', { diffId, filePath: diff.filePath });
+    editorEventBridge.emit('screenB:reviewDiscarded', { diffId, filePath: diff.filePath });
+  }
+
+  return true;
+}
+
+async function acceptAllReviewDiffs() {
+  const pending = [...currentReviewDiffs];
+  for (const diff of pending) {
+    await acceptReviewDiff(diff.id);
+  }
+  currentReviewDiffs = [];
+  renderReviewPane();
+}
+
+function discardAllReviewDiffs() {
+  const pending = [...currentReviewDiffs];
+  for (const diff of pending) {
+    discardReviewDiff(diff.id);
+  }
+  currentReviewDiffs = [];
+  renderReviewPane();
+}
+
+function showDiffEditor(filePath, originalContent, proposedContent) {
+  const item = addReviewDiff({
+    filePath,
+    originalContent,
+    proposedContent,
+  });
+  return openReviewDiff(item.id);
 }
 
 // =============================================================================
@@ -3583,9 +5229,14 @@ function initGlobalShortcuts() {
       primaryResizer.toggle();
     }
     // Ctrl+Alt+B: Toggle Secondary Sidebar (Screen B)
-    else if ((e.ctrlKey || e.metaKey) && e.altKey && e.key === 'b') {
+    else if ((e.ctrlKey || e.metaKey) && e.altKey && (e.key === 'b' || e.key === 'B')) {
       e.preventDefault();
       secondaryResizer.toggle();
+    }
+    // Ctrl+Alt+A / Cmd+Alt+A: Bridge selection to Screen B Target Stack (Milestone v0.2.2 - R1)
+    else if ((e.ctrlKey || e.metaKey) && e.altKey && (e.key === 'a' || e.key === 'A')) {
+      e.preventDefault();
+      sendSelectionToScreenB();
     }
     // Ctrl+` (Backquote): Toggle Bottom Panel
     else if ((e.ctrlKey || e.metaKey) && e.key === '`') {
@@ -3604,6 +5255,11 @@ function initGlobalShortcuts() {
     else if (((e.ctrlKey || e.metaKey) && e.shiftKey && (e.key === 'p' || e.key === 'P')) || e.key === 'F1') {
       e.preventDefault();
       openCommandPalette('>');
+    }
+    // Ctrl+G: Go to Line
+    else if ((e.ctrlKey || e.metaKey) && (e.key === 'g' || e.key === 'G') && !e.shiftKey) {
+      e.preventDefault();
+      openCommandPalette(':');
     }
     // Ctrl+\: Split Editor Right
     else if ((e.ctrlKey || e.metaKey) && e.key === '\\') {
@@ -3818,7 +5474,6 @@ function initGlobalShortcuts() {
 // =============================================================================
 let scmController = null;
 let searchController = null;
-let diffEditor = null;
 
 function showSidebarView(viewName) {
   if (primarySidebar && primarySidebar.classList.contains('collapsed')) {
@@ -4413,8 +6068,20 @@ window.addEventListener('DOMContentLoaded', () => {
   }
 });
 
-// Expose Screen B Guided Cognition APIs for tests & interactions
+// Expose Workbench v0.2.1 APIs & Screen B Guided Cognition APIs for tests & interactions
 if (typeof window !== 'undefined') {
+  window.fuzzyMatch = fuzzyMatch;
+  window.openCommandPalette = openCommandPalette;
+  window.closeCommandPalette = closeCommandPalette;
+  window.updateWorkspaceFileIndex = updateWorkspaceFileIndex;
+  window.getWorkspaceFileIndex = getWorkspaceFileIndex;
+  window.showDirtySaveDialog = showDirtySaveDialog;
+  window.editorEventBridge = editorEventBridge;
+  window.setScreenBMode = setScreenBMode;
+  window.resolveFileIconClass = resolveFileIconClass;
+  window.updateCursorTelemetry = updateCursorTelemetry;
+  window.getPaletteItems = getPaletteItems;
+
   window.extractTargetLines = extractTargetLines;
   window.renderTargetStack = renderTargetStack;
   window.addTargetsToStack = addTargetsToStack;
@@ -4422,6 +6089,43 @@ if (typeof window !== 'undefined') {
   window.requestGuidanceForTarget = requestGuidanceForTarget;
   window.renderTechnicalSummaryCard = renderTechnicalSummaryCard;
   window.updateScreenBBreadcrumb = updateScreenBBreadcrumb;
+
+  // Milestone v0.2.2 APIs
+  window.toRelativeWorkspacePath = toRelativeWorkspacePath;
+  window.getActiveDocumentRelativePath = getActiveDocumentRelativePath;
+  window.registerEditorActions = registerEditorActions;
+  window.sendSelectionToScreenB = sendSelectionToScreenB;
+  window.bridgeSelectionToScreenB = sendSelectionToScreenB;
+
+  window.createTaskPlan = createTaskPlan;
+  window.setAgenticPlan = createTaskPlan;
+  window.getTaskPlan = getTaskPlan;
+  window.pauseTaskPlan = pauseTaskPlan;
+  window.pausePlan = pauseTaskPlan;
+  window.resumeTaskPlan = resumeTaskPlan;
+  window.resumePlan = resumeTaskPlan;
+  window.cancelTaskPlan = cancelTaskPlan;
+  window.cancelPlan = cancelTaskPlan;
+  window.advanceSubtask = advanceSubtask;
+  window.updateSubtaskStatus = advanceSubtask;
+  window.addExecutionLog = addExecutionLog;
+  window.renderPlanView = renderPlanView;
+  window.renderPlanPane = renderPlanView;
+
+  window.computeDiffStats = computeDiffStats;
+  window.setReviewDiffs = setReviewDiffs;
+  window.addReviewDiff = addReviewDiff;
+  window.getReviewDiffs = getReviewDiffs;
+  window.renderReviewPane = renderReviewPane;
+  window.renderReviewView = renderReviewPane;
+  window.openReviewDiff = openReviewDiff;
+  window.closeReviewDiff = closeReviewDiff;
+  window.acceptReviewDiff = acceptReviewDiff;
+  window.discardReviewDiff = discardReviewDiff;
+  window.acceptAllReviewDiffs = acceptAllReviewDiffs;
+  window.discardAllReviewDiffs = discardAllReviewDiffs;
+  window.showDiffEditor = showDiffEditor;
+
   window.screenBController = {
     extractTargetLines,
     getTargetStack: () => targetStack,
@@ -4436,13 +6140,88 @@ if (typeof window !== 'undefined') {
     requestGuidanceForTarget,
     renderTechnicalSummaryCard,
     updateBreadcrumb: updateScreenBBreadcrumb,
+
+    // Milestone v0.2.2 controller methods
+    toRelativeWorkspacePath,
+    getActiveDocumentRelativePath,
+    sendSelectionToScreenB,
+    bridgeSelectionToScreenB: sendSelectionToScreenB,
+    setScreenBMode,
+    createTaskPlan,
+    setAgenticPlan: createTaskPlan,
+    getTaskPlan,
+    pauseTaskPlan,
+    pausePlan: pauseTaskPlan,
+    resumeTaskPlan,
+    resumePlan: resumeTaskPlan,
+    cancelTaskPlan,
+    cancelPlan: cancelTaskPlan,
+    advanceSubtask,
+    updateSubtaskStatus: advanceSubtask,
+    addExecutionLog,
+    renderPlanView,
+    renderPlanPane: renderPlanView,
+    computeDiffStats,
+    setReviewDiffs,
+    addReviewDiff,
+    getReviewDiffs,
+    renderReviewPane,
+    renderReviewView: renderReviewPane,
+    openReviewDiff,
+    closeReviewDiff,
+    acceptReviewDiff,
+    discardReviewDiff,
+    acceptAllReviewDiffs,
+    discardAllReviewDiffs,
+    showDiffEditor,
   };
+
   try {
     Object.defineProperty(window, 'targetStack', {
       get: () => targetStack,
       set: (val) => {
         targetStack = val;
         renderTargetStack();
+      },
+      configurable: true,
+    });
+    Object.defineProperty(window, 'currentTaskPlan', {
+      get: () => currentTaskPlan,
+      set: (val) => {
+        currentTaskPlan = val;
+        renderPlanView();
+      },
+      configurable: true,
+    });
+    Object.defineProperty(window, 'currentPlan', {
+      get: () => currentTaskPlan,
+      set: (val) => {
+        currentTaskPlan = val;
+        renderPlanView();
+      },
+      configurable: true,
+    });
+    Object.defineProperty(window, 'currentReviewDiffs', {
+      get: () => currentReviewDiffs,
+      set: (val) => {
+        currentReviewDiffs = val;
+        renderReviewPane();
+      },
+      configurable: true,
+    });
+    Object.defineProperty(window, 'reviewDiffs', {
+      get: () => currentReviewDiffs,
+      set: (val) => {
+        currentReviewDiffs = val;
+        renderReviewPane();
+      },
+      configurable: true,
+    });
+    Object.defineProperty(window, 'reviewDiffList', {
+      get: () => currentReviewDiffs,
+      set: (val) => {
+        currentReviewDiffs = val;
+        renderReviewPane();
       },
       configurable: true,
     });

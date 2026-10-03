@@ -122,3 +122,81 @@ Integrity mode: development
 - [ ] All 376+ existing monorepo tests continue to pass (zero regression).
 - [ ] All new Screen B guidance unit tests pass 100%.
 - [ ] `corepack yarn --cwd packages/antislop-desktop build` compiles cleanly with exit code 0.
+
+
+## 2026-10-03T03:33:05Z
+
+Implement Milestone v0.2.1 of NSCode focusing on authentic VS Code desktop editor ergonomics: implement Quick Open (`Ctrl+P`) with in-memory fuzzy search across workspace files, Tab Dirty State management with bullet indicator (`●`) and save confirmation modals, Status Bar cursor telemetry (`Ln X, Col Y`) with Go to Line (`Ctrl+G`), and establish the foundational event bridge and mode switcher tabs in Screen B for dynamic agentic code workflows.
+
+Working directory: C:\laragon\www\_Projek\NSCode  
+Integrity mode: development
+
+## Requirements
+
+### R1. Quick Open (`Ctrl+P`) with Workspace Fuzzy Search
+- Implement a fast in-memory fuzzy search modal in the top-center Command Palette when triggered by `Ctrl+P` (or `Cmd+P`).
+- Recursively index all relative file paths in the active workspace (excluding `node_modules`, `.git`, `dist`, `.gemini`).
+- Render candidate file items with their corresponding Codicon file icons (leveraging `iconTheme.ts`), bold highlighted match characters, and relative path descriptions.
+- Full keyboard ergonomics: `Up`/`Down` arrow navigation, `Enter` to open in Monaco editor Layar A, and `Escape` to dismiss.
+- Bidirectional palette mode switching: typing `>` switches to Command Palette mode, clearing `>` or pressing `Ctrl+P` switches back to Quick Open mode.
+
+### R2. Tab Dirty State Management (`●`) & Save Ergonomics
+- Track document modification state (`isDirty`) in Monaco Editor:
+  - When Monaco content changes from the disk baseline, mark the tab as dirty.
+  - Tab close icon transforms from `×` to a solid white bullet (`●`). On hover, the bullet reverts to `×` for closing.
+  - Keyboard shortcut `Ctrl+S` saves the active buffer to disk, clears `isDirty`, and restores the normal tab icon.
+- Safe closing guards:
+  - If a user attempts to close a dirty tab, open an authentic VS Code dark+ dialog modal: *"Do you want to save the changes you made to [filename]?"* with actions: `[ Save ]`, `[ Don't Save ]`, `[ Cancel ]`.
+  - Closing all tabs or switching workspaces prompts for unsaved files.
+
+### R3. Status Bar Cursor Telemetry (`Ln/Col`) & Go to Line (`Ctrl+G`)
+- Display real-time cursor coordinate telemetry (`Ln X, Col Y`) on the Status Bar.
+  - Updates dynamically on Monaco `onDidChangeCursorPosition` and `onDidChangeCursorSelection` events.
+  - When text is selected, display selection count: e.g. `Ln 14, Col 5 (12 selected)`.
+- Clicking the coordinate badge or pressing `Ctrl+G` opens Quick Open with `:` prefilled to allow typing a line number and jumping directly to it.
+
+### R4. Dynamic Screen B Mode Scaffolding & Editor Event Bridge
+- Lay the architectural foundation for dynamic agentic code in Screen B (Milestones v0.2.2 - v0.2.4):
+  - Establish an internal event bridge in `workbench.js` (`editor:cursorChange`, `editor:dirtyChange`, `editor:fileSwitched`) that broadcasts active editor context.
+  - Scaffold a VS Code secondary sidebar mode switcher at the top of Screen B with clean tab buttons: `Chat` (active), `Plan`, `Review`.
+  - Maintain strict visual token parity with VS Code Dark+ (`#1e1e1e`, `#252526`, `#2d2d2d`, Segoe UI / Cascadia Code font, zero emoji slop).
+
+### R5. Automated Programmatic Test Suite
+- Comprehensive Vitest test suite (`packages/antislop-desktop/test/v0_2_1_quick_open_dirty_tabs.test.ts`) validating:
+  - Fuzzy matching algorithm accuracy and performance.
+  - Tab dirty state lifecycle (edit -> dirty `●` -> save `Ctrl+S` -> clean).
+  - Dirty tab close confirmation handling (Save, Don't Save, Cancel).
+  - Cursor telemetry formatting and Go to Line parsing.
+  - Screen B mode tab switching and event broadcasting.
+  - Zero regression across all 395 existing tests.
+
+## Acceptance Criteria
+
+### Quick Open (`Ctrl+P`)
+- [ ] Pressing `Ctrl+P` opens the quick open palette displaying workspace files with matching Codicon icons.
+- [ ] Arrow navigation and Enter opens the selected file in Monaco Layar A without reloading the page.
+- [ ] Typing `>` switches palette into command execution mode, and back.
+
+### Tab Dirty State & Saving
+- [ ] Modifying a file in Monaco renders a white bullet (`●`) on the active tab.
+- [ ] Pressing `Ctrl+S` writes changes to disk, removes the bullet, and keeps the file open.
+- [ ] Closing a dirty tab displays a confirmation modal with options to Save, Don't Save, or Cancel.
+
+### Status Bar Telemetry & Go to Line
+- [ ] Moving the cursor in Monaco updates the `Ln X, Col Y` telemetry in the Status Bar in real-time.
+- [ ] Clicking the telemetry or pressing `Ctrl+G` opens the palette with `:` and typing a number navigates Monaco directly to that line.
+
+### Dynamic Screen B & Verification Integrity
+- [ ] Screen B header features clean mode switcher tabs (`Chat`, `Plan`, `Review`) in authentic VS Code Dark+ styling.
+- [ ] All 395 existing monorepo tests pass 100%.
+- [ ] New unit test suite `v0_2_1_quick_open_dirty_tabs.test.ts` passes 100%.
+- [ ] `corepack yarn --cwd packages/antislop-desktop build` compiles cleanly with exit code 0.
+
+
+## 2026-10-03T05:24:57Z
+
+Continue from where it was paused for Milestone v0.2.1:
+All implementation in main.ts, preload.ts, index.html, workbench.css, and workbench.js is completed.
+All 447 monorepo tests pass (including 38 tests in v0_2_1_quick_open_dirty_tabs.test.ts and 14 tests in v0_2_1_adversarial_challenger_2.test.ts).
+Desktop package build compiles cleanly with exit code 0.
+Perform the final Victory Audit, verify all acceptance criteria for R1-R5, update docs/tasks.md and docs/BENCHMARK_GOAL_ROADMAP_V1_0_0.md, and confirm completion.

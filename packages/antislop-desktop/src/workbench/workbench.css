@@ -904,6 +904,7 @@ body.is-resizing .bottom-panel {
   align-items: center;
   justify-content: center;
   color: #858585;
+  cursor: pointer;
 }
 
 .tab-close-btn:hover {
@@ -911,11 +912,54 @@ body.is-resizing .bottom-panel {
   color: #ffffff;
 }
 
+/* Tab Dirty State: Default shows solid white bullet */
+.tab-close-btn.is-dirty,
+.workbench-tab.is-dirty .tab-close-btn,
+.open-editor-close.is-dirty {
+  color: var(--vscode-tab-dirty-fg, #ffffff);
+  position: relative;
+}
+
+.tab-close-btn.is-dirty::before,
+.workbench-tab.is-dirty .tab-close-btn::before,
+.open-editor-item.is-dirty .open-editor-close::before,
+.open-editor-close.is-dirty::before {
+  content: "" !important;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background-color: var(--vscode-tab-dirty-fg, #ffffff);
+  display: block;
+}
+
+/* Hover State: Bullet reverts to standard × close icon */
+.workbench-tab:hover .tab-close-btn.is-dirty::before,
+.workbench-tab .tab-close-btn.is-dirty:hover::before,
+.workbench-tab.is-dirty:hover .tab-close-btn::before,
+.tab-close-btn.is-dirty:hover::before,
+.open-editor-item:hover .open-editor-close.is-dirty::before,
+.open-editor-close.is-dirty:hover::before {
+  content: "\ea76" !important; /* codicon-close character */
+  font-family: "codicon" !important;
+  font-size: 12px;
+  width: auto;
+  height: auto;
+  border-radius: 0;
+  background-color: transparent;
+  color: #cccccc;
+}
+
+.tab-close-btn.is-dirty:hover,
+.open-editor-close.is-dirty:hover {
+  background-color: rgba(255, 255, 255, 0.15);
+  color: #ffffff !important;
+}
+
 .tab-dirty-indicator {
   width: 8px;
   height: 8px;
   border-radius: 50%;
-  background-color: var(--vscode-tab-dirty-fg);
+  background-color: var(--vscode-tab-dirty-fg, #ffffff);
   display: inline-block;
 }
 
@@ -1939,8 +1983,33 @@ body.is-resizing .bottom-panel {
   flex-shrink: 0;
 }
 
-.palette-item.selected .palette-item-shortcut {
+.palette-item-icon {
+  font-size: 14px;
+  margin-right: 6px;
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+}
+
+.palette-item-name {
   color: #e0e0e0;
+  font-weight: 500;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.palette-item-path {
+  color: #858585;
+  font-size: 11px;
+  margin-left: 8px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.palette-item.selected .palette-item-path {
+  color: #b0b0b0;
 }
 
 .palette-highlight {
@@ -2503,5 +2572,722 @@ body.is-resizing .bottom-panel {
   border-color: #f14c4c !important;
   outline-color: #f14c4c !important;
 }
+
+/* =============================================================================
+   SAVE CONFIRMATION DIALOG MODAL (Milestone v0.2.1 - R2)
+============================================================================= */
+.dirty-dialog-backdrop {
+  position: fixed;
+  inset: 0;
+  width: 100vw;
+  height: 100vh;
+  background-color: rgba(0, 0, 0, 0.5);
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+  padding-top: 15vh;
+  z-index: 2500;
+}
+
+.dirty-dialog-modal {
+  background-color: #252526;
+  border: 1px solid #3f3f46;
+  border-radius: 4px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.55);
+  width: 480px;
+  max-width: 90vw;
+  padding: 16px 20px;
+  color: #cccccc;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Cascadia Code, monospace;
+}
+
+.dirty-dialog-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 8px;
+}
+
+.dirty-dialog-icon {
+  font-size: 20px;
+  color: #cca700; /* VS Code warning yellow */
+}
+
+.dirty-dialog-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: #ffffff;
+  line-height: 1.4;
+}
+
+.dirty-dialog-body {
+  font-size: 12px;
+  color: #969696;
+  margin-left: 30px;
+  margin-bottom: 20px;
+}
+
+.dirty-dialog-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.dialog-btn {
+  padding: 5px 14px;
+  font-size: 12px;
+  border-radius: 2px;
+  border: 1px solid transparent;
+  cursor: pointer;
+  outline: none;
+  font-family: inherit;
+  transition: background-color 0.1s ease, border-color 0.1s ease;
+}
+
+.dialog-btn-primary {
+  background-color: #007acc;
+  color: #ffffff;
+}
+
+.dialog-btn-primary:hover {
+  background-color: #0098ff;
+}
+
+.dialog-btn-secondary {
+  background-color: #3c3c3c;
+  color: #cccccc;
+  border-color: #444444;
+}
+
+.dialog-btn-secondary:hover {
+  background-color: #4c4c4c;
+  color: #ffffff;
+}
+
+.dialog-btn-cancel {
+  background-color: transparent;
+  color: #cccccc;
+  border-color: #3c3c3c;
+}
+
+.dialog-btn-cancel:hover {
+  background-color: rgba(255, 255, 255, 0.08);
+  color: #ffffff;
+}
+
+.dialog-btn:focus-visible {
+  border-color: #007acc;
+}
+
+/* =============================================================================
+   SCREEN B MODE SWITCHER TABS & CONTAINERS (Milestone v0.2.1 - R4)
+============================================================================= */
+.screen-b-mode-tabs {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  margin-left: 8px;
+  background-color: transparent;
+}
+
+.screen-b-mode-tab {
+  background: transparent;
+  border: none;
+  border-bottom: 2px solid transparent;
+  color: #858585;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  font-size: 11px;
+  font-weight: 500;
+  padding: 4px 8px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  transition: color 0.15s ease, border-color 0.15s ease, background-color 0.15s ease;
+  border-radius: 2px 2px 0 0;
+}
+
+.screen-b-mode-tab:hover {
+  color: #cccccc;
+  background-color: rgba(255, 255, 255, 0.04);
+}
+
+.screen-b-mode-tab.active {
+  color: #ffffff;
+  font-weight: 600;
+  border-bottom: 2px solid #007acc;
+}
+
+.screen-b-mode-tab .codicon {
+  font-size: 13px;
+}
+
+.screen-b-view-container {
+  flex: 1;
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  box-sizing: border-box;
+}
+
+.screen-b-view-chat {
+  padding: 0;
+}
+
+.screen-b-empty-pane {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  margin: auto;
+  gap: 10px;
+  max-width: 280px;
+  padding: 16px;
+}
+
+.empty-pane-icon {
+  font-size: 32px;
+  color: #858585;
+  opacity: 0.6;
+}
+
+.empty-pane-title {
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  color: #d4d4d4;
+  text-transform: uppercase;
+}
+
+.empty-pane-desc {
+  font-size: 11px;
+  line-height: 1.5;
+  color: #858585;
+}
+
+/* =============================================================================
+   TARGET CODE PREVIEW & CONTEXT CARDS (Milestone v0.2.2 - R1)
+   ============================================================================= */
+.target-code-preview {
+  background-color: #1e1e1e;
+  border: 1px solid #2d2d2d;
+  border-radius: 3px;
+  padding: 4px 6px;
+  font-family: 'Cascadia Code', Consolas, monospace;
+  font-size: 11px;
+  color: #9cdcfe;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: pre;
+  max-height: 48px;
+  line-height: 1.4;
+  word-break: break-all;
+}
+
+.target-code-preview code {
+  font-family: inherit;
+  color: inherit;
+}
+
+/* =============================================================================
+   SCREEN B PLAN MODE & REVIEW MODE STYLES (Milestone v0.2.2 - R2/R3/R4)
+   ============================================================================= */
+
+/* Plan & Review Active Panes */
+.plan-active-pane,
+.review-active-pane {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  width: 100%;
+  box-sizing: border-box;
+  overflow: hidden;
+}
+
+.plan-header-toolbar,
+.review-header-toolbar {
+  padding: 10px 12px;
+  background-color: #202023;
+  border-bottom: 1px solid #2d2d2d;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.plan-title-row,
+.review-stats-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.plan-title {
+  font-size: 12px;
+  font-weight: 600;
+  color: #e0e0e0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.plan-status-badge {
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  padding: 2px 6px;
+  border-radius: 2px;
+  letter-spacing: 0.05em;
+}
+
+.status-badge-progress,
+.status-badge-in_progress,
+.status-badge-inprogress {
+  background-color: rgba(0, 122, 204, 0.2);
+  color: #4fc1ff;
+  border: 1px solid #007acc;
+}
+
+.status-badge-paused {
+  background-color: rgba(204, 167, 0, 0.2);
+  color: #dcdcaa;
+  border: 1px solid #cca700;
+}
+
+.status-badge-completed {
+  background-color: rgba(78, 201, 176, 0.2);
+  color: #89d185;
+  border: 1px solid #89d185;
+}
+
+.status-badge-cancelled,
+.status-badge-failed {
+  background-color: rgba(241, 76, 76, 0.2);
+  color: #f14c4c;
+  border: 1px solid #f14c4c;
+}
+
+.plan-controls-toolbar,
+.review-global-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.plan-control-btn,
+.review-action-btn {
+  background-color: #2d2d30;
+  color: #cccccc;
+  border: 1px solid #3c3c3c;
+  border-radius: 2px;
+  font-size: 11px;
+  padding: 3px 8px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  transition: background-color 0.15s ease, color 0.15s ease;
+}
+
+.plan-control-btn:hover,
+.review-action-btn:hover {
+  background-color: #38383c;
+  color: #ffffff;
+}
+
+.plan-control-btn:disabled,
+.review-action-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.plan-control-btn.btn-danger:hover {
+  background-color: rgba(241, 76, 76, 0.25);
+  border-color: #f14c4c;
+  color: #f14c4c;
+}
+
+.plan-progress-container {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.plan-progress-bar-bg {
+  width: 100%;
+  height: 4px;
+  background-color: #2d2d30;
+  border-radius: 2px;
+  overflow: hidden;
+}
+
+.plan-progress-bar-fill {
+  height: 100%;
+  background-color: #007acc;
+  transition: width 0.25s ease-in-out;
+}
+
+.plan-progress-text,
+.review-file-count {
+  font-size: 11px;
+  color: #858585;
+}
+
+.plan-scroll-content,
+.review-file-list {
+  flex: 1;
+  overflow-y: auto;
+  padding: 8px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.plan-section {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.plan-section-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 2px 0;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.plan-section-title {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 11px;
+  font-weight: 700;
+  color: #aaaaaa;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.section-badge {
+  font-size: 10px;
+  color: #858585;
+  background-color: #252526;
+  border: 1px solid #333333;
+  border-radius: 10px;
+  padding: 1px 6px;
+}
+
+/* Subtask Card */
+.plan-subtask-item {
+  background-color: #252526;
+  border: 1px solid #2d2d2d;
+  border-radius: 3px;
+  padding: 6px 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  transition: border-color 0.15s ease;
+}
+
+.plan-subtask-item:hover {
+  border-color: #383838;
+}
+
+.subtask-header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+  user-select: none;
+}
+
+.subtask-chevron {
+  font-size: 12px;
+  color: #858585;
+  transition: transform 0.15s ease;
+}
+
+.subtask-chevron.collapsed {
+  transform: rotate(-90deg);
+}
+
+.subtask-status-icon {
+  font-size: 13px;
+  flex-shrink: 0;
+}
+
+.status-pending .subtask-status-icon {
+  color: #858585;
+}
+
+.status-in_progress .subtask-status-icon,
+.status-inprogress .subtask-status-icon {
+  color: #007acc;
+}
+
+.status-completed .subtask-status-icon {
+  color: #89d185;
+}
+
+.status-failed .subtask-status-icon {
+  color: #f14c4c;
+}
+
+.subtask-title {
+  flex: 1;
+  font-size: 11px;
+  font-weight: 600;
+  color: #d4d4d4;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.subtask-status-text {
+  font-size: 10px;
+  color: #858585;
+  text-transform: capitalize;
+}
+
+.subtask-body {
+  padding-left: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 11px;
+  color: #999999;
+}
+
+.subtask-body.collapsed {
+  display: none;
+}
+
+.subtask-desc {
+  line-height: 1.4;
+  word-break: break-word;
+}
+
+.subtask-targets {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.subtask-targets-label {
+  font-size: 10px;
+  font-weight: 600;
+  color: #777777;
+}
+
+.subtask-target-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.subtask-target-tag {
+  background-color: #1e1e1e;
+  border: 1px solid #333333;
+  border-radius: 2px;
+  padding: 1px 5px;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-family: 'Cascadia Code', Consolas, monospace;
+  font-size: 10px;
+  color: #cccccc;
+}
+
+/* Affected Files */
+.plan-affected-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.plan-affected-file-item {
+  background-color: #202022;
+  border: 1px solid #2a2a2d;
+  border-radius: 2px;
+  padding: 4px 8px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 11px;
+  color: #cccccc;
+}
+
+.plan-affected-file-item .file-path {
+  font-family: 'Cascadia Code', Consolas, monospace;
+  font-size: 10.5px;
+}
+
+/* Live Logs Console */
+.plan-logs-console {
+  background-color: #1a1a1c;
+  border: 1px solid #2d2d2d;
+  border-radius: 2px;
+  padding: 6px 8px;
+  max-height: 140px;
+  overflow-y: auto;
+  font-family: 'Cascadia Code', Consolas, monospace;
+  font-size: 10.5px;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.plan-log-entry {
+  display: flex;
+  gap: 6px;
+  line-height: 1.35;
+}
+
+.log-timestamp {
+  color: #666666;
+  flex-shrink: 0;
+}
+
+.log-message {
+  color: #cccccc;
+  word-break: break-all;
+}
+
+.plan-log-entry.level-warn .log-message {
+  color: #dcdcaa;
+}
+
+.plan-log-entry.level-error .log-message {
+  color: #f14c4c;
+}
+
+/* Review Mode Badges & Cards */
+.review-diff-badges {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.diff-badge-add,
+.diff-added {
+  color: #89d185;
+  background-color: rgba(78, 201, 176, 0.15);
+  padding: 1px 5px;
+  border-radius: 2px;
+  font-size: 10.5px;
+  font-weight: 600;
+  font-family: 'Cascadia Code', Consolas, monospace;
+}
+
+.diff-badge-del,
+.diff-deleted {
+  color: #f14c4c;
+  background-color: rgba(241, 76, 76, 0.15);
+  padding: 1px 5px;
+  border-radius: 2px;
+  font-size: 10.5px;
+  font-weight: 600;
+  font-family: 'Cascadia Code', Consolas, monospace;
+}
+
+.review-file-card {
+  background-color: #252526;
+  border: 1px solid #2d2d2d;
+  border-radius: 3px;
+  padding: 8px 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.review-file-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.review-file-ident {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-family: 'Cascadia Code', Consolas, monospace;
+  font-size: 11px;
+  color: #e0e0e0;
+}
+
+.review-file-desc {
+  font-size: 11px;
+  color: #8e8e8e;
+  word-break: break-word;
+}
+
+.review-file-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 2px;
+}
+
+.btn-review-diff {
+  background-color: #0e639c;
+  color: #ffffff;
+  border: none;
+}
+
+.btn-review-diff:hover {
+  background-color: #1177bb;
+}
+
+.btn-review-accept {
+  background-color: rgba(78, 201, 176, 0.15);
+  color: #89d185;
+  border: 1px solid rgba(78, 201, 176, 0.3);
+}
+
+.btn-review-accept:hover {
+  background-color: rgba(78, 201, 176, 0.25);
+  color: #ffffff;
+}
+
+.btn-review-discard {
+  background-color: rgba(241, 76, 76, 0.1);
+  color: #f14c4c;
+  border: 1px solid rgba(241, 76, 76, 0.25);
+}
+
+.btn-review-discard:hover {
+  background-color: rgba(241, 76, 76, 0.25);
+  color: #ffffff;
+}
+
+.btn-review-bulk {
+  font-size: 11px;
+  padding: 3px 8px;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.review-status-applied {
+  color: #89d185;
+  font-size: 11px;
+  font-weight: 600;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.review-status-discarded {
+  color: #858585;
+  font-size: 11px;
+  font-style: italic;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
 
 

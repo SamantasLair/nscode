@@ -202,6 +202,51 @@ export function registerFileSystemIpc(): void {
     return { error: null, rootPath: targetDir, nodes: tree, tree };
   });
 
+  // fs:listFiles (Milestone v0.2.1 - Quick Open)
+  ipcMain.handle('fs:listFiles', async (_event, options?: { dirPath?: string; maxDepth?: number }) => {
+    const targetDir = options?.dirPath ? path.normalize(options.dirPath) : currentWorkspaceRoot;
+    if (!targetDir || !fs.existsSync(targetDir)) {
+      return [];
+    }
+
+    const maxDepth = options?.maxDepth ?? 10;
+    const rootPath = currentWorkspaceRoot ?? targetDir;
+    const EXCLUSIONS = new Set(['node_modules', '.git', 'dist', 'release', '.gemini', '.idea', '.vscode', 'build', 'out']);
+
+    const files: Array<{ name: string; path: string; relativePath: string }> = [];
+
+    async function walk(currentPath: string, depth: number): Promise<void> {
+      if (depth > maxDepth) return;
+      try {
+        const entries = await fs.promises.readdir(currentPath, { withFileTypes: true });
+        for (const entry of entries) {
+          const entryName = entry.name;
+          if (entry.isDirectory()) {
+            if (EXCLUSIONS.has(entryName) || entryName.startsWith('.')) {
+              continue;
+            }
+            const fullPath = path.join(currentPath, entryName);
+            await walk(fullPath, depth + 1);
+          } else if (entry.isFile()) {
+            if (IGNORE_FILES.has(entryName)) continue;
+            const fullPath = path.join(currentPath, entryName);
+            const relPath = path.relative(rootPath, fullPath).replace(/\\/g, '/');
+            files.push({
+              name: entryName,
+              path: fullPath,
+              relativePath: relPath,
+            });
+          }
+        }
+      } catch (err: any) {
+        console.warn(`[fs:listFiles] Error scanning ${currentPath}:`, err.message);
+      }
+    }
+
+    await walk(targetDir, 0);
+    return files;
+  });
+
   // fs:readFile
   ipcMain.handle('fs:readFile', async (_event, { filePath }: { filePath: string }) => {
     try {

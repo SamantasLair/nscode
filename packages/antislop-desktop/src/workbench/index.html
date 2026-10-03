@@ -445,6 +445,21 @@
         <div class="secondary-sidebar-header" id="screen-b-header">
           <div class="secondary-title-group">
             <span class="secondary-title">SCREEN B</span>
+            <!-- Mode Switcher Tabs (R4) -->
+            <div class="screen-b-mode-tabs" id="screen-b-mode-tabs" role="tablist">
+              <button class="screen-b-mode-tab active" id="tab-screen-b-chat" data-mode="chat" role="tab" aria-selected="true" title="Chat Mode">
+                <span class="codicon codicon-comment-discussion"></span>
+                <span>Chat</span>
+              </button>
+              <button class="screen-b-mode-tab" id="tab-screen-b-plan" data-mode="plan" role="tab" aria-selected="false" title="Plan Mode">
+                <span class="codicon codicon-checklist"></span>
+                <span>Plan</span>
+              </button>
+              <button class="screen-b-mode-tab" id="tab-screen-b-review" data-mode="review" role="tab" aria-selected="false" title="Review Mode">
+                <span class="codicon codicon-diff"></span>
+                <span>Review</span>
+              </button>
+            </div>
             <div class="screen-b-breadcrumb" id="screen-b-breadcrumb">
               <span class="breadcrumb-ws" id="screen-b-ws-name">WORKSPACE</span>
               <span class="breadcrumb-sep">&gt;</span>
@@ -466,31 +481,148 @@
 
         <!-- Screen B Guided Cognition Middle Zone -->
         <div class="secondary-webview-container" id="secondary-middle-container">
-          <!-- Interaction Container -->
-          <div class="screen-b-interaction-container" id="screen-b-interaction-container">
-            <!-- Target Line Stack Container -->
-            <div class="target-line-stack-container" id="target-line-stack-container">
-              <div class="target-stack-header">
-                <div class="target-stack-header-left">
-                  <span class="codicon codicon-layers"></span>
-                  <span class="target-stack-title">TARGET LINE STACK</span>
+          <!-- Chat View Container (R4) -->
+          <div class="screen-b-view-container screen-b-view-chat" id="screen-b-view-chat">
+            <!-- Interaction Container -->
+            <div class="screen-b-interaction-container" id="screen-b-interaction-container">
+              <!-- Target Line Stack Container -->
+              <div class="target-line-stack-container" id="target-line-stack-container">
+                <div class="target-stack-header">
+                  <div class="target-stack-header-left">
+                    <span class="codicon codicon-layers"></span>
+                    <span class="target-stack-title">TARGET LINE STACK</span>
+                  </div>
+                  <span class="target-stack-count" id="target-stack-count">0</span>
                 </div>
-                <span class="target-stack-count" id="target-stack-count">0</span>
+                <div class="target-stack-list" id="target-stack-list"></div>
               </div>
-              <div class="target-stack-list" id="target-stack-list"></div>
+
+              <!-- Technical Summary Cards Container -->
+              <div class="technical-summary-cards-container" id="technical-summary-cards-container"></div>
             </div>
 
-            <!-- Technical Summary Cards Container -->
-            <div class="technical-summary-cards-container" id="technical-summary-cards-container"></div>
+            <!-- Screen B React / Vite Webview Frame (kept intact) -->
+            <iframe
+              id="webview-frame"
+              class="secondary-webview-frame"
+              src="about:blank"
+              sandbox="allow-scripts allow-same-origin allow-forms allow-popups"
+            ></iframe>
           </div>
 
-          <!-- Screen B React / Vite Webview Frame (kept intact) -->
-          <iframe
-            id="webview-frame"
-            class="secondary-webview-frame"
-            src="about:blank"
-            sandbox="allow-scripts allow-same-origin allow-forms allow-popups"
-          ></iframe>
+          <!-- Plan View Container (R2/R3) -->
+          <div class="screen-b-view-container" id="screen-b-view-plan" style="display: none;">
+            <!-- Empty state when no plan is active -->
+            <div class="screen-b-empty-pane" id="plan-empty-pane">
+              <span class="codicon codicon-checklist empty-pane-icon"></span>
+              <span class="empty-pane-title">PLAN MODE</span>
+              <p class="empty-pane-desc">Autonomous architectural planning, task breakdown, and specification ledger.</p>
+            </div>
+
+            <!-- Active Task Plan View -->
+            <div class="plan-active-pane" id="plan-active-pane" style="display: none;">
+              <div class="plan-header-toolbar" id="plan-header-bar">
+                <div class="plan-title-row">
+                  <span class="plan-title" id="plan-title">Task Plan</span>
+                  <span class="plan-status-badge status-badge-progress" id="plan-status-badge">IN PROGRESS</span>
+                </div>
+                <div class="plan-controls-toolbar">
+                  <button class="plan-control-btn" id="btn-plan-pause" title="Pause Task Execution">
+                    <span class="codicon codicon-debug-pause"></span>
+                    <span>Pause</span>
+                  </button>
+                  <button class="plan-control-btn" id="btn-plan-resume" title="Resume Task Execution" style="display: none;">
+                    <span class="codicon codicon-debug-start"></span>
+                    <span>Resume</span>
+                  </button>
+                  <button class="plan-control-btn btn-danger" id="btn-plan-cancel" title="Cancel Task Execution">
+                    <span class="codicon codicon-stop-circle"></span>
+                    <span>Cancel</span>
+                  </button>
+                </div>
+                <div class="plan-progress-container">
+                  <div class="plan-progress-bar-bg">
+                    <div class="plan-progress-bar-fill" id="plan-progress-bar-fill" style="width: 0%;"></div>
+                  </div>
+                  <div class="plan-progress-text" id="plan-progress-text">0 / 0 subtasks completed (0%)</div>
+                </div>
+              </div>
+
+              <div class="plan-scroll-content" id="plan-scroll-content">
+                <!-- Subtasks Checklist Section -->
+                <div class="plan-section" id="plan-subtasks-section">
+                  <div class="plan-section-header">
+                    <div class="plan-section-title">
+                      <span class="codicon codicon-checklist"></span>
+                      <span>SUBTASKS</span>
+                    </div>
+                    <span class="section-badge" id="plan-subtask-count">0</span>
+                  </div>
+                  <div class="plan-subtask-list plan-subtasks-container" id="plan-subtask-list"></div>
+                </div>
+
+                <!-- Affected Files Section -->
+                <div class="plan-section" id="plan-affected-section">
+                  <div class="plan-section-header">
+                    <div class="plan-section-title">
+                      <span class="codicon codicon-files"></span>
+                      <span>AFFECTED FILES</span>
+                    </div>
+                    <span class="section-badge" id="plan-affected-count">0</span>
+                  </div>
+                  <div class="plan-affected-list plan-files-group" id="plan-affected-list"></div>
+                </div>
+
+                <!-- Live Execution Logs Section -->
+                <div class="plan-section" id="plan-logs-section">
+                  <div class="plan-section-header">
+                    <div class="plan-section-title">
+                      <span class="codicon codicon-output"></span>
+                      <span>EXECUTION LOG</span>
+                    </div>
+                    <button class="icon-action-btn" id="btn-plan-clear-logs" title="Clear Logs">
+                      <span class="codicon codicon-clear-all"></span>
+                    </button>
+                  </div>
+                  <div class="plan-logs-console plan-logs-container" id="plan-logs-console"></div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Review View Container (R2/R4) -->
+          <div class="screen-b-view-container" id="screen-b-view-review" style="display: none;">
+            <!-- Empty state when no diffs are ready -->
+            <div class="screen-b-empty-pane" id="review-empty-pane">
+              <span class="codicon codicon-diff empty-pane-icon"></span>
+              <span class="empty-pane-title">REVIEW MODE</span>
+              <p class="empty-pane-desc">Non-destructive diff review, inline proposed changes, and acceptance verification.</p>
+            </div>
+
+            <!-- Active Review View -->
+            <div class="review-active-pane" id="review-active-pane" style="display: none;">
+              <div class="review-header-toolbar" id="review-header-bar">
+                <div class="review-stats-row">
+                  <span class="review-file-count" id="review-file-count">0 files modified</span>
+                  <div class="review-diff-badges">
+                    <span class="diff-badge-add" id="review-total-added">+0</span>
+                    <span class="diff-badge-del" id="review-total-deleted">-0</span>
+                  </div>
+                </div>
+                <div class="review-global-actions">
+                  <button class="btn-vscode-primary btn-review-bulk" id="btn-review-accept-all" title="Accept all proposed changes and write to disk">
+                    <span class="codicon codicon-check-all"></span>
+                    <span>Accept All</span>
+                  </button>
+                  <button class="btn-vscode-secondary btn-review-bulk" id="btn-review-discard-all" title="Discard all proposed changes">
+                    <span class="codicon codicon-discard"></span>
+                    <span>Discard All</span>
+                  </button>
+                </div>
+              </div>
+              <div class="review-file-list review-list-container" id="review-file-list"></div>
+            </div>
+          </div>
         </div>
 
         <!-- Antigravity Prompt Box (Pinned at bottom of secondary sidebar - R5/R6) -->
@@ -589,7 +721,7 @@
         </div>
 
         <!-- Cursor Position -->
-        <div class="status-item" id="status-cursor" title="Cursor Position">
+        <div class="status-item status-clickable" id="status-cursor" title="Go to Line/Column (Ctrl+G)">
           <span class="status-text" id="status-cursor-pos">Ln 14, Col 22</span>
         </div>
         <!-- Indentation -->
@@ -624,7 +756,7 @@
     <div id="command-palette-backdrop" class="palette-backdrop" style="display: none;">
       <div id="command-palette-modal" class="palette-modal">
         <div class="palette-input-wrapper">
-          <span class="codicon codicon-chevron-right palette-prompt-icon"></span>
+          <span class="codicon codicon-chevron-right palette-prompt-icon" id="command-palette-prompt-icon"></span>
           <input
             type="text"
             id="command-palette-input"
@@ -638,6 +770,7 @@
           <!-- Dynamic results populated by fuzzy search -->
         </div>
       </div>
+    </div>
     <!-- SETTINGS MODAL (Milestone v0.1.1) -->
     <div id="settings-modal" class="palette-backdrop" style="display: none;">
       <div class="palette-modal settings-dialog">
@@ -701,6 +834,26 @@
               <span class="setting-desc">Current release build version.</span>
             </div>
             <span class="setting-badge-version">v0.1.1 (Source Control &amp; Tooling Patch)</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- SAVE CONFIRMATION DIALOG MODAL (R2) -->
+    <div id="dirty-dialog-backdrop" class="palette-backdrop dirty-dialog-backdrop" style="display: none;">
+      <div id="dirty-dialog-modal" class="palette-modal dirty-dialog-modal" role="dialog" aria-modal="true">
+        <div class="dirty-dialog-content">
+          <div class="dirty-dialog-header">
+            <span class="codicon codicon-warning dirty-dialog-icon"></span>
+            <span class="dirty-dialog-title" id="dirty-dialog-title">Do you want to save the changes you made to file.txt?</span>
+          </div>
+          <div class="dirty-dialog-body" id="dirty-dialog-body">
+            Your changes will be lost if you don't save them.
+          </div>
+          <div class="dirty-dialog-actions">
+            <button class="dialog-btn dialog-btn-primary" id="btn-dirty-save">Save</button>
+            <button class="dialog-btn dialog-btn-secondary" id="btn-dirty-dontsave">Don't Save</button>
+            <button class="dialog-btn dialog-btn-cancel" id="btn-dirty-cancel">Cancel</button>
           </div>
         </div>
       </div>

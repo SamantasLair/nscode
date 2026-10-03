@@ -45,6 +45,8 @@ flowchart TB
 | **v0.1.1** | **SELESAI (100%)** | Git SCM, Search in Files, Open Folder, Auto-Clean Releases | Sidecar daemon ready, CLI process streaming dasar | *Nonaktif* |
 | **v0.1.2** | **SELESAI (100%)** | File Explorer CRUD (context menu, rename, delete), Icon Theme | Path boundary guards, full Monaco tab sync | *Nonaktif* |
 | **v0.2.0** | **SELESAI (100%)** | Screen B Guided Cognition, Target Stacking, Zero-Buffer Pointer | On-demand fast pattern scout, Technical Summary Cards | *Nonaktif* |
+| **v0.2.1** | **SELESAI (100%)** | Quick Open (`Ctrl+P`), Tab Dirty State (`●`), Status Telemetry (`Ln/Col`), Go to Line (`Ctrl+G`), Dynamic Screen B Modes | Decoupled EditorEventBridge, mode switcher tabs (Chat/Plan/Review) | *Nonaktif* |
+| **v0.2.2** | **SELESAI (100%)** | Dynamic Screen B Agentic, Context Bridge (`Ctrl+Alt+A`), Mode Morphing (Chat/Plan/Review), Task Plan State Machine, Layar A Zero-Buffer Diff Inspection | Interactive subtasks, live execution logs console, zero-buffer virtual model diffs | *Nonaktif* |
 | **v0.3.0** | *Feature Release* | Language Server Protocol (LSP) Client (TS, Python, C++), Hover | Error diagnostics diarahkan ke Rustc-style visual | **Opsional (LSP AST Engine)** |
 | **v0.4.0** | *Feature Release* | Terminal Multiplexing (multi-tabs, bash/powershell), `tasks.json` | Output terminal & log dapat di-pipe ke Screen B | **Opsional (Stream Tuning)** |
 | **v0.5.0** | **BETA MILESTONE** | **Daily-Driver Ready**: Git complete, LSP complete, Lint/Format | **Socratic Cognitive Gate aktif penuh (Anti-Slop)** | *Selektif* |
@@ -101,6 +103,57 @@ flowchart TB
     - Error traceback diparsing menjadi visual pointer yang menandai baris presisi di Monaco Editor Layar A tanpa memodifikasi buffer teks (Zero-Buffer Decoration).
   - **Cognitive Verification Gate (Anti-Slop Invariant)**:
     - IDE menolak auto-patching buta. Sebelum kode disalin atau diterapkan, Layar B menampilkan kartu tantangan pemahaman (Socratic Questioning) untuk mencegah developer skill atrophy.
+
+### Milestone v0.2.1: Desktop Editor Ergonomics, Dirty Tabs, Telemetry & Dynamic Screen B (Selesai 100%)
+- **Status Capaian:**
+  - **Quick Open (`Ctrl+P`) & Workspace Fuzzy Search**:
+    - In-memory subsequence fuzzy search algorithm dengan scoring cerdas (word boundary bonus +35, CamelCase bonus +35, consecutive bonus +25).
+    - Resolving ikon file Codicon dinamis via `iconTheme.ts` dan styling highlight matching text (`.palette-highlight`).
+    - Navigasi keyboard penuh (`ArrowUp`/`ArrowDown`/`Enter`/`Escape`) dan bidirectional mode switching (`>` Command Palette <-> Quick Open file search).
+  - **Tab Dirty State Management & Save Ergonomics**:
+    - Pelacakan modifikasi buffer Monaco secara presisi via `model.getAlternativeVersionId()`.
+    - Transformasi ikon close tab dari `×` menjadi solid white bullet (`●`), dan morphing kembali ke `×` saat hover.
+    - Shortcut `Ctrl+S` untuk menyimpan buffer ke disk dan membersihkan dirty state.
+    - Dialog modal konfirmasi penutupan tab dirty VS Code Dark+ (*"Do you want to save the changes you made to..."*) dengan opsi `[ Save ]`, `[ Don't Save ]`, dan `[ Cancel ]`.
+    - Proteksi penutupan multi-tab (`closeAllTabs`) dan workspace switching guard.
+  - **Status Bar Cursor Telemetry & Go to Line (`Ctrl+G`)**:
+    - Telemetry koordinat kursor realtime (`Ln X, Col Y`) dan penghitungan karakter terseleksi (`(N selected)`).
+    - Badge koordinat interaktif (`#status-cursor.status-clickable`) membuka Quick Open dengan prompt `:`.
+    - Go to Line navigation (`Ctrl+G` atau `:line:col`) dengan boundary clamping otomatis (`1..maxLine`).
+  - **Dynamic Screen B Mode Switcher & Event Bridge**:
+    - Secondary sidebar mode switcher tabs di header Screen B (`Chat`, `Plan`, `Review`) dalam styling VS Code Dark+ (bebas emoji).
+    - Arsitektur event bridge terisolasi (`EditorEventBridge`) yang menyiarkan event (`editor:cursorChange`, `editor:dirtyChange`, `editor:fileSwitched`, `screenB:modeChanged`) dengan isolasi error per listener dan broadcast ke iframe webview via `postMessage`.
+  - **Verification & Build Integrity**:
+    - 447 / 447 monorepo tests passing 100% melintasi 24 test suites (termasuk 38 unit tests di `v0_2_1_quick_open_dirty_tabs.test.ts` dan 14 tests di `v0_2_1_adversarial_challenger_2.test.ts`).
+    - `corepack yarn --cwd packages/antislop-desktop build` berhasil dengan exit code 0.
+
+### Milestone v0.2.2: Dynamic Screen B Agentic System, Mode Morphing & Zero-Buffer Diff Inspection (Selesai 100%)
+- **Status Capaian:**
+  - **Context Bridge dari Layar A ke Screen B (`Ctrl+Alt+A` & Monaco Context Menu)**:
+    - Shortcut keyboard `Ctrl+Alt+A` / `Cmd+Alt+A` dan aksi menu klik kanan Monaco *"Kirim ke Screen B"* (`sendToScreenB`).
+    - Menangkap secara atomik: path berkas relatif workspace (`toRelativeWorkspacePath`), koordinat baris ter-normalisasi (`startLine`, `endLine`), dan potongan kode terpilih (dengan fallback kursor satu baris).
+    - Memasukkan kartu konteks aktif ke `targetStack` Screen B dengan cuplikan kode di `.target-code-preview`.
+    - Auto-morph Screen B ke Chat mode, membuka sidebar otomatis jika tersembunyi, dan memfokuskan prompt input (`#prompt-input-box`).
+    - Zero-Buffer invariant: seleksi dan stacking tidak memodifikasi isi berkas fisik di disk.
+  - **Dynamic Screen B Mode Morphing (`Chat` <-> `Plan` <-> `Review`)**:
+    - Mode switching terstruktur dengan container view terisolasi: `#screen-b-view-chat`, `#screen-b-view-plan`, dan `#screen-b-view-review`.
+    - Navigasi tab interaktif via `#screen-b-mode-tabs` (`setScreenBMode`) dengan penanda aktif dan atribut aksesibilitas.
+    - Morphing adaptif otomatis: otomatis beralih ke Plan Mode saat tugas multi-langkah diinisialisasi, beralih ke Review Mode saat diff usulan siap, dan beralih ke Chat Mode saat context bridge dipicu.
+    - Desain antarmuka VS Code Dark+ autentik (`#1e1e1e`, `#252526`, `#2d2d2d`, aksen `#007acc`, tipografi Segoe UI, Codicon icons, zero emojis).
+  - **Agentic Task Plan State Machine & Progress Dispatcher**:
+    - State machine rencana tugas (`TaskPlan`, `Subtask`) dengan status deterministik (`pending`, `in_progress`, `completed`, `failed`) dan pelacakan progress percentage.
+    - Kontrol interaktif operator: `[ Pause ]`, `[ Resume ]`, dan `[ Cancel ]`.
+    - Visualisasi: checklist subtask kolapsibel dengan indikator Codicon (`codicon-circle-outline`, `codicon-loading codicon-modifier-spin`, `codicon-pass-filled`, `codicon-error`), pengelompokan berkas sasaran dengan glif berkas Codicon, dan konsol riwayat eksekusi live dengan timestamp.
+    - Penyiaran telemetri realtime via `EditorEventBridge` (`screenB:planUpdate`, `screenB:taskProgress`).
+  - **Layar A Zero-Buffer Diff Preview & Review Inspection**:
+    - Antarmuka Review Mode menampilkan daftar berkas termodifikasi dengan badge diff line counter (`+X / -Y`), tombol `[ Review Diff ]`, `[ Accept All ]`, `[ Discard All ]`, serta per-file `[ Accept ]` dan `[ Discard ]`.
+    - Pemasangan Monaco Diff Editor di `#diff-editor-mount` secara side-by-side menggunakan model URI virtual (`agent-orig://${filePath}` dan `agent-proposed://${filePath}`).
+    - Zero-Buffer invariant: pratinjau diff sama sekali tidak menulis ke disk, tidak menandai berkas aktif sebagai dirty (`isDirty = false`), dan tidak merusak view state tab.
+    - `acceptReviewDiff`: menulis perubahan usulan ke disk secara aman melalui `window.electronFS.writeFile`, memperbarui buffer Monaco aktif, menghapus dirty state, dan menandai diff berstatus applied.
+    - `discardReviewDiff` & `closeReviewDiff`: membatalkan usulan secara bersih tanpa operasi disk dan memulihkan Monaco editor reguler tanpa penghancuran tab.
+  - **Verification & Build Integrity**:
+    - Seluruh rangkaian pengujian spesifikasi (`v0_2_2_dynamic_screen_b_agentic.test.ts` - 39 tests) dan rangkaian adversarial (`v0_2_2_adversarial_challenger_1.test.ts` - 20 tests, `v0_2_2_adversarial_challenger_2.test.ts` - 21 tests) mengonfirmasi 80 pengujian baru lulus 100%.
+    - Kompilasi build package desktop (`corepack yarn --cwd packages/antislop-desktop build`) berhasil bersih dengan exit code 0.
 
 ### Milestone v0.3.0: Language Server Protocol (LSP) & Code Intelligence
 - **Target Paritas VS Code:**

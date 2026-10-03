@@ -44,6 +44,8 @@ contextBridge.exposeInMainWorld('electronFS', {
     const params = typeof pathOrParams === 'string' ? { path: pathOrParams } : pathOrParams;
     return ipcRenderer.invoke('shell:revealInFolder', params);
   },
+  listFiles: (options?: { maxDepth?: number }) =>
+    ipcRenderer.invoke('fs:listFiles', options),
 });
 
 // Expose typed Shell API (Milestone v0.1.2)
