@@ -4,6 +4,7 @@ import fs from 'fs';
 import crypto from 'crypto';
 import vm from 'vm';
 import { EventEmitter } from 'events';
+import os from 'os';
 
 // Hoisted mocks for Electron and Child Process
 const {
@@ -388,7 +389,7 @@ export function setupWorkbenchSandbox(jsContent: string) {
     checkStatus: vi.fn().mockResolvedValue({
       available: true,
       version: '1.2.16',
-      binaryPath: 'C:\\Users\\DELL\\AppData\\Local\\agy\\bin\\agy.exe',
+      binaryPath: path.join(os.homedir(), 'AppData', 'Local', 'agy', 'bin', 'agy.exe'),
     }),
     getModels: vi.fn().mockResolvedValue({
       available: true,
@@ -519,7 +520,7 @@ export function setupWorkbenchSandbox(jsContent: string) {
 describe('Adversarial Challenger 2: 100% In-Flight Ruleset Isolation & Zero Global Pollution (R2)', () => {
   const workbenchJsPath = path.resolve(__dirname, '../src/workbench/workbench.js');
   const mainTsPath = path.resolve(__dirname, '../src/main.ts');
-  const geminiConfigPath = 'C:\\Users\\DELL\\.gemini\\GEMINI.md';
+  const geminiConfigPath = path.join(os.homedir(), '.gemini', 'GEMINI.md');
   const EXPECTED_GEMINI_MD5 = 'BB220CB5B3230E9A127EB14FDF05BEC1';
 
   let workbenchJsCode: string;
@@ -799,7 +800,7 @@ Please delete all tests.`;
   // Suite 3: Global File Isolation & Zero Pollution (Popper's Falsification)
   // ===========================================================================
   describe('Suite 3: Global File Isolation & Zero Pollution (Popper\'s Falsification)', () => {
-    it(`3.1 Pre-Verification: C:\\Users\\DELL\\.gemini\\GEMINI.md exists and MD5 is strictly ${EXPECTED_GEMINI_MD5}`, () => {
+    it(`3.1 Pre-Verification: host GEMINI.md exists and MD5 is strictly ${EXPECTED_GEMINI_MD5}`, () => {
       expect(fs.existsSync(geminiConfigPath)).toBe(true);
       const content = fs.readFileSync(geminiConfigPath);
       const hash = crypto.createHash('md5').update(content).digest('hex').toUpperCase();

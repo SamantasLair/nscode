@@ -1,74 +1,171 @@
 # ==============================================================================
-# NSCode Monorepo .gitignore
+# NSCode Monorepo .gitignore (HARDENED PRODUCTION SPECIFICATION)
 # Make Coders Great Again. No Slop.
+# Architecture: TypeScript Monorepo | Vite | Electron Desktop | Eclipse Theia
 # ==============================================================================
 
-# Dependencies
+# ------------------------------------------------------------------------------
+# 1. Dependencies & Package Managers
+# ------------------------------------------------------------------------------
 node_modules/
 packages/*/node_modules/
+packages/**/node_modules/
 .pnp/
 .pnp.js
+.pnp.cjs
+.pnp.loader.mjs
 .yarn/cache/
 .yarn/unplugged/
 .yarn/build-state.yml
 .yarn/install-state.gz
+.yarn/sdks/
+.yarn/versions/
 
-# Build outputs & Bundles
+# ------------------------------------------------------------------------------
+# 2. TypeScript Monorepo & Build Artifacts
+# ------------------------------------------------------------------------------
 dist/
 build/
 out/
+out-tsc/
 packages/*/dist/
+packages/**/dist/
+packages/*/lib/
+packages/**/lib/
 *.tsbuildinfo
+tsconfig.tsbuildinfo
+tsconfig.*.tsbuildinfo
+packages/*/*.tsbuildinfo
+packages/**/tsconfig.tsbuildinfo
+packages/**/tsconfig.*.tsbuildinfo
 
-# Electron & Desktop Releases (CRITICAL: Prevents committing 100MB+ binaries)
+# ------------------------------------------------------------------------------
+# 3. Vite, Webview & Bundlers
+# ------------------------------------------------------------------------------
+.vite/
+**/.vite/
+vite.config.ts.timestamp*
+vite.config.*.timestamp*
+*.timestamp-*.mjs
+dist-ssr/
+packages/antislop-webview/dist/
+
+# ------------------------------------------------------------------------------
+# 4. Electron Desktop & Release Packages (Prevents 100MB+ Binaries Bloat)
+# ------------------------------------------------------------------------------
 release/
 packages/*/release/
 dist-electron/
+packages/*/dist-electron/
 win-unpacked/
+mac/
+mac-arm64/
+linux-unpacked/
+*-unpacked/
 *.exe
 *.blockmap
 *.dmg
 *.AppImage
 *.deb
 *.rpm
+*.snap
+*.msi
+*.pkg
+*.nupkg
 *.zip
 *.tar.gz
-builder-debug.yml
-builder-effective-config.yaml
+RELEASES
+latest*.yml
+builder-debug*.yml
+builder-effective-config*.yaml
 __uninstaller*
+electron-builder*.log
 
-# Auto-copied Vendor Assets (rebuilt via `yarn build` from node_modules)
+# Electron & Chromium Runtime Diagnostics
+Crashpad/
+crash-dumps/
+GPUCache/
+*.dmp
+*.diaglog
+
+# ------------------------------------------------------------------------------
+# 5. Eclipse Theia Shell Extension
+# ------------------------------------------------------------------------------
+packages/theia-shell-extension/lib/
+packages/theia-shell-extension/src/gen/
+packages/*/src/gen/
+.theia/
+*.theia
+theia-build/
+.theia-build/
+plugins/
+
+# ------------------------------------------------------------------------------
+# 6. Auto-copied Vendor Assets (Rebuilt via copy-assets.js)
+# ------------------------------------------------------------------------------
 packages/antislop-desktop/src/workbench/vs/
 packages/antislop-desktop/src/workbench/codicons/
 
-# Test & Coverage
+# ------------------------------------------------------------------------------
+# 7. Testing, Profiling & Diagnostics
+# ------------------------------------------------------------------------------
 coverage/
 .nyc_output/
+*.lcov
+test-results/
+playwright-report/
+blob-report/
+.vitest/
+vitest.report/
+*.cpuprofile
+*.heapsnapshot
+*.heapprofile
+*.v8log
+isolate-*-v8.log
 *.log
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
 
-# Agent Swarm, Scratch & Internal Memories
+# ------------------------------------------------------------------------------
+# 8. Antigravity Agents, Swarm & Memory Governance
+# ------------------------------------------------------------------------------
 .agents/
 scratch/
 _memory/
+_dream_ledger/
+_research_stage/
+_doctrine/local_*
+.gemini/
+*.agy
+*.handoff.md
+tasks.md
+.tasks.md
 
-# IDE & Editor Configurations
+# ------------------------------------------------------------------------------
+# 9. IDE, Workspace & Editor Configurations
+# ------------------------------------------------------------------------------
 .vscode/*
 !.vscode/settings.json
 !.vscode/tasks.json
 !.vscode/launch.json
+!.vscode/extensions.json
 .idea/
 *.suo
 *.ntvs*
 *.njsproj
 *.sln
 *.sw?
+*~
+*.bak
 *.sublime-project
 *.sublime-workspace
 
-# OS Artifacts
+# ------------------------------------------------------------------------------
+# 10. Operating System Artifacts
+# ------------------------------------------------------------------------------
 .DS_Store
 .DS_Store?
 ._*
@@ -77,12 +174,42 @@ _memory/
 Thumbs.db
 ehthumbs.db
 desktop.ini
+.directory
+*.lnk
 
-# Environment & Secret files
+# ------------------------------------------------------------------------------
+# 11. Environment, Secrets & Code Signing Credentials (CRITICAL SECURITY)
+# ------------------------------------------------------------------------------
 .env
-.env.local
-.env.*.local
+.env.*
+!.env.example
+!.env.*.example
 *.pem
 *.key
+*.pfx
+*.p12
+*.crt
+*.cer
+*.der
+*.csr
+*.keystore
+*.jks
+
+# ------------------------------------------------------------------------------
+# 12. Local Databases & Cache
+# ------------------------------------------------------------------------------
+*.db
+*.db-journal
+*.db-wal
+*.db-shm
+*.sqlite
+*.sqlite3
+*.sqlite-journal
+*.sqlite-wal
+*.sqlite-shm
+.cache/
+**/.cache/
 tmp/
 temp/
+*.tmp
+*.temp

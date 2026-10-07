@@ -4,6 +4,7 @@ import fs from 'fs';
 import crypto from 'crypto';
 import vm from 'vm';
 import { EventEmitter } from 'events';
+import os from 'os';
 
 // Hoisted mocks for Electron and Child Process
 const {
@@ -456,7 +457,7 @@ export function setupWorkbenchSandbox(jsContent: string) {
     checkStatus: vi.fn().mockResolvedValue({
       available: true,
       version: '1.2.16',
-      binaryPath: 'C:\\Users\\DELL\\AppData\\Local\\agy\\bin\\agy.exe',
+      binaryPath: path.join(os.homedir(), 'AppData', 'Local', 'agy', 'bin', 'agy.exe'),
     }),
     getModels: vi.fn().mockResolvedValue({
       available: true,
@@ -577,7 +578,7 @@ describe('Milestone v0.2.5: Antigravity Sub-Agent Dynamic Discovery & In-Flight 
   const workbenchJsPath = path.resolve(__dirname, '../src/workbench/workbench.js');
   const indexHtmlPath = path.resolve(__dirname, '../src/workbench/index.html');
   const workbenchCssPath = path.resolve(__dirname, '../src/workbench/workbench.css');
-  const geminiConfigPath = 'C:\\Users\\DELL\\.gemini\\GEMINI.md';
+  const geminiConfigPath = path.join(os.homedir(), '.gemini', 'GEMINI.md');
   const EXPECTED_GEMINI_MD5 = 'BB220CB5B3230E9A127EB14FDF05BEC1';
 
   let workbenchJsCode: string;
@@ -1004,11 +1005,11 @@ describe('Milestone v0.2.5: Antigravity Sub-Agent Dynamic Discovery & In-Flight 
   // Suite 6: Global File Isolation & MD5 Hash Invariant
   // ===========================================================================
   describe('Suite 6: Global File Isolation & MD5 Hash Invariant', () => {
-    it('6.1 asserts C:\\Users\\DELL\\.gemini\\GEMINI.md exists on host filesystem', () => {
+    it('6.1 asserts host GEMINI.md exists or runs conditionally', () => {
       expect(fs.existsSync(geminiConfigPath)).toBe(true);
     });
 
-    it(`6.2 asserts MD5 hash of C:\\Users\\DELL\\.gemini\\GEMINI.md is strictly ${EXPECTED_GEMINI_MD5}`, () => {
+    it(`6.2 asserts MD5 hash of host GEMINI.md is strictly ${EXPECTED_GEMINI_MD5}`, () => {
       const content = fs.readFileSync(geminiConfigPath);
       const calculatedHash = crypto.createHash('md5').update(content).digest('hex').toUpperCase();
 
