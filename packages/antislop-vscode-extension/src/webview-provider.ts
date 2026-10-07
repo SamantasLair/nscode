@@ -95,7 +95,6 @@ export class ScreenBWebviewProvider implements vscode.Disposable {
 
     const msg: WebviewToExtensionMessage = parseResult.data;
 
-    // Notify external listeners
     for (const listener of this.messageListeners) {
       listener(msg);
     }
@@ -110,7 +109,6 @@ export class ScreenBWebviewProvider implements vscode.Disposable {
         }
         break;
       case 'PRACTICE_COMPLETED':
-        // Cognitive friction telemetry logging
         break;
     }
   }

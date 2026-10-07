@@ -108,7 +108,6 @@ export class RpcRouter {
               ? params.correlationId
               : `corr-${Date.now()}`;
 
-          // Start asynchronous streaming process if sendNotification is provided
           if (sendNotification) {
             this.runStreamingAnalysis(params, correlationId, sendNotification).catch((err) => {
               sendNotification({
@@ -196,14 +195,12 @@ export class RpcRouter {
       context: aggregatedContext,
     });
 
-    // 1. Emit Contract Violated notification
     sendNotification({
       jsonrpc: '2.0',
       method: 'diagnostics.contractViolated',
       params: contractViolated,
     });
 
-    // 2. Stream tokens via StreamBatcher (50ms batching backpressure)
     const batcher = new StreamBatcher({
       batchIntervalMs: 50,
       correlationId,
@@ -223,7 +220,6 @@ export class RpcRouter {
     }
     batcher.complete();
 
-    // 3. Emit Smart Cards Ready notification
     sendNotification({
       jsonrpc: '2.0',
       method: 'diagnostics.smartCardsReady',
@@ -233,7 +229,6 @@ export class RpcRouter {
       },
     });
 
-    // 4. Emit Analysis Completed notification
     sendNotification({
       jsonrpc: '2.0',
       method: 'diagnostics.analysisCompleted',

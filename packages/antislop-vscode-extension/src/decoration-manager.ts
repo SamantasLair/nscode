@@ -91,7 +91,6 @@ export class DecorationManager implements vscode.Disposable {
         new vscode.Position(endLineIdx, lineText.length)
       );
 
-      // Apply decoration directly without buffer modification
       editor.setDecorations(this.faultDecorationType, [range]);
       this.decoratedEditors.add(editor);
       editor.revealRange(range, vscode.TextEditorRevealType.InCenter);

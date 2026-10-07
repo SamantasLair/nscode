@@ -97,6 +97,17 @@ describe('VsCodeApiBridge: Typed Webview-Host Communication & Protocol Fidelity'
     expect(bridge.getOutboundHistory().length).toBe(0);
   });
 
+  it('validates and dispatches COLLAPSE_SCREEN_B outbound message to close sidebar', () => {
+    const success = bridge.collapseSidebar();
+    expect(success).toBe(true);
+    const history = bridge.getOutboundHistory();
+    expect(history.length).toBe(1);
+    expect(history[0]).toEqual({
+      type: 'COLLAPSE_SCREEN_B',
+      payload: {},
+    });
+  });
+
   it('subscribes to and receives typed inbound messages from extension host', () => {
     const received: ExtensionToWebviewMessage[] = [];
     const unsubscribe = bridge.onMessage((msg) => {

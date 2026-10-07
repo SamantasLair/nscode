@@ -14,10 +14,8 @@ import {
 } from './antislop-commands.js';
 
 export default new ContainerModule((bind: interfaces.Bind) => {
-  // 1. Screen B Widget Singleton
   bind(AntislopWidget).toSelf().inSingletonScope();
 
-  // 2. WidgetFactory for layout rehydration
   bind(WidgetFactory)
     .toDynamicValue((ctx: interfaces.Context) => ({
       id: AntislopWidget.ID,
@@ -25,11 +23,9 @@ export default new ContainerModule((bind: interfaces.Bind) => {
     }))
     .inSingletonScope();
 
-  // 3. Layout Contribution
   bind(AntislopLayoutContribution).toSelf().inSingletonScope();
   bind(FrontendApplicationContribution).toService(AntislopLayoutContribution);
 
-  // 4. Command & Menu Contributions
   bind(AntislopCommandContribution).toSelf().inSingletonScope();
   bind(CommandContribution).toService(AntislopCommandContribution);
 

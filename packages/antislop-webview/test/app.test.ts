@@ -89,7 +89,6 @@ describe('App: Dual-Zone Architecture & Host Event Dispatch Pipeline', () => {
       }
     });
 
-    // 1. Simulate diagnostics.contractViolated notification from sidecar
     bridge.dispatchMockIncoming({
       type: 'DIAGNOSTIC_DATA',
       payload: {
@@ -101,7 +100,6 @@ describe('App: Dual-Zone Architecture & Host Event Dispatch Pipeline', () => {
     expect(capturedMethod).toBe('diagnostics.contractViolated');
     expect(capturedParams.errorCode).toBe('E0502');
 
-    // 2. Simulate diagnostics.smartCardsReady notification from sidecar
     bridge.dispatchMockIncoming({
       type: 'DIAGNOSTIC_DATA',
       payload: {

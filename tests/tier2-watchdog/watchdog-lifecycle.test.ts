@@ -68,7 +68,6 @@ class DynamicPortWatchdogSupervisor extends WatchdogClient {
     });
 
     this.supervisedChild.stdout?.on('data', (d) => {
-      // console.log('[SupervisorChild stdout]', d.toString());
     });
     this.supervisedChild.stderr?.on('data', (d) => {
       console.warn('[SupervisorChild stderr]', d.toString());
@@ -156,9 +155,6 @@ describe('Tier 2: Watchdog & Daemon IPC Lifecycle Suite', () => {
     }
   });
 
-  // =========================================================================
-  // Suite 1: Headless Spawn, Dynamic Loopback Port Binding & /health Check
-  // =========================================================================
   describe('1. Headless CLI Daemon Spawn & Health Verification', () => {
     const testPort = 4955;
     const testToken = 'antislop-tier2-token-4955';
@@ -271,7 +267,6 @@ describe('Tier 2: Watchdog & Daemon IPC Lifecycle Suite', () => {
         });
       });
 
-      // 1. Connection with invalid token must fail with 401 Unauthorized
       const unauthorizedAttempt = new Promise<number>((resolve) => {
         const ws = new WebSocket(`ws://127.0.0.1:${authTestPort}`, {
           headers: { Authorization: 'Bearer wrong-token' },
@@ -285,7 +280,6 @@ describe('Tier 2: Watchdog & Daemon IPC Lifecycle Suite', () => {
       const statusCode = await unauthorizedAttempt;
       expect(statusCode).toBe(401);
 
-      // 2. Connection with valid token must succeed
       const authorizedAttempt = new Promise<boolean>((resolve) => {
         const ws = new WebSocket(`ws://127.0.0.1:${authTestPort}`, {
           headers: { Authorization: `Bearer ${validToken}` },
@@ -302,9 +296,7 @@ describe('Tier 2: Watchdog & Daemon IPC Lifecycle Suite', () => {
     }, 15000);
   });
 
-  // =========================================================================
   // Suite 2: 5-Second Heartbeat & Latency Tracking Verification
-  // =========================================================================
   describe('2. Bidirectional Heartbeat Exchange & Latency Tracking', () => {
     const heartbeatPort = 4957;
     const heartbeatToken = 'heartbeat-token';
@@ -395,9 +387,7 @@ describe('Tier 2: Watchdog & Daemon IPC Lifecycle Suite', () => {
     }, 15000);
   });
 
-  // =========================================================================
   // Suite 3: Crash Simulation, Auto-Restart SLA (<5s) & State Rehydration
-  // =========================================================================
   describe('3. Fatal Crash Simulation, Supervisor Auto-Restart & State Rehydration', () => {
     const crashPort = 4958;
     const crashToken = 'crash-recovery-token';
@@ -420,11 +410,9 @@ describe('Tier 2: Watchdog & Daemon IPC Lifecycle Suite', () => {
         lineCount: 1,
       };
 
-      // 1. Seed active buffer state before initial launch
       supervisor.updateActiveBuffer(bufferState);
       const rehydrateSpy = vi.spyOn(supervisor, 'rehydrateState');
 
-      // 2. Start supervisor: spawns daemon and connects
       supervisor.spawnDaemon();
       const initialProc = supervisor.getDaemonProcess();
       expect(initialProc).not.toBeNull();
@@ -444,13 +432,11 @@ describe('Tier 2: Watchdog & Daemon IPC Lifecycle Suite', () => {
       expect(supervisor.getIsConnected()).toBe(true);
       expect(rehydrateSpy).toHaveBeenCalled();
 
-      // 3. Track connection drops
       const connectionStatuses: boolean[] = [];
       supervisor.onStatusChange((connected) => {
         connectionStatuses.push(connected);
       });
 
-      // 4. CRASH SIMULATION: Kill the daemon child process abruptly
       const crashStartTime = Date.now();
       try {
         process.kill(initialPid!, 'SIGTERM');
@@ -485,8 +471,6 @@ describe('Tier 2: Watchdog & Daemon IPC Lifecycle Suite', () => {
 
       const recoveryDurationMs = Date.now() - crashStartTime;
 
-      // SLA ASSERTIONS:
-      // A. Supervisor revived the daemon
       expect(supervisor.getRestartCount()).toBeGreaterThanOrEqual(1);
       const restartTriggerDelay = supervisor.getLastRestartTimestamp() - crashStartTime;
       expect(restartTriggerDelay).toBeGreaterThanOrEqual(400); // 500ms backoff
@@ -500,10 +484,8 @@ describe('Tier 2: Watchdog & Daemon IPC Lifecycle Suite', () => {
       // B. Overall recovery completed within SLA
       expect(recoveryDurationMs).toBeLessThan(7000);
 
-      // C. Active buffer state rehydration was executed on the recovered session
       expect(rehydrateSpy).toHaveBeenCalledTimes(2);
 
-      // D. Verify daemon is fully operational on restored session
       const pingAfterCrash = await supervisor.sendRequest<PingResult>('rpc.ping', {
         timestamp: Date.now(),
       });
@@ -513,9 +495,6 @@ describe('Tier 2: Watchdog & Daemon IPC Lifecycle Suite', () => {
     }, 15000);
   });
 
-  // =========================================================================
-  // Suite 4: Process Hygiene & Cleanup
-  // =========================================================================
   describe('4. Process Hygiene & Zero Orphan Invariant', () => {
     it('cleanly terminates daemon process and frees OS ports upon disposal', async () => {
       const hygienePort = 4959;

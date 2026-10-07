@@ -48,7 +48,8 @@ flowchart TB
 | **v0.2.1** | **SELESAI (100%)** | Quick Open (`Ctrl+P`), Tab Dirty State (`●`), Status Telemetry (`Ln/Col`), Go to Line (`Ctrl+G`), Dynamic Screen B Modes | Decoupled EditorEventBridge, mode switcher tabs (Chat/Plan/Review) | *Nonaktif* |
 | **v0.2.2** | **SELESAI (100%)** | Dynamic Screen B Agentic, Context Bridge (`Ctrl+Alt+A`), Mode Morphing (Chat/Plan/Review), Task Plan State Machine, Layar A Zero-Buffer Diff Inspection | Interactive subtasks, live execution logs console, zero-buffer virtual model diffs | *Nonaktif* |
 | **v0.2.3** | **SELESAI (100%)** | Live AI Streaming via Sidecar WebSocket (`ws://127.0.0.1:4949`), Typewriter Effect, Collapsible `<thinking>` Inspection Cards, Streaming Plan & Monaco Diff | Live chunk streaming, typewriter queue buffer, reactive subtask updates, diff preview | *Nonaktif* |
-| **v0.2.4** | *Feature Release* | Socratic Cognitive Gate, Anti-Slop Diff Adoption Challenge, Developer Skill Atrophy Defense | Pertanyaan pemahaman kognitif interaktif sebelum diff diterapkan ke disk | *Selektif* |
+| **v0.2.4** | **SELESAI (100%)** | Socratic Cognitive Gate, Anti-Slop Diff Adoption Challenge, Developer Skill Atrophy Defense | Pertanyaan pemahaman kognitif interaktif sebelum diff diterapkan ke disk | *Nonaktif* |
+| **v0.2.5** | **SELESAI (100%)** | Antigravity Sub-Agent Dynamic Discovery (`agy agents`), In-Flight Isolated Screen B Ruleset | Dynamic dropdown, in-flight prompt envelope injection, GEMINI.md hash strictly preserved | *Nonaktif* |
 | **v0.3.0** | *Feature Release* | Language Server Protocol (LSP) Client (TS, Python, C++), Hover | Error diagnostics diarahkan ke Rustc-style visual | **Opsional (LSP AST Engine)** |
 | **v0.4.0** | *Feature Release* | Terminal Multiplexing (multi-tabs, bash/powershell), `tasks.json` | Output terminal & log dapat di-pipe ke Screen B | **Opsional (Stream Tuning)** |
 | **v0.5.0** | **BETA MILESTONE** | **Daily-Driver Ready**: Git complete, LSP complete, Lint/Format | **Socratic Cognitive Gate aktif penuh (Anti-Slop)** | *Selektif* |
@@ -156,6 +157,63 @@ flowchart TB
   - **Verification & Build Integrity**:
     - Seluruh rangkaian pengujian spesifikasi (`v0_2_2_dynamic_screen_b_agentic.test.ts` - 39 tests) dan rangkaian adversarial (`v0_2_2_adversarial_challenger_1.test.ts` - 20 tests, `v0_2_2_adversarial_challenger_2.test.ts` - 21 tests) mengonfirmasi 80 pengujian baru lulus 100%.
     - Kompilasi build package desktop (`corepack yarn --cwd packages/antislop-desktop build`) berhasil bersih dengan exit code 0.
+
+### Milestone v0.2.3: Live AI Streaming via Sidecar WebSocket & Gemini CLI Bridge (Selesai 100%)
+- **Status Capaian:**
+  - **Resilient WebSocket Connection ke Sidecar (`ws://127.0.0.1:4949`)**:
+    - Koneksi auto-reconnect dengan backoff eksponensial (1s, 2s, 4s, maks 30s), heartbeat interval 5 detik dengan pemantauan latensi realtime.
+    - Fallback offline yang anggun saat sidecar daemon belum menyala, serta status telemetri model/daemon di status bar dan header Screen B.
+  - **Live Chunk Streaming & Typewriter Rendering**:
+    - Buffer `TypewriterRenderer` asli untuk perayapan teks halus (1-4 karakter per tick 16ms), isolasi blok penalaran (`<thinking>...</thinking>`) ke dalam kartu inspeksi gelap bergaya Codicon (`codicon-lightbulb`, chevron yang dapat diciutkan) dengan metrik token dan waktu.
+    - Pewarnaan sintaks VS Code Dark+ dan tombol copy interaktif.
+  - **Streaming Agentic Task Plan & Diff Generation**:
+    - Streaming pembaruan subtask real-time (`plan:init`, `plan:step_start`, `plan:step_log`, `plan:step_done`) tanpa merusak view state.
+    - Streaming file usulan diff (`diff:file_proposed`) langsung membuka Monaco Diff Editor di Layar A secara non-destruktif.
+  - **Verification & Build Integrity**:
+    - 106 tes baru (35 unit + 71 adversarial) lulus 100%, kompilasi package build bersih, 633 monorepo tests green.
+
+### Milestone v0.2.4: Socratic Cognitive Gate, Anti-Slop Differentiation Engine & Zero-Buffer Diff Protection (Selesai 100%)
+- **Status Capaian:**
+  - **Socratic Cognitive Gate Challenge UI & State Machine (R1)**:
+    - Tombol `[ Accept ]` (per berkas) dan `[ Accept All ]` di Review Mode terkunci secara default (`disabled` / `.btn-disabled`) dengan ikon gembok Codicon (`codicon-lock`).
+    - Kartu Tantangan Sokratik (`#socratic-gate-card`) disajikan secara elegan dengan tema VS Code Dark+ (`#1e1e1e`, `#252526`, `#007acc`), bebas emoji slop, menanyakan pemahaman arsitektural (error resilience, boundary clamping, memory safety, isolasi state) dengan opsi jawaban interaktif dan umpan balik visual instan.
+  - **Gate Unlock Lifecycle & Disk Mutation Safety (R2)**:
+    - Menyelesaikan tantangan kognitif dengan benar memancarkan event `screenB:gateUnlocked` melalui `EditorEventBridge`.
+    - Ikon gembok bertransisi mulus menjadi centang terverifikasi (`codicon-check`), dan tombol `[ Accept ]` / `[ Accept All ]` menjadi aktif dengan aksen biru VS Code (`#007acc`).
+    - Tombol `[ Discard ]` dan `[ Discard All ]` tetap bebas dan aktif 100% tanpa keharusan menjawab pertanyaan, menjamin kedaulatan developer untuk menolak kode AI kapan saja.
+  - **Challenge Generator & On-Demand Pattern Explainer (R3)**:
+    - Generator tantangan otomatis mengekstrak intensi arsitektural dari ringkasan diff dan menyusun pertanyaan non-sepele tentang invariansi kode.
+    - Tombol *"Hint / Explain Concept"* (`#btn-socratic-hint`) memberikan panduan dan penjelasan rasional di kartu konsep.
+  - **Layar A Monaco Diff Integration & Zero-Buffer Protection (R4)**:
+    - Developer bebas melakukan inspeksi visual side-by-side di Monaco Diff Editor (`agent-orig://` vs `agent-proposed://`) saat gerbang terkunci tanpa mutasi berkas ke disk (`isDirty = false`).
+    - Klik tombol `[ Accept ]` setelah gerbang terbuka menulis perubahan secara atomik ke disk via `window.electronFS.writeFile`, membersihkan dirty state buffer Monaco, dan menandai diff berstatus applied.
+  - **Verification & Build Integrity (R5)**:
+    - Rangkaian pengujian spesifikasi (`v0_2_4_socratic_cognitive_gate.test.ts` - 27 tests) dan rangkaian adversarial (`v0_2_4_adversarial_challenger_1.test.ts` - 38 tests, `v0_2_4_adversarial_challenger_2.test.ts` - 20 tests) menghasilkan 85 tes baru (100% lulus).
+    - Seluruh monorepo test suite lulus tanpa regresi (**718 / 718 tests passing 100%** melintasi 33 test files).
+    - Kompilasi build package desktop bersih (`exit code 0`).
+
+### Milestone v0.2.5: Antigravity Sub-Agent Dynamic Discovery & In-Flight Isolated Ruleset (Selesai 100%)
+- **Status Capaian:**
+  - **Antigravity Sub-Agent Dynamic Discovery & Invocation (R1)**:
+    - IPC handler `antigravity:getAgents` di `main.ts` mengeksekusi `resolveAgyBinaryPath() agents` dengan batas waktu 5000ms dan parsing multi-line bersih, mengabaikan header log `fetching...`.
+    - Fallback anggun `{ available: false, agents: [] }` saat binary CLI tidak ditemukan atau eksekusi error.
+    - Typed bridge `window.electronAntigravity.getAgents()` diexpose di `preload.ts` dan signature `runCommand` diperluas dengan opsi `agent?: string`.
+    - Antarmuka Screen B dropdown `<select id="agent-select-dropdown">` disisipkan di `.prompt-actions-right` sebelum `#model-select-dropdown` dengan styling autentik VS Code Dark+ (`#252526`, `#3f3f46`, border aksen focus `#007acc`).
+    - Fallback sub-agent bawaan (`FALLBACK_SUB_AGENTS`: 7 agen sistem) memastikan dropdown tidak pernah kosong meskipun CLI offline.
+    - Propagasi flag `--agent <selected_agent>` disuntikkan secara otomatis ke child process `agy.exe` saat sub-agen dipilih (selain default).
+    - Dropdown dinonaktifkan (`disabled = true`) selama eksekusi prompt berlangsung dan dipulihkan kembali saat proses selesai.
+  - **100% Isolated In-Flight Screen B Ruleset (R2)**:
+    - Konstanta in-memory `SCREEN_B_OPERATIONAL_RULESET` di `workbench.js` menyematkan prinsip Anti-Slop (zero fluff, solusi padat, modifikasi bedah), bimbingan kognitif Sokratik (Golden Invariant: zero auto-patching buta, rasional arsitektural), dan integritas zero-buffer streaming (output hanya display, zero mutasi disk/Monaco saat generasi).
+    - `buildScreenBPromptEnvelope(userPrompt, editorContext)` menyuntikkan ruleset murni ke dalam memori proses sebelum dikirim ke `electronAntigravity.runCommand()`.
+    - Decoupled UI: Gelembung chat di `#chat-thread-container` hanya merender teks prompt mentah pengguna via `appendUserMessage(prompt)`, tanpa kebocoran token ruleset atau delimiter wrapper ke DOM pengguna.
+    - Zero Disk Write & Hash Invariant: Konfigurasi global `C:\Users\DELL\.gemini\GEMINI.md` tidak pernah dimodifikasi dan nilai hash MD5 tetap identik byte-for-byte (`BB220CB5B3230E9A127EB14FDF05BEC1`).
+    - Sesi terminal eksternal (`terminal:create` di `main.ts`) berjalan 100% independen tanpa polusi environment ruleset atau argumen sub-agen.
+  - **Automated Programmatic Test Suite & Build Integrity (R3)**:
+    - Rangkaian pengujian spesifikasi (`v0_2_5_screen_b_agent_isolation.test.ts` - 30 tests) dan rangkaian adversarial (`v0_2_5_adversarial_challenger_2.test.ts` - 25 tests) lulus 100% tanpa kegagalan.
+    - Test suite regresi monorepo (`v0_2_3_live_ai_streaming.test.ts` dan `v0_2_4_socratic_cognitive_gate.test.ts`) lulus 100% (total 117 tests lulus melintasi 4 file pengujian).
+    - Kompilasi build desktop package (`npm --prefix packages/antislop-desktop run build`) sukses tanpa galat (`exit code 0`).
+  - **Independent Victory Audit**:
+    - Disahkan secara mandiri dan diverifikasi empiris (**VICTORY CONFIRMED**).
 
 ### Milestone v0.3.0: Language Server Protocol (LSP) & Code Intelligence
 - **Target Paritas VS Code:**

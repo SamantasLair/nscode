@@ -4,10 +4,6 @@ import fs from 'fs';
 import os from 'os';
 import vm from 'vm';
 
-// =============================================================================
-// ELECTRON IPC MOCK HARNESS
-// =============================================================================
-
 const { ipcHandlers, mockWebContents, mockMainWindow, mockShell, mockClipboard } = vi.hoisted(() => {
   const handlers = new Map<string, Function>();
   const webContents = {
@@ -64,10 +60,6 @@ vi.mock('electron', () => {
 
 // Import main module to trigger IPC registrations and set workspace root
 import { setCurrentWorkspaceRootForTesting } from '../src/main';
-
-// =============================================================================
-// DETERMINISTIC IN-MEMORY WEBSOCKET MOCK
-// =============================================================================
 
 export class MockWebSocket {
   static CONNECTING = 0;
@@ -164,10 +156,6 @@ export class MockWebSocket {
     MockWebSocket.instances = [];
   }
 }
-
-// =============================================================================
-// HIGH-FIDELITY DOM SIMULATOR FOR NODE VM SANDBOX
-// =============================================================================
 
 export interface MockElement {
   id: string;
@@ -498,10 +486,6 @@ export function createMockDomElement(tag = 'div', id = ''): MockElement {
   return el;
 }
 
-// =============================================================================
-// WORKBENCH SANDBOX INITIALIZER FOR MILESTONE v0.2.3
-// =============================================================================
-
 export function setupWorkbenchSandbox(jsContent: string) {
   const elementRegistry = new Map<string, MockElement>();
 
@@ -512,13 +496,11 @@ export function setupWorkbenchSandbox(jsContent: string) {
     return elementRegistry.get(id)!;
   };
 
-  // 1. Layar A Editor Mounts
   const editorMount = getOrCreateEl('editor-mount');
   editorMount.style.display = 'block';
   const diffEditorMount = getOrCreateEl('diff-editor-mount');
   diffEditorMount.style.display = 'none';
 
-  // 2. Status Bar Daemon Telemetry Elements (R1)
   const statusDaemon = getOrCreateEl('status-daemon');
   statusDaemon.className = 'status-item status-clickable';
   const daemonStatusDot = getOrCreateEl('daemon-status-dot', 'span');
@@ -543,7 +525,6 @@ export function setupWorkbenchSandbox(jsContent: string) {
   statusAgyText.textContent = 'agy: Ready';
   statusAgy.appendChild(statusAgyText);
 
-  // 3. Screen B Header & Daemon Status (R1)
   const secondarySidebar = getOrCreateEl('secondary-sidebar');
   const screenBHeader = getOrCreateEl('screen-b-header');
   const screenBModeTabs = getOrCreateEl('screen-b-mode-tabs');
@@ -605,7 +586,6 @@ export function setupWorkbenchSandbox(jsContent: string) {
   screenBBreadcrumb.appendChild(screenBActiveFile);
   screenBHeader.appendChild(screenBBreadcrumb);
 
-  // 4. Screen B Views Container
   const middleContainer = getOrCreateEl('secondary-middle-container');
 
   // 4A. Chat View (R2)
@@ -710,7 +690,6 @@ export function setupWorkbenchSandbox(jsContent: string) {
   middleContainer.appendChild(viewPlan);
   middleContainer.appendChild(viewReview);
 
-  // Bottom prompt container
   const promptContainer = getOrCreateEl('antigravity-prompt-container');
   const promptInputBox = getOrCreateEl('prompt-input-box', 'textarea');
   promptInputBox.value = '';
@@ -718,12 +697,10 @@ export function setupWorkbenchSandbox(jsContent: string) {
   promptContainer.appendChild(promptInputBox);
   promptContainer.appendChild(btnPromptRun);
 
-  // Navigation & Tabs
   getOrCreateEl('workbench-tabs');
   getOrCreateEl('open-editors-list');
   getOrCreateEl('workspace-file-tree');
 
-  // Monaco Mock Instrumentation
   let modelVersionId = 1;
   let modelContent = 'def quicksort(arr):\n    if len(arr) <= 1:\n        return arr\n    pivot = arr[len(arr) // 2]\n    left = [x for x in arr if x < pivot]\n    middle = [x for x in arr if x == pivot]\n    right = [x for x in arr if x > pivot]\n    return quicksort(left) + middle + quicksort(right)\n';
   let changeListeners: Function[] = [];
@@ -809,7 +786,6 @@ export function setupWorkbenchSandbox(jsContent: string) {
     restoreViewState: vi.fn(),
   };
 
-  // Monaco Diff Editor Mock
   let diffEditorOriginalModel: any = null;
   let diffEditorModifiedModel: any = null;
   let diffEditorOptions: any = null;
@@ -1115,10 +1091,6 @@ export function setupWorkbenchSandbox(jsContent: string) {
   };
 }
 
-// =============================================================================
-// COMPREHENSIVE TEST SUITE: MILESTONE v0.2.3 (SUITES 1 TO 5)
-// =============================================================================
-
 describe('Milestone v0.2.3: Live AI Execution, Streaming Typewriter & Resilient Sidecar Bridge', () => {
   let testTempDir: string;
   let workspaceDir: string;
@@ -1156,9 +1128,6 @@ describe('Milestone v0.2.3: Live AI Execution, Streaming Typewriter & Resilient 
     }
   });
 
-  // ===========================================================================
-  // SUITE 1: RESILIENT WEBSOCKET CLIENT & TELEMETRY (R1)
-  // ===========================================================================
   describe('Suite 1: Resilient WebSocket Client & Telemetry (R1)', () => {
     it('1.1 connects to default sidecar daemon URL ws://127.0.0.1:4949 on workbench load', () => {
       const ctx = setupWorkbenchSandbox(jsContent);
@@ -1299,9 +1268,7 @@ describe('Milestone v0.2.3: Live AI Execution, Streaming Typewriter & Resilient 
     });
   });
 
-  // ===========================================================================
   // SUITE 2: LIVE STREAM PARSING, TYPEWRITER BUFFER & REASONING BLOCKS (R2)
-  // ===========================================================================
   describe('Suite 2: Live Stream Parsing, Typewriter Buffer & Reasoning Blocks (R2)', () => {
     it('2.1 streams incoming AI response chunks into #chat-thread-container without UI blocking', () => {
       const ctx = setupWorkbenchSandbox(jsContent);
@@ -1448,9 +1415,6 @@ describe('Milestone v0.2.3: Live AI Execution, Streaming Typewriter & Resilient 
     });
   });
 
-  // ===========================================================================
-  // SUITE 3: REAL-TIME AGENTIC TASK PLAN STREAMING IN PLAN MODE (R3)
-  // ===========================================================================
   describe('Suite 3: Real-Time Agentic Task Plan Streaming in Plan Mode (R3)', () => {
     it('3.1 plan:init message initializes task plan, resets progress to 0%, and morphs Screen B to Plan Mode', () => {
       const ctx = setupWorkbenchSandbox(jsContent);
@@ -1497,12 +1461,10 @@ describe('Milestone v0.2.3: Live AI Execution, Streaming Typewriter & Resilient 
       const st1 = subtaskList.children[0];
       const st2 = subtaskList.children[1];
 
-      // Step 1: in_progress with loading spin glyph
       expect(st1.classList.contains('status-in_progress')).toBe(true);
       const st1Icon = st1.querySelector('.codicon-loading') || st1.querySelector('.subtask-status-icon');
       expect(st1Icon).toBeDefined();
 
-      // Step 2: pending with circle outline glyph
       expect(st2.classList.contains('status-pending')).toBe(true);
       const st2Icon = st2.querySelector('.codicon-circle-outline') || st2.querySelector('.subtask-status-icon');
       expect(st2Icon).toBeDefined();
@@ -1648,9 +1610,6 @@ describe('Milestone v0.2.3: Live AI Execution, Streaming Typewriter & Resilient 
     });
   });
 
-  // ===========================================================================
-  // SUITE 4: STREAMING DIFF GENERATION INTO REVIEW MODE & MONACO PREVIEW (R4)
-  // ===========================================================================
   describe('Suite 4: Streaming Diff Generation into Review Mode & Monaco Preview (R4)', () => {
     it('4.1 diff:file_proposed registers proposed file diff with additions/deletions stats and virtual content', () => {
       const ctx = setupWorkbenchSandbox(jsContent);
@@ -1862,9 +1821,6 @@ describe('Milestone v0.2.3: Live AI Execution, Streaming Typewriter & Resilient 
     });
   });
 
-  // ===========================================================================
-  // SUITE 5: ERROR RESILIENCE, OFFLINE FALLBACK & EDGE CASES (R5)
-  // ===========================================================================
   describe('Suite 5: Error Resilience, Offline Fallback & Edge Cases (R5)', () => {
     it('5.1 handles malformed non-JSON WebSocket messages gracefully without crashing', () => {
       const ctx = setupWorkbenchSandbox(jsContent);

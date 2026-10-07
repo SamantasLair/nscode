@@ -518,7 +518,6 @@ describe('Antislop Sidecar Daemon Test Suite', () => {
     }
 
     it('generates dynamic language-specific memory allocation profiles for Java and C++', async () => {
-      // 1. Java Performance Card:
       const javaResult = await engine.analyzeError({
         languageId: 'java',
         rawError: 'java.lang.NullPointerException at com.example.App.main()',
@@ -539,7 +538,6 @@ describe('Antislop Sidecar Daemon Test Suite', () => {
       expect(javaMinCard!.memoryImpact.allocationType).toBe('zero_alloc');
       expect(javaMinCard!.memoryImpact.heapAllocationsEstimate).toContain('constant pool');
 
-      // 2. C++ Performance Card:
       const cppResult = await engine.analyzeError({
         languageId: 'cpp',
         rawError: 'segmentation fault (core dumped)',

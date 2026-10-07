@@ -447,6 +447,7 @@
             <span class="secondary-title">SCREEN B</span>
             <!-- Mode Switcher Tabs (R4) -->
             <div class="screen-b-mode-tabs" id="screen-b-mode-tabs" role="tablist">
+              <div class="screen-b-mode-pill-indicator" id="screen-b-mode-pill"></div>
               <button class="screen-b-mode-tab active" id="tab-screen-b-chat" data-mode="chat" role="tab" aria-selected="true" title="Chat Mode">
                 <span class="codicon codicon-comment-discussion"></span>
                 <span>Chat</span>
@@ -471,7 +472,7 @@
           <div class="screen-b-daemon-status" id="screen-b-daemon-status" title="Sidecar: Disconnected">
             <span class="status-dot disconnected" id="screen-b-daemon-dot"></span>
             <span class="screen-b-daemon-latency" id="screen-b-daemon-latency">---ms</span>
-            <span class="screen-b-model-badge" id="screen-b-model-badge">gemini-2.5-flash</span>
+            <span class="screen-b-model-badge" id="screen-b-model-badge">gemini-3.8-flash-high</span>
           </div>
           <div class="secondary-actions">
             <button class="icon-action-btn" id="btn-chat-new" title="New Chat">
@@ -480,8 +481,8 @@
             <button class="icon-action-btn" id="btn-secondary-refresh" title="Re-analyze Code">
               <span class="codicon codicon-refresh"></span>
             </button>
-            <button class="icon-action-btn" id="btn-secondary-collapse" title="Collapse Secondary Sidebar (Ctrl+Alt+B)">
-              <span class="codicon codicon-layout-sidebar-right-off"></span>
+            <button class="icon-action-btn btn-close-screen-b" id="btn-secondary-collapse" title="Tutup Layar B (Ctrl+Alt+B)" aria-label="Tutup Layar B">
+              <span class="codicon codicon-close"></span>
             </button>
           </div>
         </div>
@@ -506,6 +507,12 @@
 
               <!-- Technical Summary Cards Container -->
               <div class="technical-summary-cards-container" id="technical-summary-cards-container"></div>
+
+              <!-- PopperGate Falsification Stress-Tester Container -->
+              <div class="popper-gate-container" id="popper-gate-container"></div>
+
+              <!-- Maieutic Duck Dialectic Co-Pilot Container -->
+              <div class="maieutic-duck-container" id="maieutic-duck-container"></div>
             </div>
 
             <!-- Native Chat Conversation & Streaming Thread Container (R2) -->
@@ -620,9 +627,9 @@
                   </div>
                 </div>
                 <div class="review-global-actions">
-                  <button class="btn-vscode-primary btn-review-bulk" id="btn-review-accept-all" title="Accept all proposed changes and write to disk">
-                    <span class="codicon codicon-check-all"></span>
-                    <span>Accept All</span>
+                  <button class="btn-vscode-primary btn-review-bulk btn-disabled" id="btn-review-accept-all" disabled="true" title="Accept all proposed changes (Locked by Socratic Cognitive Gate)">
+                    <span class="codicon codicon-lock" id="bulk-accept-icon"></span>
+                    <span id="bulk-accept-label">Accept All</span>
                   </button>
                   <button class="btn-vscode-secondary btn-review-bulk" id="btn-review-discard-all" title="Discard all proposed changes">
                     <span class="codicon codicon-discard"></span>
@@ -630,6 +637,107 @@
                   </button>
                 </div>
               </div>
+
+              <!-- SOCRATIC COGNITIVE GATE CARD (Milestone v0.2.4 - R1) -->
+              <div class="socratic-gate-card" id="socratic-gate-card" data-gate-state="locked" style="display: none;">
+                <!-- Gate Header -->
+                <div class="socratic-gate-header" id="socratic-gate-header">
+                  <div class="socratic-gate-badge">
+                    <span class="codicon codicon-lock" id="socratic-gate-badge-icon"></span>
+                    <span class="socratic-gate-badge-title">SOCRATIC COGNITIVE GATE</span>
+                  </div>
+                  <span class="socratic-gate-status-pill status-locked" id="socratic-gate-status-pill">LOCKED</span>
+                </div>
+
+                <!-- Socratic Ladder Stepper (Milestone v0.2.8 - 4-Level Scaffolding) -->
+                <div class="socratic-ladder-stepper" id="socratic-ladder-stepper" role="tablist" aria-label="Socratic Scaffolding Levels">
+                  <button type="button" class="socratic-step-node active" id="socratic-step-1" data-step="1" title="Level 1: Reflection">
+                    <span class="step-num">1</span>
+                    <span class="step-label">Reflection</span>
+                  </button>
+                  <div class="socratic-step-connector" id="socratic-conn-1"></div>
+                  <button type="button" class="socratic-step-node" id="socratic-step-2" data-step="2" title="Level 2: Invariant">
+                    <span class="step-num">2</span>
+                    <span class="step-label">Invariant</span>
+                  </button>
+                  <div class="socratic-step-connector" id="socratic-conn-2"></div>
+                  <button type="button" class="socratic-step-node" id="socratic-step-3" data-step="3" title="Level 3: Blueprint">
+                    <span class="step-num">3</span>
+                    <span class="step-label">Blueprint</span>
+                  </button>
+                  <div class="socratic-step-connector" id="socratic-conn-3"></div>
+                  <button type="button" class="socratic-step-node" id="socratic-step-4" data-step="4" title="Level 4: Cloze">
+                    <span class="step-num">4</span>
+                    <span class="step-label">Cloze</span>
+                  </button>
+                </div>
+
+                <!-- Gate Body -->
+                <div class="socratic-gate-body" id="socratic-gate-body">
+                  <!-- Diff Context Target -->
+                  <div class="socratic-target-context" id="socratic-target-context">
+                    <span class="codicon codicon-file-code"></span>
+                    <span class="socratic-target-file" id="socratic-target-file">Evaluating proposed changes...</span>
+                  </div>
+
+                  <!-- Logic Blueprint Box (displayed on Level 3) -->
+                  <div class="socratic-blueprint-box" id="socratic-blueprint-box" style="display: none;">
+                    <div class="socratic-blueprint-header">
+                      <span class="codicon codicon-circuit-board"></span>
+                      <span id="socratic-blueprint-title">Architectural Logic Blueprint</span>
+                    </div>
+                    <pre class="socratic-blueprint-code"><code id="socratic-blueprint-code-text"></code></pre>
+                  </div>
+
+                  <!-- Concept Question -->
+                  <div class="socratic-question-container" id="socratic-question-container">
+                    <p class="socratic-question-text" id="socratic-question-text">
+                      <span id="socratic-concept-question">Evaluating architectural intent...</span>
+                    </p>
+                  </div>
+
+                  <!-- Options List (2-3 options) -->
+                  <div class="socratic-options-list" id="socratic-options-list" role="radiogroup" aria-label="Socratic Challenge Options">
+                    <!-- Rendered dynamically by renderSocraticGateCard() -->
+                  </div>
+
+                  <!-- Feedback Banner -->
+                  <div class="socratic-feedback-banner" id="socratic-feedback-banner" style="display: none;">
+                    <span class="codicon" id="socratic-feedback-icon"></span>
+                    <span class="socratic-feedback-text" id="socratic-feedback-text"></span>
+                  </div>
+
+                  <!-- Explanation Card -->
+                  <div class="socratic-explanation-card" id="socratic-explanation-card" style="display: none;">
+                    <div class="socratic-explanation-header">
+                      <span class="codicon codicon-pass-filled"></span>
+                      <span class="socratic-explanation-title">ARCHITECTURAL RATIONALE VERIFIED</span>
+                    </div>
+                    <p class="socratic-explanation-text" id="socratic-explanation-text"></p>
+                  </div>
+                </div>
+
+                <!-- Gate Footer / Hint -->
+                <div class="socratic-gate-footer" id="socratic-gate-footer">
+                  <button
+                    class="socratic-hint-btn"
+                    id="socratic-hint-btn"
+                    type="button"
+                    aria-expanded="false"
+                    title="Toggle Architectural Concept Hint"
+                  >
+                    <span class="codicon codicon-lightbulb"></span>
+                    <span id="socratic-hint-btn-label">Hint / Explain Concept</span>
+                  </button>
+                  <div class="socratic-hint-container" id="socratic-hint-container" style="display: none;">
+                    <div class="socratic-hint-inner">
+                      <span class="codicon codicon-info"></span>
+                      <p class="socratic-hint-text" id="socratic-hint-text"></p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
               <div class="review-file-list review-list-container" id="review-file-list"></div>
             </div>
           </div>
@@ -653,6 +761,10 @@
               </button>
 
               <div class="prompt-actions-right">
+                <!-- Sub-Agent Selector Dropdown -->
+                <select id="agent-select-dropdown" class="agent-select-dropdown panel-channel-select" title="Select Antigravity Sub-Agent">
+                  <option value="">Agent: Default</option>
+                </select>
                 <!-- Model Selector Dropdown -->
                 <div class="model-select-dropdown" id="model-select-dropdown" title="Select AI Model">
                   <span class="model-label">Auto</span>
@@ -714,7 +826,7 @@
           <span class="status-dot disconnected" id="daemon-status-dot"></span>
           <span class="status-text" id="daemon-status-text">Sidecar 4949</span>
           <span class="daemon-latency" id="daemon-latency-text">---ms</span>
-          <span class="daemon-model-badge" id="daemon-model-badge">gemini-2.5-flash</span>
+          <span class="daemon-model-badge" id="daemon-model-badge">gemini-3.8-flash-high</span>
         </div>
         <!-- Antigravity CLI (Preserved for tests) -->
         <div class="status-item status-clickable" id="status-agy" title="Antigravity CLI: Ready">
@@ -846,7 +958,7 @@
               <span class="setting-title">Application Version</span>
               <span class="setting-desc">Current release build version.</span>
             </div>
-            <span class="setting-badge-version">v0.1.1 (Source Control &amp; Tooling Patch)</span>
+            <span class="setting-badge-version">v0.2.5 (Socratic Cognitive Gate, Dynamic Sub-Agents &amp; Isolated Ruleset)</span>
           </div>
         </div>
       </div>
@@ -874,6 +986,25 @@
 
   </div>
 
+  <svg id="bridgewire-overlay-canvas" class="bridgewire-canvas" aria-hidden="true">
+    <defs>
+      <filter id="bw-glow" x="-20%" y="-20%" width="140%" height="140%">
+        <feGaussianBlur stdDeviation="3" result="blur" />
+        <feMerge>
+          <feMergeNode in="blur" />
+          <feMergeNode in="SourceGraphic" />
+        </feMerge>
+      </filter>
+      <marker id="bw-dot-end" markerWidth="6" markerHeight="6" refX="3" refY="3">
+        <circle cx="3" cy="3" r="2.5" class="bridgewire-marker" />
+      </marker>
+    </defs>
+    <path id="bridgewire-active-spline" class="bridgewire-spline" d="" />
+  </svg>
+
+  <script src="popper-gate.js"></script>
+  <script src="maieutic-duck.js"></script>
+  <script src="bridgewire.js"></script>
   <script src="workbench.js"></script>
 </body>
 </html>

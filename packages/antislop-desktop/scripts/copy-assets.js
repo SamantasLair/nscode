@@ -5,10 +5,8 @@ const rootDir = path.resolve(__dirname, '..', '..', '..');
 const srcDir = path.resolve(__dirname, '..', 'src', 'workbench');
 const destDir = path.resolve(__dirname, '..', 'dist', 'workbench');
 
-// 1. Ensure target directories exist
 fs.mkdirSync(destDir, { recursive: true });
 
-// 2. Locate node_modules monaco-editor and @vscode/codicons
 function findPackageDir(pkgSubpath) {
   // Check local package node_modules first, then monorepo root node_modules
   const localPath = path.resolve(__dirname, '..', 'node_modules', pkgSubpath);
@@ -21,7 +19,6 @@ function findPackageDir(pkgSubpath) {
 const monacoMinVs = findPackageDir(path.join('monaco-editor', 'min', 'vs'));
 const codiconsDist = findPackageDir(path.join('@vscode', 'codicons', 'dist'));
 
-// Copy monaco-editor vs directory to src and dist
 if (monacoMinVs) {
   const destVs = path.resolve(destDir, 'vs');
   fs.cpSync(monacoMinVs, destVs, { recursive: true });
@@ -57,7 +54,6 @@ if (codiconsDist) {
   console.warn('[copy-assets] @vscode/codicons dist not found in node_modules');
 }
 
-// 3. Copy workbench source files (HTML, CSS, JS)
 if (fs.existsSync(srcDir)) {
   fs.cpSync(srcDir, destDir, { recursive: true });
   console.log('[copy-assets] Copied workbench to dist/workbench');

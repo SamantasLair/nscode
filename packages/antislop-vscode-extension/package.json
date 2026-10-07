@@ -2,7 +2,7 @@
   "name": "@antislop/vscode-extension",
   "displayName": "AntiSlop Active-Cognition IDE",
   "description": "Active-cognition desktop IDE extension combating AI-induced developer skill atrophy",
-  "version": "0.1.1",
+  "version": "0.2.5",
   "publisher": "antislop",
   "engines": {
     "vscode": "^1.85.0"
@@ -54,7 +54,7 @@
     "clean": "rimraf dist tsconfig.tsbuildinfo"
   },
   "dependencies": {
-    "@antislop/protocol": "0.1.1",
+    "@antislop/protocol": "0.2.4",
     "ws": "^8.18.0",
     "zod": "^3.24.2"
   },

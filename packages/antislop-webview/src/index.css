@@ -1,33 +1,37 @@
-/* Anti-Slop Clean Dark Theme Tokens & Reset */
+/* Anti-Slop Dynamic Zero-Hardcode Theme Tokens & Reset */
 :root {
-  --bg-primary: #18181b;
-  --bg-surface: #18181b;
-  --bg-surface-elevated: #27272a;
-  --bg-muted: #27272a;
+  --bg-primary: var(--vscode-sideBar-background, var(--vscode-editor-background, #252526));
+  --bg-surface: var(--vscode-sideBar-background, #252526);
+  --bg-surface-elevated: var(--vscode-card-background, var(--vscode-editor-background, #1e1e1e));
+  --bg-muted: var(--vscode-sideBarSectionHeader-background, #252526);
   
-  --border-subtle: #27272a;
-  --border-strong: #3f3f46;
-  --border-focus: #007acc;
+  --border-subtle: var(--vscode-sideBarSectionHeader-border, var(--vscode-sideBar-border, #2d2d2d));
+  --border-strong: var(--vscode-input-border, #3c3c3c);
+  --border-focus: var(--vscode-focusBorder, #007acc);
 
-  --text-primary: #e4e4e7;
-  --text-secondary: #a1a1aa;
-  --text-muted: #71717a;
+  --text-primary: var(--vscode-editor-foreground, #d4d4d4);
+  --text-secondary: var(--vscode-sideBarTitle-foreground, var(--vscode-foreground, #cccccc));
+  --text-muted: var(--vscode-descriptionForeground, #858585);
 
-  --accent-red: #ef4444;
-  --accent-red-bg: #450a0a;
-  --accent-red-border: #7f1d1d;
+  --accent-red: var(--vscode-errorForeground, #f14c4c);
+  --accent-red-bg: var(--vscode-errorBackground, rgba(241, 76, 76, 0.15));
+  --accent-red-border: var(--vscode-errorBorder, rgba(241, 76, 76, 0.35));
 
-  --accent-green: #22c55e;
-  --accent-green-bg: #052e16;
-  --accent-green-border: #14532d;
+  --accent-green: var(--vscode-successForeground, #89d185);
+  --accent-green-bg: var(--vscode-successBackground, rgba(137, 209, 133, 0.15));
+  --accent-green-border: var(--vscode-successBorder, rgba(137, 209, 133, 0.35));
 
-  --accent-blue: #007acc;
-  --accent-blue-bg: rgba(0, 122, 204, 0.15);
-  --accent-blue-border: #007acc;
+  --accent-blue: var(--vscode-button-background, #007acc);
+  --accent-blue-bg: var(--vscode-infoBackground, rgba(0, 122, 204, 0.15));
+  --accent-blue-border: var(--vscode-focusBorder, #007acc);
 
-  --accent-amber: #f59e0b;
-  --accent-amber-bg: #451a03;
-  --accent-amber-border: #78350f;
+  --accent-amber: var(--vscode-warningForeground, #cca700);
+  --accent-amber-bg: var(--vscode-warningBackground, rgba(204, 167, 0, 0.15));
+  --accent-amber-border: var(--vscode-warningBorder, rgba(204, 167, 0, 0.35));
+
+  --code-bg: var(--vscode-syntax-codeBackground, var(--vscode-editor-background, #1e1e1e));
+  --code-border: var(--vscode-syntax-codeBorder, var(--vscode-sideBarSectionHeader-border, #2d2d2d));
+  --code-fg: var(--vscode-editor-foreground, #d4d4d4);
 
   --font-sans: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
   --font-mono: "Cascadia Code", Consolas, Monaco, "Courier New", monospace;
@@ -63,17 +67,21 @@ html, body {
   flex: 1;
   max-width: 100%;
   overflow-x: hidden;
+  container-type: inline-size;
+  container-name: app;
 }
 
 .main-content {
   flex: 1;
-  padding: 16px;
+  padding: clamp(8px, 2.5cqi, 20px);
   display: flex;
   flex-direction: column;
-  gap: 24px;
-  max-width: 1200px;
+  gap: clamp(12px, 2cqi, 24px);
+  max-width: 1400px;
   width: 100%;
   margin: 0 auto;
+  container-type: inline-size;
+  container-name: main;
 }
 
 /* Common Buttons & Focus */
@@ -277,7 +285,7 @@ button:focus-visible {
 }
 
 .raw-error-frame {
-  background: #0d1117;
+  background: var(--code-bg);
   border: 1px solid var(--border-subtle);
   border-radius: 6px;
   padding: 12px;
@@ -415,7 +423,7 @@ button:focus-visible {
 
 .manual-error-textarea {
   width: 100%;
-  background: #0d1117;
+  background: var(--code-bg);
   border: 1px solid var(--border-strong);
   border-radius: 6px;
   padding: 10px;
@@ -531,19 +539,22 @@ button:focus-visible {
 
 .smart-card-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(340px, 1fr));
-  gap: 20px;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 320px), 1fr));
+  gap: 16px;
 }
 
 /* Individual Smart Card */
 .smart-card {
+  container-type: inline-size;
+  container-name: card;
   background: var(--bg-surface);
   border: 1px solid var(--border-subtle);
   border-radius: 8px;
-  padding: 18px;
+  padding: clamp(12px, 3cqi, 18px);
   display: flex;
   flex-direction: column;
-  gap: 14px;
+  gap: clamp(10px, 2.5cqi, 14px);
+  min-width: 0;
 }
 
 .card-idiomatic,
@@ -665,7 +676,7 @@ button:focus-visible {
 }
 
 .complexity-proof-box {
-  background: #0d1117;
+  background: var(--code-bg);
   border: 1px solid var(--border-subtle);
   border-radius: 4px;
   padding: 8px 12px;
@@ -676,6 +687,7 @@ button:focus-visible {
 /* Mode Selector Bar */
 .mode-selector-bar {
   display: flex;
+  flex-wrap: wrap;
   gap: 6px;
   border-bottom: 1px solid var(--border-subtle);
   padding-bottom: 8px;
@@ -706,7 +718,7 @@ button:focus-visible {
 
 /* Code Block */
 .code-viewer-container {
-  background: #0d1117;
+  background: var(--code-bg);
   border: 1px solid var(--border-subtle);
   border-radius: 6px;
   overflow: hidden;
@@ -760,7 +772,7 @@ button:focus-visible {
 /* Memory Profile */
 .memory-profile-details {
   padding: 10px;
-  background: #0d1117;
+  background: var(--code-bg);
   border: 1px solid var(--border-subtle);
   border-top: none;
   border-radius: 0 0 6px 6px;
@@ -810,7 +822,7 @@ button:focus-visible {
 /* Language Idiom */
 .language-idiom-details {
   padding: 10px;
-  background: #0d1117;
+  background: var(--code-bg);
   border: 1px solid var(--border-subtle);
   border-top: none;
   border-radius: 0 0 6px 6px;
@@ -857,7 +869,7 @@ button:focus-visible {
 /* Trade-Offs */
 .trade-offs-details {
   padding: 10px;
-  background: #0d1117;
+  background: var(--code-bg);
   border: 1px solid var(--border-subtle);
   border-top: none;
   border-radius: 0 0 6px 6px;
@@ -970,7 +982,7 @@ button:focus-visible {
 
 /* Cloze Challenge */
 .cloze-challenge-container {
-  background: #0d1117;
+  background: var(--code-bg);
   border: 1px solid var(--border-subtle);
   border-radius: 6px;
   padding: 14px;
@@ -996,7 +1008,7 @@ button:focus-visible {
 }
 
 .cloze-code-display {
-  background: #161b22;
+  background: var(--bg-surface-elevated);
   border: 1px solid var(--border-subtle);
   border-radius: 4px;
   padding: 10px;
@@ -1096,7 +1108,7 @@ button:focus-visible {
 
 /* Type Along Practice */
 .type-along-container {
-  background: #0d1117;
+  background: var(--code-bg);
   border: 1px solid var(--border-subtle);
   border-radius: 6px;
   padding: 14px;
@@ -1158,7 +1170,7 @@ button:focus-visible {
 }
 
 .type-along-stream {
-  background: #161b22;
+  background: var(--bg-surface-elevated);
   border: 1px solid var(--border-subtle);
   border-radius: 4px;
   padding: 10px;
@@ -1191,7 +1203,7 @@ button:focus-visible {
 
 .type-along-input {
   width: 100%;
-  background: #161b22;
+  background: var(--bg-surface-elevated);
   border: 1px solid var(--border-strong);
   border-radius: 4px;
   padding: 10px;
@@ -1261,7 +1273,7 @@ button:focus-visible {
 
 .status-indicator.online {
   background: #22c55e;
-  box-shadow: 0 0 6px rgba(34, 197, 94, 0.6);
+  box-shadow: none;
 }
 
 .status-indicator.offline {
@@ -1292,6 +1304,68 @@ button:focus-visible {
   background-color: var(--bg-surface);
   border-bottom: 1px solid var(--border-subtle);
   user-select: none;
+}
+
+/* Dynamic Cognition Stream Header */
+.dynamic-cognition-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.cognition-pulse-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  background-color: var(--accent-green);
+  box-shadow: 0 0 6px var(--accent-green);
+  transition: all 0.2s ease;
+}
+
+.cognition-pulse-dot.streaming {
+  background-color: var(--accent-blue);
+  box-shadow: 0 0 8px var(--accent-blue);
+  animation: pulse-stream 1s infinite alternate;
+}
+
+.cognition-pulse-dot.alert {
+  background-color: var(--accent-red);
+  box-shadow: 0 0 8px var(--accent-red);
+}
+
+.cognition-pulse-dot.ready {
+  background-color: var(--accent-green);
+}
+
+@keyframes pulse-stream {
+  from { opacity: 0.6; transform: scale(0.9); }
+  to { opacity: 1; transform: scale(1.15); }
+}
+
+.cognition-title {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.6px;
+  color: var(--text-primary);
+  text-transform: uppercase;
+}
+
+.cognition-file-pill {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--text-secondary);
+  background-color: var(--bg-surface-elevated);
+  border: 1px solid var(--border-strong);
+  padding: 1px 6px;
+  border-radius: 10px;
+  max-width: 140px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .chat-header-tabs {
@@ -1345,11 +1419,28 @@ button:focus-visible {
   justify-content: center;
   border-radius: 4px;
   cursor: pointer;
+  transition: all 0.15s ease;
 }
 
 .chat-action-btn:hover {
   background-color: var(--bg-surface-elevated);
   color: var(--text-primary);
+}
+
+.session-toggle-btn.active {
+  background-color: var(--accent-blue-bg);
+  color: var(--accent-blue);
+  border: 1px solid var(--accent-blue);
+}
+
+.chat-close-btn {
+  font-size: 13px !important;
+  color: var(--text-muted) !important;
+}
+
+.chat-close-btn:hover {
+  background-color: rgba(239, 68, 68, 0.2) !important;
+  color: #fca5a5 !important;
 }
 
 /* Chat Conversation Thread (R5) */
@@ -1405,5 +1496,116 @@ button:focus-visible {
 @keyframes cursor-blink {
   0%, 50% { opacity: 1; }
   51%, 100% { opacity: 0; }
+}
+
+/* ==========================================================================
+   FLUID CONTAINER QUERIES (ZERO-HARDCODE RESPONSIVENESS - PHASE 2)
+   ========================================================================== */
+
+/* Main Zone: Wide Sidebar / Full Screen (>= 860px) - Dual-Zone Side-by-Side */
+@container main (min-width: 860px) {
+  .main-content:has(.top-zone):has(.bottom-zone) {
+    display: grid;
+    grid-template-columns: minmax(340px, 1fr) minmax(420px, 1.4fr);
+    align-items: start;
+    gap: 24px;
+  }
+
+  .top-zone {
+    position: sticky;
+    top: 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+  }
+
+  .bottom-zone {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+  }
+}
+
+/* Main Zone: Compact Sidebar (< 360px) */
+@container main (max-width: 359px) {
+  .smart-card-grid {
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+
+  .form-actions {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .btn-submit-analysis,
+  .btn-clear {
+    width: 100%;
+    text-align: center;
+  }
+
+  .variant-tabs {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 4px;
+  }
+
+  .tab-btn {
+    padding: 4px 6px;
+    font-size: 11px;
+    min-height: 34px;
+  }
+}
+
+/* Card Component Container Queries */
+@container card (max-width: 360px) {
+  .mode-selector-bar {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 4px;
+  }
+
+  .mode-btn {
+    width: 100%;
+    text-align: center;
+    padding: 6px 8px;
+    font-size: 11px;
+  }
+
+  .pros-cons-grid {
+    grid-template-columns: 1fr !important;
+    gap: 8px;
+  }
+
+  .memory-grid {
+    grid-template-columns: 1fr !important;
+    gap: 6px;
+  }
+
+  .copy-btn {
+    padding: 8px 10px;
+    font-size: 11px;
+  }
+}
+
+/* App Container: Compact Top Bar (< 320px) */
+@container app (max-width: 320px) {
+  .cognition-file-pill {
+    display: none;
+  }
+
+  .chat-header-tabs {
+    gap: 4px;
+  }
+}
+
+/* Chat Welcome Container Fluid Styling */
+.chat-welcome-container {
+  text-align: center;
+  margin: auto;
+  padding: clamp(16px, 4cqi, 32px) 16px;
+  max-width: min(100%, 380px);
+  width: 100%;
+  box-sizing: border-box;
 }
 

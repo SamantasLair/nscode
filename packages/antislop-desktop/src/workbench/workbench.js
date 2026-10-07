@@ -150,7 +150,6 @@ class AuthService
   }
 };
 
-// Global State
 let editor = null;
 let activeDecorationIds = [];
 let sidecarWs = null;
@@ -163,7 +162,6 @@ let navIndex = -1;
 let workspaceFileIndex = [];
 let currentScreenBMode = 'chat';
 
-// Controllers & Managers
 let docManager = null;
 let multiGroupManager = null;
 let bottomResizer = null;
@@ -330,37 +328,66 @@ function updateCursorTelemetry(ed = editor) {
 }
 
 // =============================================================================
-// SCREEN B MODE SWITCHER (Milestone v0.2.1 - R4)
+// SCREEN B MODE SWITCHER (Milestone v0.2.1 - R4 & Phase 2 Sliding Pill)
 // =============================================================================
+function updateScreenBModePill(targetTab) {
+  const container = document.getElementById('screen-b-mode-tabs');
+  if (!container) return;
+
+  const activeTab = targetTab || container.querySelector('.screen-b-mode-tab.active');
+  if (!activeTab) return;
+
+  if (typeof activeTab.getBoundingClientRect === 'function' && typeof container.getBoundingClientRect === 'function') {
+    const containerRect = container.getBoundingClientRect();
+    const tabRect = activeTab.getBoundingClientRect();
+
+    const relativeX = tabRect.left - containerRect.left;
+    const width = tabRect.width;
+
+    if (container.style && typeof container.style.setProperty === 'function') {
+      container.style.setProperty('--tab-active-x', `${Math.round(relativeX)}px`);
+      container.style.setProperty('--tab-active-width', `${Math.round(width)}px`);
+    }
+  }
+}
+
 function setScreenBMode(mode) {
-  currentScreenBMode = mode;
+  const VALID_MODES = ['chat', 'plan', 'review'];
+  const isValid = VALID_MODES.includes(mode);
+  const targetMode = isValid ? mode : null;
+  currentScreenBMode = targetMode;
   const tabs = document.querySelectorAll('.screen-b-mode-tab');
+  let activeTabElement = null;
   tabs.forEach((tab) => {
-    const isActive = tab.dataset.mode === mode;
+    const isActive = tab.dataset.mode === targetMode;
     tab.classList.toggle('active', isActive);
     tab.setAttribute('aria-selected', isActive ? 'true' : 'false');
+    if (isActive) activeTabElement = tab;
   });
+
+  if (activeTabElement) {
+    updateScreenBModePill(activeTabElement);
+  }
 
   const chatContainer = document.getElementById('screen-b-view-chat') || document.getElementById('screen-b-interaction-container');
   const planContainer = document.getElementById('screen-b-view-plan');
   const reviewContainer = document.getElementById('screen-b-view-review');
 
-  if (chatContainer) chatContainer.style.display = (mode === 'chat') ? 'flex' : 'none';
-  if (planContainer) planContainer.style.display = (mode === 'plan') ? 'flex' : 'none';
-  if (reviewContainer) reviewContainer.style.display = (mode === 'review') ? 'flex' : 'none';
+  if (chatContainer) chatContainer.style.display = (targetMode === 'chat') ? 'flex' : 'none';
+  if (planContainer) planContainer.style.display = (targetMode === 'plan') ? 'flex' : 'none';
+  if (reviewContainer) reviewContainer.style.display = (targetMode === 'review') ? 'flex' : 'none';
 
-  if (mode === 'plan' && typeof renderPlanView === 'function') {
+  if (targetMode === 'plan' && typeof renderPlanView === 'function') {
     renderPlanView();
-  } else if (mode === 'review' && typeof renderReviewPane === 'function') {
+  } else if (targetMode === 'review' && typeof renderReviewPane === 'function') {
     renderReviewPane();
   }
 
-  if (typeof editorEventBridge !== 'undefined') {
-    editorEventBridge.emit('screenB:modeChanged', { mode });
+  if (typeof editorEventBridge !== 'undefined' && targetMode) {
+    editorEventBridge.emit('screenB:modeChanged', { mode: targetMode });
   }
 }
 
-// DOM Elements
 const editorMount = document.getElementById('editor-mount');
 const webviewFrame = document.getElementById('webview-frame');
 const tabScrollContainer = document.getElementById('tab-scroll-container');
@@ -408,9 +435,6 @@ function navigateForward() {
   }
 }
 
-// =============================================================================
-// R3. MULTI-TAB DOCUMENT MANAGER & STATE PRESERVATION
-// =============================================================================
 class DocumentManager {
   constructor() {
     this.documents = new Map(); // id -> OpenDocument
@@ -444,7 +468,6 @@ class DocumentManager {
     if (!filename) return 'codicon codicon-file file-icon-default';
     const lower = filename.toLowerCase();
 
-    // Special full file names
     if (lower === '.gitignore' || lower === '.gitmodules') {
       return 'codicon codicon-source-control file-icon-git';
     }
@@ -514,7 +537,6 @@ class DocumentManager {
 
   async openFile(filePath, contentOverride, isPreset = false) {
     const id = filePath;
-    // 1. If already open, switch immediately
     if (this.documents.has(id)) {
       if (multiGroupManager) {
         multiGroupManager.openDocumentInGroup(multiGroupManager.activeGroupId, id);
@@ -524,7 +546,6 @@ class DocumentManager {
       return;
     }
 
-    // 2. Fetch content
     let content = contentOverride;
     const language = this.detectLanguage(filePath);
 
@@ -547,7 +568,6 @@ class DocumentManager {
       }
     }
 
-    // 3. Create or register Monaco ITextModel
     let model = null;
     let initialVersionId = 1;
 
@@ -1057,9 +1077,6 @@ class DocumentManager {
   }
 }
 
-// =============================================================================
-// R3. MULTI-GROUP SPLIT SCREEN EDITOR (LAYAR A DUAL/MULTI-GROUP)
-// =============================================================================
 class MultiGroupEditorManager {
   constructor() {
     this.groups = new Map();
@@ -1097,14 +1114,12 @@ class MultiGroupEditorManager {
       viewStates: new Map(),
     });
 
-    // Wire Split Buttons in Group 1
     const btnSplit1 = document.getElementById('btn-editor-split');
     if (btnSplit1) btnSplit1.addEventListener('click', () => this.splitRight());
 
     const btnSplitDown1 = document.getElementById('btn-editor-split-down');
     if (btnSplitDown1) btnSplitDown1.addEventListener('click', () => this.splitDown());
 
-    // Wire Split Buttons in Group 2
     const btnSplit2 = document.getElementById('btn-editor-split-2');
     if (btnSplit2) btnSplit2.addEventListener('click', () => this.splitRight());
 
@@ -1114,7 +1129,6 @@ class MultiGroupEditorManager {
     const btnCloseGroup2 = document.getElementById('btn-editor-close-group-2');
     if (btnCloseGroup2) btnCloseGroup2.addEventListener('click', () => this.closeGroup('group-2'));
 
-    // Split sash resizer
     this.initSplitSash();
   }
 
@@ -1372,9 +1386,6 @@ class MultiGroupEditorManager {
   }
 }
 
-// =============================================================================
-// R4. INTEGRATED BOTTOM PANEL (TERMINAL, OUTPUT, PROBLEMS)
-// =============================================================================
 class BottomPanelResizer {
   constructor() {
     this.panel = document.getElementById('bottom-panel');
@@ -1422,7 +1433,6 @@ class BottomPanelResizer {
 
     window.addEventListener('mouseup', () => this.onMouseUp());
 
-    // Panel tabs
     const tabProblems = document.getElementById('tab-btn-problems');
     const tabOutput = document.getElementById('tab-btn-output');
     const tabTerminal = document.getElementById('tab-btn-terminal');
@@ -1431,7 +1441,6 @@ class BottomPanelResizer {
     if (tabOutput) tabOutput.addEventListener('click', () => selectBottomTab('output'));
     if (tabTerminal) tabTerminal.addEventListener('click', () => selectBottomTab('terminal'));
 
-    // Panel actions
     const btnClose = document.getElementById('btn-panel-close');
     if (btnClose) btnClose.addEventListener('click', () => this.collapse());
 
@@ -1728,9 +1737,6 @@ function refreshProblems() {
   }
 }
 
-// =============================================================================
-// R2. CASCADING MENU BAR & COMMAND PALETTE
-// =============================================================================
 const MENU_DEFINITIONS = {
   file: {
     title: 'File',
@@ -1828,7 +1834,7 @@ const MENU_DEFINITIONS = {
       { label: 'Welcome', action: () => docManager.openFile('quicksort.py', undefined, true) },
       { label: 'Documentation', action: () => alert('NSCode: The No-Slop Code Editor\nMake Coders Great Again. No Slop.') },
       { separator: true },
-      { label: 'About NSCode', action: () => alert('NSCode v0.1.1\nMake Coders Great Again. No Slop.\nBuilt with Eclipse Theia, Monaco & Antigravity Sidecar\nGolden Invariant: Zero direct auto-patching.') },
+      { label: 'About NSCode', action: () => alert('NSCode v0.2.5\nMake Coders Great Again. No Slop.\nBuilt with Eclipse Theia, Monaco & Antigravity Sidecar\nGolden Invariant: Zero direct auto-patching.') },
     ]
   }
 };
@@ -2141,6 +2147,189 @@ function getWorkspaceFileIndex() {
   return workspaceFileIndex;
 }
 
+// --- Screen B & Workbench Zero-Hardcode Theme Registry (Phase 1) ---
+const THEME_REGISTRY = {
+  'vs-dark': {
+    id: 'vs-dark',
+    label: 'Dark+ (default dark)',
+    themeType: 'dark',
+    monacoTheme: 'vs-dark',
+    tokens: {
+      '--vscode-bg': '#1e1e1e',
+      '--vscode-fg': '#d4d4d4',
+      '--vscode-sidebar-bg': '#252526',
+      '--vscode-sidebar-border': '#2d2d2d',
+      '--vscode-secondary-sidebar-bg': '#252526',
+      '--vscode-secondary-sidebar-border': '#2d2d2d',
+      '--vscode-titlebar-bg': '#3c3c3c',
+      '--vscode-activitybar-bg': '#333333',
+      '--vscode-statusbar-bg': '#007acc',
+      '--vscode-statusbar-fg': '#ffffff',
+      '--vscode-editor-bg': '#1e1e1e',
+      '--vscode-editor-fg': '#d4d4d4',
+      '--vscode-editorWidget-bg': '#252526',
+      '--vscode-widget-border': '#454545',
+      '--vscode-dropdown-background': '#252526',
+      '--vscode-dropdown-foreground': '#f0f0f0',
+      '--vscode-dropdown-border': '#3c3c3c',
+      '--vscode-descriptionForeground': '#858585',
+      '--vscode-badge-bg': '#4d4d4d',
+      '--vscode-badge-fg': '#ffffff',
+      '--vscode-accent': '#007acc',
+      '--vscode-accent-hover': '#0098ff',
+      '--accent-red': '#f87171',
+      '--accent-yellow': '#fbbf24',
+      '--accent-green': '#4ade80',
+      '--accent-blue': '#60a5fa',
+      '--accent-purple': '#a78bfa',
+    }
+  },
+  'vs': {
+    id: 'vs',
+    label: 'Light+ (default light)',
+    themeType: 'light',
+    monacoTheme: 'vs',
+    tokens: {
+      '--vscode-bg': '#ffffff',
+      '--vscode-fg': '#616161',
+      '--vscode-sidebar-bg': '#f3f3f3',
+      '--vscode-sidebar-border': '#e7e7e7',
+      '--vscode-secondary-sidebar-bg': '#f3f3f3',
+      '--vscode-secondary-sidebar-border': '#e7e7e7',
+      '--vscode-titlebar-bg': '#dddddd',
+      '--vscode-activitybar-bg': '#2c2c2c',
+      '--vscode-statusbar-bg': '#007acc',
+      '--vscode-statusbar-fg': '#ffffff',
+      '--vscode-editor-bg': '#ffffff',
+      '--vscode-editor-fg': '#000000',
+      '--vscode-editorWidget-bg': '#f3f3f3',
+      '--vscode-widget-border': '#c8c8c8',
+      '--vscode-dropdown-background': '#ffffff',
+      '--vscode-dropdown-foreground': '#616161',
+      '--vscode-dropdown-border': '#cecece',
+      '--vscode-descriptionForeground': '#717171',
+      '--vscode-badge-bg': '#c4c4c4',
+      '--vscode-badge-fg': '#333333',
+      '--vscode-accent': '#007acc',
+      '--vscode-accent-hover': '#0062a3',
+      '--accent-red': '#dc2626',
+      '--accent-yellow': '#d97706',
+      '--accent-green': '#16a34a',
+      '--accent-blue': '#2563eb',
+      '--accent-purple': '#7c3aed',
+    }
+  },
+  'hc-black': {
+    id: 'hc-black',
+    label: 'High Contrast Dark',
+    themeType: 'hc-black',
+    monacoTheme: 'hc-black',
+    tokens: {
+      '--vscode-bg': '#000000',
+      '--vscode-fg': '#ffffff',
+      '--vscode-sidebar-bg': '#000000',
+      '--vscode-sidebar-border': '#6fc3df',
+      '--vscode-secondary-sidebar-bg': '#000000',
+      '--vscode-secondary-sidebar-border': '#6fc3df',
+      '--vscode-titlebar-bg': '#000000',
+      '--vscode-activitybar-bg': '#000000',
+      '--vscode-statusbar-bg': '#000000',
+      '--vscode-statusbar-fg': '#ffffff',
+      '--vscode-editor-bg': '#000000',
+      '--vscode-editor-fg': '#ffffff',
+      '--vscode-editorWidget-bg': '#0c141f',
+      '--vscode-widget-border': '#6fc3df',
+      '--vscode-dropdown-background': '#000000',
+      '--vscode-dropdown-foreground': '#ffffff',
+      '--vscode-dropdown-border': '#6fc3df',
+      '--vscode-descriptionForeground': '#ffffff',
+      '--vscode-badge-bg': '#000000',
+      '--vscode-badge-fg': '#ffffff',
+      '--vscode-accent': '#f38518',
+      '--vscode-accent-hover': '#ffa033',
+      '--accent-red': '#ff0000',
+      '--accent-yellow': '#ffff00',
+      '--accent-green': '#00ff00',
+      '--accent-blue': '#00ffff',
+      '--accent-purple': '#ff00ff',
+    }
+  }
+};
+
+let currentThemeId = 'vs-dark';
+
+function dispatchThemeToWebview(targetThemeId = currentThemeId) {
+  const themeDef = THEME_REGISTRY[targetThemeId] || THEME_REGISTRY['vs-dark'];
+  const frame = document.getElementById('webview-frame');
+  if (frame && frame.contentWindow && typeof frame.contentWindow.postMessage === 'function') {
+    try {
+      frame.contentWindow.postMessage({
+        type: 'THEME_CHANGED',
+        payload: {
+          themeId: themeDef.id,
+          themeType: themeDef.themeType,
+          tokens: themeDef.tokens,
+        }
+      }, '*');
+    } catch (err) {
+      console.warn('[Workbench] Failed to dispatch THEME_CHANGED to webview:', err);
+    }
+  }
+}
+
+function applyTheme(themeId) {
+  const themeDef = THEME_REGISTRY[themeId] || THEME_REGISTRY['vs-dark'];
+  currentThemeId = themeDef.id;
+
+  const root = document.documentElement;
+  if (root) {
+    if (typeof root.setAttribute === 'function') {
+      root.setAttribute('data-theme-id', themeDef.id);
+      root.setAttribute('data-theme-type', themeDef.themeType);
+    }
+    if (root.style && typeof root.style.setProperty === 'function') {
+      Object.entries(themeDef.tokens).forEach(([token, val]) => {
+        root.style.setProperty(token, val);
+      });
+    }
+  }
+
+  if (typeof window !== 'undefined' && window.monaco && window.monaco.editor && typeof window.monaco.editor.setTheme === 'function') {
+    window.monaco.editor.setTheme(themeDef.monacoTheme);
+  }
+
+  dispatchThemeToWebview(themeDef.id);
+
+  try {
+    if (typeof localStorage !== 'undefined' && localStorage.setItem) {
+      localStorage.setItem('nscode.theme', themeDef.id);
+    }
+  } catch (_) {}
+
+  return true;
+}
+
+function getCurrentTheme() {
+  return currentThemeId;
+}
+
+function getThemes() {
+  return Object.values(THEME_REGISTRY);
+}
+
+function openThemePicker() {
+  openCommandPalette('?theme ');
+}
+
+if (typeof window !== 'undefined') {
+  window.nscodeTheme = {
+    applyTheme,
+    getCurrentTheme,
+    getThemes,
+    dispatchThemeToWebview,
+  };
+}
+
 const COMMAND_REGISTRY = [
   { id: 'file.new', title: 'File: New Text File', category: 'File', shortcut: 'Ctrl+N', action: () => docManager.openFile('Untitled-1', '', false) },
   { id: 'file.openFolder', title: 'File: Open Folder...', category: 'File', shortcut: 'Ctrl+K Ctrl+O', action: () => openWorkspaceFolder() },
@@ -2155,6 +2344,10 @@ const COMMAND_REGISTRY = [
   { id: 'view.search', title: 'View: Show Search', category: 'View', shortcut: 'Ctrl+Shift+F', action: () => showSidebarView('search') },
   { id: 'view.scm', title: 'View: Show Source Control', category: 'View', shortcut: 'Ctrl+Shift+G', action: () => showSidebarView('scm') },
   { id: 'preferences.settings', title: 'Preferences: Open Settings', category: 'Preferences', shortcut: 'Ctrl+,', action: () => openSettingsModal() },
+  { id: 'preferences.colorTheme', title: 'Preferences: Color Theme', category: 'Preferences', action: () => openThemePicker() },
+  { id: 'preferences.colorThemeDark', title: 'Preferences: Color Theme (Dark+)', category: 'Preferences', action: () => applyTheme('vs-dark') },
+  { id: 'preferences.colorThemeLight', title: 'Preferences: Color Theme (Light+)', category: 'Preferences', action: () => applyTheme('vs') },
+  { id: 'preferences.colorThemeHighContrast', title: 'Preferences: Color Theme (High Contrast Dark)', category: 'Preferences', action: () => applyTheme('hc-black') },
   { id: 'view.sidebar', title: 'View: Toggle Primary Sidebar', category: 'View', shortcut: 'Ctrl+B', action: () => primaryResizer.toggle() },
   { id: 'view.secondarySidebar', title: 'View: Toggle Secondary Sidebar (Screen B)', category: 'View', shortcut: 'Ctrl+Alt+B', action: () => secondaryResizer.toggle() },
   { id: 'view.panel', title: 'View: Toggle Bottom Panel', category: 'View', shortcut: 'Ctrl+`', action: () => bottomResizer.toggle() },
@@ -2211,6 +2404,7 @@ function updatePaletteResults(rawQuery) {
 
   const isCommandMode = rawQuery.startsWith('>');
   const isLineMode = rawQuery.startsWith(':');
+  const isThemeMode = rawQuery.startsWith('?theme');
 
   paletteItems = [];
 
@@ -2295,14 +2489,28 @@ function updatePaletteResults(rawQuery) {
     }];
     selectedPaletteIndex = 0;
     return;
+  } else if (isThemeMode) {
+    if (promptIcon) promptIcon.className = 'codicon codicon-color-mode palette-prompt-icon';
+    if (input) input.placeholder = 'Select Color Theme (Up/Down to navigate, Enter to select)';
+
+    const query = rawQuery.replace(/^\?theme\s*/, '').trim().toLowerCase();
+    getThemes().forEach((t) => {
+      if (!query || t.label.toLowerCase().includes(query) || t.id.includes(query)) {
+        paletteItems.push({
+          id: `theme.${t.id}`,
+          title: t.label,
+          category: 'Color Theme',
+          shortcut: t.id === currentThemeId ? 'Active' : '',
+          action: () => applyTheme(t.id),
+        });
+      }
+    });
   } else {
-    // Quick Open Mode
     if (promptIcon) promptIcon.className = 'codicon codicon-search palette-prompt-icon';
     if (input) input.placeholder = 'Search files by name (type > for commands, : for line)';
 
     const query = rawQuery.trim();
 
-    // Determine file candidate pool
     let candidates = workspaceFileIndex;
     if (!candidates || candidates.length === 0) {
       const poolMap = new Map();
@@ -2377,7 +2585,7 @@ function updatePaletteResults(rawQuery) {
   }
 
   if (paletteItems.length === 0) {
-    resultsContainer.innerHTML = `<div class="palette-empty">${isCommandMode ? 'No matching commands found.' : 'No matching files found.'}</div>`;
+    resultsContainer.innerHTML = `<div class="palette-empty">${isCommandMode ? 'No matching commands found.' : isThemeMode ? 'No matching themes found.' : 'No matching files found.'}</div>`;
     return;
   }
 
@@ -2483,7 +2691,6 @@ function initCommandPalette() {
     });
   });
 
-  // Screen B Plan Mode Toolbar Controls (Milestone v0.2.2 - R3)
   const btnPlanPause = document.getElementById('btn-plan-pause');
   if (btnPlanPause) {
     btnPlanPause.addEventListener('click', () => pauseTaskPlan());
@@ -2505,7 +2712,6 @@ function initCommandPalette() {
     });
   }
 
-  // Screen B Review Mode Bulk Actions (Milestone v0.2.2 - R4)
   const btnAcceptAll = document.getElementById('btn-review-accept-all');
   if (btnAcceptAll) {
     btnAcceptAll.addEventListener('click', () => acceptAllReviewDiffs());
@@ -2528,9 +2734,6 @@ function renderSelectedPaletteIndex() {
   });
 }
 
-// =============================================================================
-// R2. REAL FILE SYSTEM IPC & INTERACTIVE EXPLORER
-// =============================================================================
 async function openWorkspaceFolder() {
   if (!window.electronFS) return;
   if (docManager && docManager.documents) {
@@ -2833,6 +3036,78 @@ function openExplorerContextMenu(x, y, targetNode) {
   }, 0);
 }
 
+function showWorkbenchDropdown(targetEl, items) {
+  closeExplorerContextMenu();
+  if (!targetEl || !items || !items.length) return;
+  const targetRect = targetEl.getBoundingClientRect();
+  const menu = document.createElement('div');
+  menu.className = 'explorer-context-menu';
+  menu.setAttribute('role', 'menu');
+  menu.style.position = 'fixed';
+  menu.style.zIndex = '9999';
+
+  items.forEach((item) => {
+    if (item.separator) {
+      const sep = document.createElement('div');
+      sep.className = 'menu-separator';
+      menu.appendChild(sep);
+      return;
+    }
+    const row = document.createElement('div');
+    row.className = 'menu-row';
+    row.innerHTML = `
+      <div class="menu-item-left">
+        <span>${item.label}</span>
+      </div>
+      ${item.shortcut ? `<span class="menu-shortcut">${item.shortcut}</span>` : ''}
+    `;
+    row.addEventListener('click', (e) => {
+      e.stopPropagation();
+      closeExplorerContextMenu();
+      if (typeof item.action === 'function') {
+        item.action();
+      }
+    });
+    menu.appendChild(row);
+  });
+
+  document.body.appendChild(menu);
+  activeExplorerContextMenu = menu;
+
+  const rect = menu.getBoundingClientRect();
+  let top = targetRect.bottom + 4;
+  if (top + rect.height > window.innerHeight - 8) {
+    top = targetRect.top - rect.height - 4;
+  }
+  let left = targetRect.left;
+  if (left + rect.width > window.innerWidth - 8) {
+    left = window.innerWidth - rect.width - 8;
+  }
+  menu.style.top = `${Math.max(0, top)}px`;
+  menu.style.left = `${Math.max(0, left)}px`;
+
+  const onDocClick = (e) => {
+    if (menu && !menu.contains(e.target)) {
+      closeExplorerContextMenu();
+    }
+  };
+  const onKeyDown = (e) => {
+    if (e.key === 'Escape' || e.key === 'Tab') {
+      closeExplorerContextMenu();
+    }
+  };
+  activeExplorerContextMenuCleanup = () => {
+    document.removeEventListener('click', onDocClick, true);
+    window.removeEventListener('keydown', onKeyDown, true);
+  };
+  setTimeout(() => {
+    if (activeExplorerContextMenu === menu) {
+      document.addEventListener('click', onDocClick, true);
+      window.addEventListener('keydown', onKeyDown, true);
+    }
+  }, 0);
+}
+
 async function triggerNewFileAction(targetDir) {
   const dir = targetDir || currentWorkspaceRoot;
   if (!dir && (!window.electronFS || !currentWorkspaceRoot)) {
@@ -3047,7 +3322,6 @@ async function triggerRenameAction(node) {
       e.stopPropagation();
     });
   } else {
-    // Prompt fallback
     const newName = window.prompt ? window.prompt('Rename:', targetNode.name) : null;
     if (newName && newName.trim() && newName.trim() !== targetNode.name) {
       const cleanName = newName.trim();
@@ -3243,7 +3517,6 @@ function renderWorkspaceTree(nodes, container, depth = 0) {
       container.appendChild(item);
     }
 
-    // Attach Context Menu listener (R2)
     item.addEventListener('contextmenu', (e) => {
       e.preventDefault();
       e.stopPropagation();
@@ -3253,7 +3526,6 @@ function renderWorkspaceTree(nodes, container, depth = 0) {
       openExplorerContextMenu(e.clientX, e.clientY, node);
     });
 
-    // Attach Tree Keyboard listener (R3)
     item.addEventListener('keydown', (e) => {
       if (e.key === 'F2') {
         e.preventDefault();
@@ -3332,7 +3604,7 @@ function renderEmptyWorkspace() {
     const item = document.createElement('div');
     item.className = 'tree-item';
     item.style.paddingLeft = '6px';
-    const iconClass = docManager.getFileIconClass(key);
+    const iconClass = resolveFileIconClass(key);
 
     item.innerHTML = `
       <span class="tree-item-chevron" style="visibility: hidden;"></span>
@@ -3343,7 +3615,7 @@ function renderEmptyWorkspace() {
     item.addEventListener('click', () => {
       document.querySelectorAll('.tree-item').forEach(el => el.classList.remove('active'));
       item.classList.add('active');
-      docManager.openFile(key, undefined, true);
+      if (docManager) docManager.openFile(key, undefined, true);
     });
 
     emptyContainer.appendChild(item);
@@ -3352,9 +3624,6 @@ function renderEmptyWorkspace() {
   workspaceFileTree.appendChild(emptyContainer);
 }
 
-// =============================================================================
-// SASH RESIZERS & ANTI-TRAP PROTECTION
-// =============================================================================
 class SidebarResizer {
   constructor(sidebarEl, sashEl, isLeft = true) {
     this.sidebar = sidebarEl;
@@ -3364,67 +3633,75 @@ class SidebarResizer {
     this.startX = 0;
     this.startWidth = 0;
     this.lastWidth = isLeft ? 260 : 380;
-    this.initEvents();
+    if (this.sidebar && this.sash) {
+      this.initEvents();
+    }
   }
 
   initEvents() {
+    if (!this.sash || !this.sidebar) return;
     this.sash.addEventListener('mousedown', (e) => {
       if (this.sidebar.classList.contains('collapsed')) return;
       this.isDragging = true;
       this.startX = e.clientX;
-      this.startWidth = this.sidebar.getBoundingClientRect().width;
+      this.startWidth = this.sidebar.getBoundingClientRect ? this.sidebar.getBoundingClientRect().width : 260;
 
-      document.body.classList.add('is-resizing');
-      this.sash.classList.add('is-active');
+      if (document.body) document.body.classList.add('is-resizing');
+      if (this.sash.classList) this.sash.classList.add('is-active');
       e.preventDefault();
     });
 
-    window.addEventListener('mousemove', (e) => {
-      if (!this.isDragging) return;
-      const deltaX = this.isLeft ? (e.clientX - this.startX) : (this.startX - e.clientX);
-      let targetWidth = this.startWidth + deltaX;
+    if (typeof window !== 'undefined' && typeof window.addEventListener === 'function') {
+      window.addEventListener('mousemove', (e) => {
+        if (!this.isDragging || !this.sidebar) return;
+        const deltaX = this.isLeft ? (e.clientX - this.startX) : (this.startX - e.clientX);
+        let targetWidth = this.startWidth + deltaX;
 
-      if (targetWidth < 50) {
-        this.collapse();
-        this.onMouseUp();
-        return;
-      }
+        if (targetWidth < 50) {
+          this.collapse();
+          this.onMouseUp();
+          return;
+        }
 
-      const minW = this.isLeft ? 160 : 280;
-      const maxW = this.isLeft ? 600 : 700;
-      targetWidth = Math.max(minW, Math.min(maxW, targetWidth));
+        const minW = this.isLeft ? 160 : 280;
+        const maxW = this.isLeft ? 600 : 700;
+        targetWidth = Math.max(minW, Math.min(maxW, targetWidth));
 
-      this.sidebar.style.width = `${targetWidth}px`;
-      this.lastWidth = targetWidth;
-      if (multiGroupManager) multiGroupManager.layoutAll();
-    });
+        this.sidebar.style.width = `${targetWidth}px`;
+        this.lastWidth = targetWidth;
+        if (multiGroupManager) multiGroupManager.layoutAll();
+      });
 
-    window.addEventListener('mouseup', () => this.onMouseUp());
+      window.addEventListener('mouseup', () => this.onMouseUp());
+    }
   }
 
   onMouseUp() {
     if (!this.isDragging) return;
     this.isDragging = false;
-    document.body.classList.remove('is-resizing');
-    this.sash.classList.remove('is-active');
+    if (document.body && document.body.classList) document.body.classList.remove('is-resizing');
+    if (this.sash && this.sash.classList) this.sash.classList.remove('is-active');
     if (multiGroupManager) multiGroupManager.layoutAll();
   }
 
   toggle() {
+    if (!this.sidebar) return;
     if (this.sidebar.classList.contains('collapsed')) this.expand();
     else this.collapse();
   }
 
   collapse() {
-    this.sidebar.classList.add('collapsed');
-    this.sash.classList.add('disabled');
+    if (this.sidebar) this.sidebar.classList.add('collapsed');
+    if (this.sash) this.sash.classList.add('disabled');
     if (multiGroupManager) multiGroupManager.layoutAll();
   }
 
   expand() {
-    this.sidebar.classList.remove('collapsed');
-    this.sash.classList.remove('disabled');
-    this.sidebar.style.width = `${this.lastWidth}px`;
+    if (this.sidebar) {
+      this.sidebar.classList.remove('collapsed');
+      this.sidebar.style.width = `${this.lastWidth}px`;
+    }
+    if (this.sash) this.sash.classList.remove('disabled');
     if (multiGroupManager) multiGroupManager.layoutAll();
   }
 }
@@ -3432,9 +3709,6 @@ class SidebarResizer {
 const primaryResizer = new SidebarResizer(primarySidebar, primarySash, true);
 const secondaryResizer = new SidebarResizer(secondarySidebar, secondarySash, false);
 
-// =============================================================================
-// ZERO-BUFFER DECORATIONS (GOLDEN INVARIANT)
-// =============================================================================
 function highlightLine(lineNum, message) {
   if (!editor || !window.monaco) return;
   const targetEditor = editor;
@@ -3494,7 +3768,6 @@ class SidecarWebSocketClient {
         this.missedPings = 0;
         this.updateUiStatus(true, this.currentLatencyMs);
         this.startHeartbeat();
-        // Send initial ping immediately
         this.sendHeartbeat();
         if (typeof outputLogger !== 'undefined' && outputLogger) {
           outputLogger.log('sidecar', `Connected to Sidecar daemon at ${this.url}`);
@@ -3591,7 +3864,6 @@ class SidecarWebSocketClient {
 
     if (!msg || typeof msg !== 'object') return;
 
-    // 1. Pong response handling
     if (msg.id && this.pendingPings.has(msg.id)) {
       const sendTime = this.pendingPings.get(msg.id);
       this.pendingPings.delete(msg.id);
@@ -3602,7 +3874,6 @@ class SidecarWebSocketClient {
       return;
     }
 
-    // 2. Chat / Streaming chunk handling
     const method = msg.method || msg.type || msg.event;
     const params = msg.params || msg.payload || msg;
 
@@ -3622,13 +3893,11 @@ class SidecarWebSocketClient {
       return;
     }
 
-    // 3. Plan events
     if (typeof method === 'string' && (method.startsWith('plan:') || method.startsWith('plan.'))) {
       handlePlanStreamMessage(msg);
       return;
     }
 
-    // 4. Diff events
     if (typeof method === 'string' && (method === 'diff:file_proposed' || method.startsWith('diff:'))) {
       handleDiffStreamMessage(msg);
       return;
@@ -3714,6 +3983,19 @@ class SidecarWebSocketClient {
         screenBLatency.textContent = '---ms';
       }
     }
+
+    const frame = document.getElementById('webview-frame');
+    if (frame && frame.contentWindow && typeof frame.contentWindow.postMessage === 'function') {
+      try {
+        frame.contentWindow.postMessage({
+          type: 'WATCHDOG_STATUS',
+          payload: {
+            connected: !!connected,
+            latencyMs: latency >= 0 ? latency : 0,
+          },
+        }, '*');
+      } catch (_) {}
+    }
   }
 
   getReconnectAttempts() {
@@ -3735,6 +4017,17 @@ function connectSidecar() {
   }
   sidecarClient.connect();
   sidecarWs = sidecarClient.ws;
+
+  const frame = document.getElementById('webview-frame');
+  if (frame && !frame.dataset.sidecarListenerAttached) {
+    frame.dataset.sidecarListenerAttached = 'true';
+    frame.addEventListener('load', () => {
+      if (sidecarClient) {
+        sidecarClient.updateUiStatus(sidecarClient.isConnected(), sidecarClient.getLatency());
+      }
+    });
+  }
+
   return sidecarClient;
 }
 
@@ -3743,10 +4036,6 @@ function disconnectSidecar() {
     sidecarClient.disconnect();
   }
 }
-
-// -----------------------------------------------------------------------------
-// R2: TYPEWRITER BUFFER, STREAM PARSING, THINKING CARD & CODE BLOCKS
-// -----------------------------------------------------------------------------
 
 class TypewriterRenderer {
   constructor({ onTick, onComplete, tickIntervalMs = 16 } = {}) {
@@ -4288,10 +4577,6 @@ function appendChatChunk(chunk, isThinkingOrOpts = false, correlationId = 'defau
   }
 }
 
-// -----------------------------------------------------------------------------
-// R3: PLAN MODE STREAMING DISPATCHER
-// -----------------------------------------------------------------------------
-
 function handlePlanStreamMessage(msg) {
   if (!msg) return null;
   const method = msg.method || msg.type || msg.event;
@@ -4341,10 +4626,6 @@ function handlePlanStreamMessage(msg) {
   return null;
 }
 
-// -----------------------------------------------------------------------------
-// R4: DIFF STREAMING DISPATCHER
-// -----------------------------------------------------------------------------
-
 function handleDiffStreamMessage(msg) {
   if (!msg) return null;
   const method = msg.method || msg.type || msg.event;
@@ -4382,40 +4663,48 @@ function triggerAnalysis() {
 }
 
 // Host-Webview Event Listener Bridge
-window.addEventListener('message', (event) => {
-  const data = event.data;
-  if (!data || !data.type) return;
+if (typeof window !== 'undefined' && typeof window.addEventListener === 'function') {
+  window.addEventListener('message', (event) => {
+    const data = event.data;
+    if (!data || !data.type) return;
 
-  switch (data.type) {
-    case 'HIGHLIGHT_LINE':
-      if (data.payload && data.payload.line) {
-        highlightLine(data.payload.line, data.payload.message);
-      }
-      break;
+    switch (data.type) {
+      case 'HIGHLIGHT_LINE':
+        if (data.payload && data.payload.line) {
+          highlightLine(data.payload.line, data.payload.message);
+        }
+        break;
 
-    case 'CLEAR_HIGHLIGHTS':
-      clearHighlights();
-      break;
+      case 'CLEAR_HIGHLIGHTS':
+        clearHighlights();
+        break;
 
-    case 'REQUEST_ANALYSIS':
-      triggerAnalysis();
-      break;
+      case 'REQUEST_ANALYSIS':
+        triggerAnalysis();
+        break;
 
-    case 'PRACTICE_COMPLETED':
-      if (gateStatusText) {
-        const score = data.payload?.accuracy ?? data.payload?.score ?? 100;
-        gateStatusText.textContent = `Gate: UNLOCKED (${score}%)`;
-        gateStatusText.style.color = '#73c991';
-      }
-      if (gateLockIcon) {
-        gateLockIcon.className = 'codicon codicon-unlock';
-        gateLockIcon.style.color = '#73c991';
-      }
-      break;
-  }
-});
+      case 'COLLAPSE_SCREEN_B':
+      case 'CLOSE_SIDEBAR':
+        if (typeof secondaryResizer !== 'undefined' && secondaryResizer && typeof secondaryResizer.collapse === 'function') {
+          secondaryResizer.collapse();
+        }
+        break;
 
-// Monaco Loader (Offline First)
+      case 'PRACTICE_COMPLETED':
+        if (gateStatusText) {
+          const score = data.payload?.accuracy ?? data.payload?.score ?? 100;
+          gateStatusText.textContent = `Gate: UNLOCKED (${score}%)`;
+          gateStatusText.style.color = '#73c991';
+        }
+        if (gateLockIcon) {
+          gateLockIcon.className = 'codicon codicon-unlock';
+          gateLockIcon.style.color = '#73c991';
+        }
+        break;
+    }
+  });
+}
+
 function initEditor() {
   if (typeof window.require !== 'undefined') {
     window.require.config({
@@ -4544,7 +4833,6 @@ function extractTargetLines(promptText) {
     }
   }
 
-  // 1. File with colon or hash or baris/line: e.g. src/main.ts:288-305 or src/main.ts#L288-L305 or src/main.ts baris 288-305
   const fileLineRegex = /(?:^|\s|["'`])([a-zA-Z0-9_\-./\\]+\.[a-zA-Z0-9_]+)(?::|#L?|\s+(?:baris|line)\s+)(\d+)(?:(?:[-–—]|(?:\s*(?:sampai|to)\s*)|-L?)(\d+))?/gi;
   let match;
   while ((match = fileLineRegex.exec(promptText)) !== null) {
@@ -4554,7 +4842,6 @@ function extractTargetLines(promptText) {
     addTarget(filePath, startLine, endLine);
   }
 
-  // 2. Natural language: "baris 15 sampai 20 pada src/main.ts" or "line 15 in src/main.ts"
   const lineInFileRegex = /(?:baris|line)\s*(\d+)(?:\s*(?:[-–—]|sampai|to)\s*(\d+))?\s*(?:di|pada|in)\s*([a-zA-Z0-9_\-./\\]+\.[a-zA-Z0-9_]+)/gi;
   while ((match = lineInFileRegex.exec(promptText)) !== null) {
     const startLine = match[1];
@@ -4563,7 +4850,6 @@ function extractTargetLines(promptText) {
     addTarget(filePath, startLine, endLine);
   }
 
-  // 3. Line only fallback: "baris 15", "baris 15-20", "line 15", etc. with active file fallback
   if (targets.length === 0) {
     const lineOnlyRegex = /(?:baris|line)\s*(\d+)(?:\s*(?:[-–—]|sampai|to)\s*(\d+))?/gi;
     while ((match = lineOnlyRegex.exec(promptText)) !== null) {
@@ -4589,10 +4875,26 @@ function addTargetsToStack(newTargets) {
   renderTargetStack();
 }
 
+function removeTargetFromStack(targetId) {
+  if (!targetId) return false;
+  const beforeLen = targetStack.length;
+  targetStack = targetStack.filter(t => t.id !== targetId);
+  if (targetStack.length !== beforeLen) {
+    renderTargetStack();
+    return true;
+  }
+  return false;
+}
+
 function renderTargetStack() {
   const container = document.getElementById('target-stack-list') || document.getElementById('target-line-stack-container');
   const countEl = document.getElementById('target-stack-count');
   if (countEl) countEl.textContent = targetStack.length.toString();
+
+  const stackContainer = document.getElementById('target-line-stack-container');
+  if (stackContainer) {
+    stackContainer.style.display = targetStack.length > 0 ? 'block' : 'none';
+  }
 
   if (!container) return;
   const listEl = document.getElementById('target-stack-list') || container;
@@ -4627,6 +4929,9 @@ function renderTargetStack() {
         <span class="codicon codicon-file-code target-icon"></span>
         <span class="target-file-badge target-path" title="${target.filePath}">${target.filePath}</span>
         <span class="target-range-badge">${rangeText}</span>
+        <button class="target-btn-dismiss" title="Hapus dari antrean" aria-label="Dismiss">
+          <span class="codicon codicon-close"></span>
+        </button>
       </div>
       ${snippetHtml}
       <div class="target-card-actions">
@@ -4643,6 +4948,11 @@ function renderTargetStack() {
 
     // Click card navigates Monaco (zero buffer modification)
     card.addEventListener('click', (e) => {
+      if (e.target.closest('.target-btn-dismiss')) {
+        e.stopPropagation();
+        removeTargetFromStack(target.id);
+        return;
+      }
       if (e.target.closest('.btn-request-guidance') || e.target.closest('.target-btn-guidance')) {
         e.stopPropagation();
         requestGuidanceForTarget(target);
@@ -4650,6 +4960,14 @@ function renderTargetStack() {
       }
       revealTargetInMonaco(target);
     });
+
+    const dismissBtn = card.querySelector('.target-btn-dismiss');
+    if (dismissBtn) {
+      dismissBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        removeTargetFromStack(target.id);
+      });
+    }
 
     const revealBtn = card.querySelector('.target-btn-reveal');
     if (revealBtn) {
@@ -4978,7 +5296,6 @@ function sendSelectionToScreenB(ed = editor) {
     createdAt: Date.now(),
   };
 
-  // Add to target stack, updating existing card if present
   const existingIdx = targetStack.findIndex(t =>
     t.filePath === target.filePath &&
     t.startLine === target.startLine &&
@@ -4995,12 +5312,10 @@ function sendSelectionToScreenB(ed = editor) {
 
   renderTargetStack();
 
-  // Switch Screen B to Chat mode
   if (typeof setScreenBMode === 'function') {
     setScreenBMode('chat');
   }
 
-  // Expand secondary sidebar if collapsed
   if (typeof secondaryResizer !== 'undefined' && secondaryResizer && typeof secondaryResizer.expand === 'function') {
     secondaryResizer.expand();
   } else {
@@ -5008,13 +5323,11 @@ function sendSelectionToScreenB(ed = editor) {
     if (secSidebar) secSidebar.classList.remove('collapsed');
   }
 
-  // Focus prompt input box
   const promptBox = document.getElementById('prompt-input-box');
   if (promptBox && typeof promptBox.focus === 'function') {
     promptBox.focus();
   }
 
-  // Broadcast through EditorEventBridge
   if (typeof editorEventBridge !== 'undefined') {
     editorEventBridge.emit('screenB:contextBridged', {
       filePath: relPath,
@@ -5057,7 +5370,7 @@ function createTaskPlan(planData) {
     progress: 0,
     logs: [
       {
-        timestamp: new Date().toLocaleTimeString('id-ID', { hour12: false }),
+        timestamp: new Date().toTimeString().slice(0, 8),
         message: `Plan "${planData.title}" initialized with ${subtasks.length} subtask(s).`,
         level: 'info',
       }
@@ -5069,7 +5382,6 @@ function createTaskPlan(planData) {
   const completedCount = subtasks.filter(s => s.status === 'completed').length;
   currentTaskPlan.progress = subtasks.length > 0 ? Math.round((completedCount / subtasks.length) * 100) : 0;
 
-  // Automatic Mode Morphing: Activate Plan Mode
   setScreenBMode('plan');
   renderPlanView();
 
@@ -5218,7 +5530,7 @@ function advanceSubtask(subtaskId, resultStatus, logMessage) {
 
 function addExecutionLog(message, level = 'info', subtaskId = undefined) {
   const entry = {
-    timestamp: new Date().toLocaleTimeString('id-ID', { hour12: false }),
+    timestamp: new Date().toTimeString().slice(0, 8),
     message,
     level,
     subtaskId,
@@ -5226,6 +5538,9 @@ function addExecutionLog(message, level = 'info', subtaskId = undefined) {
   if (currentTaskPlan) {
     if (!Array.isArray(currentTaskPlan.logs)) currentTaskPlan.logs = [];
     currentTaskPlan.logs.push(entry);
+    if (currentTaskPlan.logs.length > 2000) {
+      currentTaskPlan.logs.splice(0, currentTaskPlan.logs.length - 2000);
+    }
   }
 
   const consoleEl = document.getElementById('plan-logs-console') || document.getElementById('screen-b-plan-logs');
@@ -5234,6 +5549,11 @@ function addExecutionLog(message, level = 'info', subtaskId = undefined) {
     row.className = `plan-log-entry level-${level}`;
     row.innerHTML = `<span class="log-timestamp">[${entry.timestamp}]</span><span class="log-message">${escapeHtml(message)}</span>`;
     consoleEl.appendChild(row);
+
+    while (consoleEl.children.length > 1000) {
+      consoleEl.removeChild(consoleEl.firstChild);
+    }
+
     if (typeof consoleEl.scrollTop !== 'undefined' && typeof consoleEl.scrollHeight !== 'undefined') {
       consoleEl.scrollTop = consoleEl.scrollHeight;
     }
@@ -5304,7 +5624,6 @@ function renderPlanView() {
     progressText.textContent = `${completed} / ${currentTaskPlan.subtasks.length} subtasks completed (${currentTaskPlan.progress}%)`;
   }
 
-  // Render Subtasks
   const subtaskList = document.getElementById('plan-subtask-list') || document.getElementById('screen-b-plan-checklist');
   const subtaskCount = document.getElementById('plan-subtask-count');
   if (subtaskCount) subtaskCount.textContent = currentTaskPlan.subtasks.length.toString();
@@ -5364,7 +5683,6 @@ function renderPlanView() {
     });
   }
 
-  // Render Affected Files Grouping
   const affectedList = document.getElementById('plan-affected-list') || document.getElementById('screen-b-plan-files');
   const affectedCount = document.getElementById('plan-affected-count');
   const fileMap = new Map();
@@ -5430,6 +5748,7 @@ function normalizeDiffItem(diffItem, index = 0) {
   const stats = computeDiffStats(orig, prop);
 
   return {
+    ...diffItem,
     id: diffItem.id || `diff-${Date.now()}-${index}`,
     filePath: diffItem.filePath || diffItem.path || 'quicksort.py',
     originalContent: orig,
@@ -5438,12 +5757,1114 @@ function normalizeDiffItem(diffItem, index = 0) {
     linesDeleted: typeof diffItem.linesDeleted === 'number' ? diffItem.linesDeleted : (typeof diffItem.deletions === 'number' ? diffItem.deletions : stats.deleted),
     status: diffItem.status || 'pending',
     description: diffItem.description || '',
+    socraticChallenge: diffItem.socraticChallenge || diffItem.challenge,
   };
+}
+
+let isSocraticGateUnlocked = false;
+let activeSocraticChallenge = null;
+let socraticHintExpanded = false;
+let selectedSocraticOptionIdx = null;
+let isSocraticGateEngaged = false;
+
+function isSocraticGateActive() {
+  if (isSocraticGateEngaged) return true;
+  if (typeof window !== 'undefined' && window && (window.socraticGateEnforced === true || window.isSocraticGateEnforced === true)) {
+    return true;
+  }
+  const gateCard = document.getElementById('socratic-gate-card');
+  if (gateCard) {
+    if (gateCard.parentNode || gateCard.parentElement) return true;
+    if (gateCard.children && gateCard.children.length > 0) return true;
+  }
+  const reviewActivePane = document.getElementById('review-active-pane');
+  if (reviewActivePane && typeof reviewActivePane.querySelector === 'function') {
+    if (reviewActivePane.querySelector('#socratic-gate-card')) return true;
+  }
+  return false;
+}
+
+function generateSocraticChallenge(diffItem) {
+  if (!diffItem) return null;
+  const custom = diffItem.socraticChallenge || diffItem.challenge;
+  if (custom && typeof custom === 'object') {
+    return custom;
+  }
+
+  const filePath = diffItem.filePath || diffItem.path || 'workspace/file';
+  const rawFileName = filePath.replace(/\\/g, '/').split('/').pop() || filePath;
+  const fileName = escapeHtml(rawFileName);
+  const description = (diffItem.description || '').toLowerCase();
+  const proposed = diffItem.proposedContent || diffItem.proposed || diffItem.modified || '';
+  const original = diffItem.originalContent || diffItem.original || '';
+
+  // Extract meaningful identifier tokens from diff
+  const propLines = proposed.split('\n');
+  const origLines = original.split('\n');
+  const origSet = new Set(origLines.map(l => l.trim()));
+  const addedLines = propLines.filter(l => !origSet.has(l.trim()) && l.trim().length > 0);
+  const addedTokens = [];
+  for (const line of addedLines) {
+    const tokens = line.match(/[a-zA-Z_][a-zA-Z0-9_]*/g) || [];
+    addedTokens.push(...tokens);
+  }
+  const filteredTokens = addedTokens.filter(t => t.length > 2 && !['function', 'const', 'let', 'var', 'return', 'import', 'export', 'class', 'true', 'false', 'null', 'undefined', 'async', 'await'].includes(t));
+  const targetSymbol = filteredTokens[0] || 'targetRef';
+
+  let category = 'defensive_bounds';
+  let concept = 'Defensive Boundary & Input Validation';
+  let questionL1 = `Why does the proposed change in "${fileName}" introduce boundary validation before accessing properties?`;
+  let optionsL1 = [
+    {
+      id: 'opt-0',
+      text: 'To guard against null or undefined references, preventing runtime TypeError exceptions during edge cases.',
+      isCorrect: true,
+      explanation: 'Correct. Defensive bounds checking ensures upstream callers cannot trigger unhandled exceptions.',
+      feedback: 'Correct. Defensive boundary checks safeguard against runtime null dereferences.',
+    },
+    {
+      id: 'opt-1',
+      text: 'To convert untyped runtime objects into primitive scalar types before function evaluation.',
+      isCorrect: false,
+      explanation: 'Incorrect. Input validation preserves object types rather than coercing them into primitives.',
+      feedback: 'Incorrect. Validation guards do not coerce object types into scalar primitives.',
+    },
+    {
+      id: 'opt-2',
+      text: 'To disable prototype chain traversal when evaluating nested property descriptors.',
+      isCorrect: false,
+      explanation: 'Incorrect. Property validation does not disable prototype resolution.',
+      feedback: 'Incorrect. Boundary checks do not disable prototype inheritance.',
+    },
+  ];
+  let hintL1 = 'Observe what occurs if the incoming data payload is null, undefined, or omitted by the caller.';
+  let explanationL1 = 'Defensive boundary checks validate inputs at the system perimeter, isolating components from upstream failures and preventing runtime crashes.';
+
+  let ruleL2 = `∀ x ∈ ${targetSymbol}: valid(x) ⇔ (x ≠ null ∧ x ≠ undefined ∧ bounds(x) ∈ [0, len))`;
+  let questionL2 = `What precondition invariant must be satisfied before accessing properties in "${fileName}"?`;
+  let optionsL2 = [
+    {
+      id: 'opt-inv-0',
+      text: 'Guarantees non-null reference boundary before property dereferencing or indexing.',
+      isCorrect: true,
+      explanation: 'Correct. Precondition validation guards against runtime faults.',
+      feedback: 'Correct. Precondition satisfaction guarantees memory safety.',
+    },
+    {
+      id: 'opt-inv-1',
+      text: 'Permits null dereferencing and catches downstream unhandled exceptions in the caller.',
+      isCorrect: false,
+      explanation: 'Incorrect. Permitting null dereferences violates the precondition contract.',
+      feedback: 'Incorrect. Catching errors in caller is not a valid precondition guard.',
+    },
+    {
+      id: 'opt-inv-2',
+      text: 'Coerces null and undefined to empty strings without boundary checks.',
+      isCorrect: false,
+      explanation: 'Incorrect. Implicit type coercion masks underlying state errors.',
+      feedback: 'Incorrect. Type coercion does not guarantee boundary safety.',
+    },
+  ];
+
+  let pseudocodeL3 = `function process(${targetSymbol}):\n  if (!${targetSymbol} || typeof ${targetSymbol} !== 'object'):\n    return fallbackSafeValue\n  // Guaranteed safe property access below\n  return ${targetSymbol}.property`;
+  let questionL3 = `Which logic blueprint correctly implements defensive boundary isolation in "${fileName}"?`;
+  let optionsL3 = [
+    {
+      id: 'opt-bp-0',
+      text: `Validate ${targetSymbol} with an early return guard before accessing properties.`,
+      isCorrect: true,
+      explanation: 'Correct. Blueprint early exit isolates faults at the component perimeter.',
+      feedback: 'Correct. Early return guard establishes a safe execution scope.',
+    },
+    {
+      id: 'opt-bp-1',
+      text: `Access ${targetSymbol} directly and handle undefined properties in downstream callers.`,
+      isCorrect: false,
+      explanation: 'Incorrect. Downstream handling leads to cascading faults.',
+      feedback: 'Incorrect. Pushing checks downstream breaks isolation.',
+    },
+    {
+      id: 'opt-bp-2',
+      text: 'Wrap entire call stack in global unhandled rejection handler without local checks.',
+      isCorrect: false,
+      explanation: 'Incorrect. Global handlers do not substitute for localized guard clauses.',
+      feedback: 'Incorrect. Global error handler is not an architectural guard.',
+    },
+  ];
+
+  let maskedSnippetL4 = `if (!${targetSymbol}) {\n  {BLANK_0};\n}`;
+  let questionL4 = `Syntax Verification: Which control flow keyword cleanly exits the function upon failed validation?`;
+  let optionsL4 = [
+    {
+      id: 'opt-cloze-0',
+      text: 'return (exit function cleanly)',
+      isCorrect: true,
+      explanation: 'Correct. return terminates function execution cleanly.',
+      feedback: 'Correct. return exits the current scope.',
+    },
+    {
+      id: 'opt-cloze-1',
+      text: 'break (exit enclosing loop)',
+      isCorrect: false,
+      explanation: 'Incorrect. break is only legal inside loops and switch blocks.',
+      feedback: 'Incorrect. break cannot exit an arbitrary function.',
+    },
+    {
+      id: 'opt-cloze-2',
+      text: 'continue (skip loop iteration)',
+      isCorrect: false,
+      explanation: 'Incorrect. continue only skips current loop iteration.',
+      feedback: 'Incorrect. continue does not exit the function.',
+    },
+  ];
+
+  if (
+    description.includes('async') ||
+    description.includes('race') ||
+    description.includes('promise') ||
+    description.includes('concurren') ||
+    description.includes('abort') ||
+    proposed.includes('AbortController') ||
+    proposed.includes('await') ||
+    proposed.includes('Promise.all') ||
+    (proposed.includes('Promise') && !original.includes('Promise'))
+  ) {
+    category = 'concurrency';
+    concept = 'Asynchronous Concurrency & Race Condition Guard';
+    questionL1 = `What invariant does the proposed asynchronous coordination pattern in "${fileName}" safeguard?`;
+    optionsL1 = [
+      {
+        id: 'opt-0',
+        text: 'It guarantees that out-of-order network responses or concurrent calls do not overwrite newer state.',
+        isCorrect: true,
+        explanation: 'Correct. Strict ordering and cancellation signals prevent stale response overwrites and race conditions.',
+        feedback: 'Correct. Order synchronization and cancellation prevent stale response thrashing.',
+      },
+      {
+        id: 'opt-1',
+        text: 'It forces the browser to run asynchronous tasks synchronously on the main UI render loop.',
+        isCorrect: false,
+        explanation: 'Incorrect. Asynchronous execution in JavaScript remains decoupled from the synchronous render thread.',
+        feedback: 'Incorrect. Asynchronous tasks do not block the UI render loop.',
+      },
+      {
+        id: 'opt-2',
+        text: 'It disables promise rejection propagation across concurrent lexical scopes.',
+        isCorrect: false,
+        explanation: 'Incorrect. Promises propagate rejections according to standard async semantics.',
+        feedback: 'Incorrect. Promises retain rejection chains.',
+      },
+    ];
+    hintL1 = 'Consider what happens when a second asynchronous request resolves before the first one completes.';
+    explanationL1 = 'Guarding asynchronous flows with explicit abort signals or sequencing guarantees that asynchronous side effects remain deterministic, eliminating race condition bugs.';
+
+    ruleL2 = `∀ seq(t1, t2): t1 < t2 ⇒ state(apply(t1, t2)) = state(t2)`;
+    questionL2 = `What formal mathematical invariant must the asynchronous dispatcher satisfy in "${fileName}"?`;
+    optionsL2 = [
+      {
+        id: 'opt-inv-0',
+        text: 'Monotonic epoch or abort token prevents stale response thrashing across concurrent executions.',
+        isCorrect: true,
+        explanation: 'Correct. Monotonic ordering guarantees that obsolete responses are ignored.',
+        feedback: 'Correct. Monotonic epoch satisfies concurrent consistency.',
+      },
+      {
+        id: 'opt-inv-1',
+        text: 'All concurrent operations block synchronously until preceding promises resolve.',
+        isCorrect: false,
+        explanation: 'Incorrect. Blocking promises eliminates concurrency benefits.',
+        feedback: 'Incorrect. Synchronous blocking violates event loop semantics.',
+      },
+      {
+        id: 'opt-inv-2',
+        text: 'State is persisted to thread-local storage without memory synchronization barriers.',
+        isCorrect: false,
+        explanation: 'Incorrect. Unsynchronized state causes race conditions.',
+        feedback: 'Incorrect. Lacks memory barrier synchronization.',
+      },
+    ];
+
+    pseudocodeL3 = `function dispatchAsync(params):\n  abortPreviousController()\n  signal = createAbortSignal()\n  data = await fetch(params, { signal })\n  if (!signal.aborted):\n    commitState(data)`;
+    questionL3 = `Which logic blueprint correctly structures the concurrency guard in "${fileName}"?`;
+    optionsL3 = [
+      {
+        id: 'opt-bp-0',
+        text: 'Abort previous in-flight requests and verify signal state before committing async results.',
+        isCorrect: true,
+        explanation: 'Correct. AbortController verification guarantees single active state update.',
+        feedback: 'Correct. In-flight cancellation prevents race conditions.',
+      },
+      {
+        id: 'opt-bp-1',
+        text: 'Queue all incoming requests in an unbounded FIFO array without cancellation tokens.',
+        isCorrect: false,
+        explanation: 'Incorrect. Unbounded queues cause unbounded memory growth.',
+        feedback: 'Incorrect. Unbounded FIFO queues cause memory leaks.',
+      },
+      {
+        id: 'opt-bp-2',
+        text: 'Execute concurrent requests in reverse order to ensure the fastest response wins.',
+        isCorrect: false,
+        explanation: 'Incorrect. Out-of-order resolution causes stale overwrites.',
+        feedback: 'Incorrect. Reverse execution does not guarantee state validity.',
+      },
+    ];
+
+    maskedSnippetL4 = `if (signal.{BLANK_0}) {\n  return;\n}`;
+    questionL4 = `Syntax Verification: Which property checks whether an asynchronous operation has been cancelled?`;
+    optionsL4 = [
+      {
+        id: 'opt-cloze-0',
+        text: 'signal.aborted',
+        isCorrect: true,
+        explanation: 'Correct. signal.aborted reflects AbortController cancellation status.',
+        feedback: 'Correct. aborted is the standard AbortSignal boolean property.',
+      },
+      {
+        id: 'opt-cloze-1',
+        text: 'signal.completed',
+        isCorrect: false,
+        explanation: 'Incorrect. AbortSignal does not define a completed property.',
+        feedback: 'Incorrect. signal.completed is not a standard property.',
+      },
+      {
+        id: 'opt-cloze-2',
+        text: 'signal.resolved',
+        isCorrect: false,
+        explanation: 'Incorrect. AbortSignal does not define a resolved property.',
+        feedback: 'Incorrect. signal.resolved is not a valid property.',
+      },
+    ];
+  } else if (
+    description.includes('error') ||
+    description.includes('exception') ||
+    description.includes('fail') ||
+    description.includes('resilien') ||
+    (proposed.includes('try') && !original.includes('try')) ||
+    (proposed.includes('catch') && !original.includes('catch'))
+  ) {
+    category = 'error_resilience';
+    concept = 'Fault Containment & Graceful Error Recovery';
+    questionL1 = `Why is error boundary containment introduced in "${fileName}"?`;
+    optionsL1 = [
+      {
+        id: 'opt-0',
+        text: 'To isolate failure domains, log diagnostic context, and provide a safe fallback state.',
+        isCorrect: true,
+        explanation: 'Correct. Structured error handling protects the wider application from cascade failures.',
+        feedback: 'Correct. Structured error handling protects the wider application from cascade failures.',
+      },
+      {
+        id: 'opt-1',
+        text: 'To silence all compiler warnings and pass linting checks automatically.',
+        isCorrect: false,
+        explanation: 'Incorrect. Silencing warnings without containment is poor engineering practice.',
+        feedback: 'Incorrect. Try/catch does not silence static compiler warnings.',
+      },
+      {
+        id: 'opt-2',
+        text: 'To bypass function return type verification in the runtime compiler.',
+        isCorrect: false,
+        explanation: 'Incorrect. Error boundaries operate strictly at runtime.',
+        feedback: 'Incorrect. Error boundaries do not alter type signatures.',
+      },
+    ];
+    hintL1 = 'Look at how the return value or state is handled when an unexpected exception is thrown.';
+    explanationL1 = 'Containing failures ensures partial system outages do not crash the workbench UI or corrupt adjacent file tabs.';
+
+    ruleL2 = `∀ op: throws(op) ⇒ state(recovery) = SAFE ∧ logged(op.err)`;
+    questionL2 = `What fault containment invariant is guaranteed by the error boundary in "${fileName}"?`;
+    optionsL2 = [
+      {
+        id: 'opt-inv-0',
+        text: 'Failure in a child subsystem is isolated without crashing the parent workbench process.',
+        isCorrect: true,
+        explanation: 'Correct. Fault domain isolation prevents systemic crashes.',
+        feedback: 'Correct. Isolated failure domain preserved.',
+      },
+      {
+        id: 'opt-inv-1',
+        text: 'All runtime errors are swallowed silently without logging or notifying the user.',
+        isCorrect: false,
+        explanation: 'Incorrect. Silent error swallowing violates diagnostic invariants.',
+        feedback: 'Incorrect. Silent failures are prohibited by protocol.',
+      },
+      {
+        id: 'opt-inv-2',
+        text: 'The process exits immediately upon encountering any non-critical exception.',
+        isCorrect: false,
+        explanation: 'Incorrect. Crashing the process violates resilience contracts.',
+        feedback: 'Incorrect. Process exit defeats error resilience.',
+      },
+    ];
+
+    pseudocodeL3 = `try:\n  result = executeRiskOperation()\ncatch (err):\n  logDiagnostic(err)\n  return fallbackGracefulState`;
+    questionL3 = `Which logic blueprint correctly implements fault containment in "${fileName}"?`;
+    optionsL3 = [
+      {
+        id: 'opt-bp-0',
+        text: 'Catch expected faults, record diagnostic trace, and return deterministic fallback.',
+        isCorrect: true,
+        explanation: 'Correct. Graceful degradation preserves application state.',
+        feedback: 'Correct. Graceful fallback pattern applied.',
+      },
+      {
+        id: 'opt-bp-1',
+        text: 'Rethrow exception immediately without recording diagnostic metadata.',
+        isCorrect: false,
+        explanation: 'Incorrect. Unhandled rethrowing fails containment.',
+        feedback: 'Incorrect. Missing recovery and telemetry.',
+      },
+      {
+        id: 'opt-bp-2',
+        text: 'Retry the failing operation in an infinite synchronous while loop.',
+        isCorrect: false,
+        explanation: 'Incorrect. Unbounded synchronous retries hang the UI thread.',
+        feedback: 'Incorrect. Infinite retry loop causes thread hang.',
+      },
+    ];
+
+    maskedSnippetL4 = `try {\n  runOperation();\n} catch (err) {\n  {BLANK_0}(err);\n}`;
+    questionL4 = `Syntax Verification: Which routine should capture fault context inside the catch clause?`;
+    optionsL4 = [
+      {
+        id: 'opt-cloze-0',
+        text: 'logDiagnostic (record structured fault telemetry)',
+        isCorrect: true,
+        explanation: 'Correct. Structured telemetry ensures zero-silent failures.',
+        feedback: 'Correct. Fault context logged.',
+      },
+      {
+        id: 'opt-cloze-1',
+        text: 'delete (delete the exception object)',
+        isCorrect: false,
+        explanation: 'Incorrect. delete operator cannot delete lexical variables.',
+        feedback: 'Incorrect. delete is invalid syntax here.',
+      },
+      {
+        id: 'opt-cloze-2',
+        text: 'void (ignore error expression)',
+        isCorrect: false,
+        explanation: 'Incorrect. void ignores the error and drops telemetry.',
+        feedback: 'Incorrect. Ignoring errors violates protocol.',
+      },
+    ];
+  } else if (
+    description.includes('cleanup') ||
+    description.includes('leak') ||
+    description.includes('lifecycle') ||
+    description.includes('memory') ||
+    description.includes('dispose') ||
+    proposed.includes('removeEventListener') ||
+    proposed.includes('dispose') ||
+    proposed.includes('clearInterval') ||
+    proposed.includes('clearTimeout')
+  ) {
+    category = 'memory_lifecycle';
+    concept = 'Deterministic Resource Deallocation';
+    questionL1 = `What is the primary architectural purpose of the disposal lifecycle hooks in "${fileName}"?`;
+    optionsL1 = [
+      {
+        id: 'opt-0',
+        text: 'To unregister listeners and release event subscriptions, preventing persistent memory leaks.',
+        isCorrect: true,
+        explanation: 'Correct. Cleaning up retained closures prevents memory exhaustion over long-running sessions.',
+        feedback: 'Correct. Cleaning up retained closures prevents memory exhaustion over long sessions.',
+      },
+      {
+        id: 'opt-1',
+        text: 'To reduce the bundle size of the compiled JavaScript file on disk.',
+        isCorrect: false,
+        explanation: 'Incorrect. Cleanup hooks add lifecycle management code and do not shrink file size.',
+        feedback: 'Incorrect. Cleanup hooks do not alter compiled file size.',
+      },
+      {
+        id: 'opt-2',
+        text: 'To serialize active closure scope references into persistent local storage.',
+        isCorrect: false,
+        explanation: 'Incorrect. Lifecycle hooks manage memory deallocation, not persistence.',
+        feedback: 'Incorrect. Lifecycle hooks manage memory, not storage serialization.',
+      },
+    ];
+    hintL1 = 'What happens to event listener closures if a tab or component is repeatedly created and destroyed?';
+    explanationL1 = 'In a long-running IDE workbench, failing to unbind listeners leads to retained DOM node leaks and performance degradation.';
+
+    ruleL2 = `∀ handle ∈ ResourceHandles: unmount(handle) ⇒ ref_count(handle) = 0`;
+    questionL2 = `What resource lifecycle contract must the disposal handler satisfy in "${fileName}"?`;
+    optionsL2 = [
+      {
+        id: 'opt-inv-0',
+        text: 'Guarantees symmetric resource deallocation: every registered listener is cleanly removed on disposal.',
+        isCorrect: true,
+        explanation: 'Correct. Symmetric cleanup guarantees leak-free operation.',
+        feedback: 'Correct. Symmetric resource deallocation satisfied.',
+      },
+      {
+        id: 'opt-inv-1',
+        text: 'Keeps event listeners registered indefinitely to avoid recreation overhead.',
+        isCorrect: false,
+        explanation: 'Incorrect. Indefinite registration causes persistent memory growth.',
+        feedback: 'Incorrect. Retained listeners cause memory leaks.',
+      },
+      {
+        id: 'opt-inv-2',
+        text: 'Invokes memory garbage collection synchronously on every state transition.',
+        isCorrect: false,
+        explanation: 'Incorrect. Manual GC triggers are non-standard and degrade throughput.',
+        feedback: 'Incorrect. Synchronous GC is not a valid lifecycle solution.',
+      },
+    ];
+
+    pseudocodeL3 = `function mount():\n  disposables.add(target.on('event', handler))\nfunction unmount():\n  for sub in disposables:\n    sub.dispose()\n  disposables.clear()`;
+    questionL3 = `Which logic blueprint correctly implements resource lifecycle management in "${fileName}"?`;
+    optionsL3 = [
+      {
+        id: 'opt-bp-0',
+        text: 'Register event handlers in a lifecycle collection and dispose all subscriptions on unmount.',
+        isCorrect: true,
+        explanation: 'Correct. Composite disposable ensures deterministic cleanup.',
+        feedback: 'Correct. Composite disposable lifecycle applied.',
+      },
+      {
+        id: 'opt-bp-1',
+        text: 'Keep event subscriptions alive across unmounts to reuse them on subsequent mounts.',
+        isCorrect: false,
+        explanation: 'Incorrect. Retained subscriptions accumulate and duplicate handlers.',
+        feedback: 'Incorrect. Retaining subscriptions causes duplicate triggers.',
+      },
+      {
+        id: 'opt-bp-2',
+        text: 'Remove DOM elements while leaving event listeners registered to window global scope.',
+        isCorrect: false,
+        explanation: 'Incorrect. Detached DOM elements with listeners remain pinned in memory.',
+        feedback: 'Incorrect. Detached DOM memory leak.',
+      },
+    ];
+
+    maskedSnippetL4 = `target.{BLANK_0}('change', listener);`;
+    questionL4 = `Syntax Verification: Which method unregisters an active event listener from the target?`;
+    optionsL4 = [
+      {
+        id: 'opt-cloze-0',
+        text: 'removeEventListener',
+        isCorrect: true,
+        explanation: 'Correct. removeEventListener unbinds the target handler.',
+        feedback: 'Correct. removeEventListener is the standard unbinding method.',
+      },
+      {
+        id: 'opt-cloze-1',
+        text: 'addEventListener',
+        isCorrect: false,
+        explanation: 'Incorrect. addEventListener binds a new listener.',
+        feedback: 'Incorrect. addEventListener creates an additional listener.',
+      },
+      {
+        id: 'opt-cloze-2',
+        text: 'dispatchEvent',
+        isCorrect: false,
+        explanation: 'Incorrect. dispatchEvent triggers an event rather than unbinding.',
+        feedback: 'Incorrect. dispatchEvent triggers an event.',
+      },
+    ];
+  } else if (
+    description.includes('isolat') ||
+    description.includes('immutab') ||
+    description.includes('pure') ||
+    description.includes('buffer') ||
+    proposed.includes('structuredClone') ||
+    proposed.includes('Object.freeze') ||
+    (proposed.includes('slice') && !original.includes('slice'))
+  ) {
+    category = 'state_isolation';
+    concept = 'State Immutability & Zero-Buffer Integrity';
+    questionL1 = `Why does the proposed change in "${fileName}" enforce state isolation and immutability?`;
+    optionsL1 = [
+      {
+        id: 'opt-0',
+        text: 'To prevent in-place object mutations from corrupting shared state across adjacent components.',
+        isCorrect: true,
+        explanation: 'Correct. State isolation ensures data consistency and prevents unexpected side effects.',
+        feedback: 'Correct. Immutability guarantees zero-buffer contracts and prevents state poisoning.',
+      },
+      {
+        id: 'opt-1',
+        text: 'To disable JavaScript garbage collection on state objects.',
+        isCorrect: false,
+        explanation: 'Incorrect. Immutability creates fresh references and does not disable GC.',
+        feedback: 'Incorrect. Object immutability does not affect garbage collection.',
+      },
+      {
+        id: 'opt-2',
+        text: 'To restrict object property mutation to top-level module scope.',
+        isCorrect: false,
+        explanation: 'Incorrect. Immutability is about reference independence, not module scoping.',
+        feedback: 'Incorrect. Property scoping is not state immutability.',
+      },
+    ];
+    hintL1 = 'Think about what occurs if two views concurrently mutate the same object reference.';
+    explanationL1 = 'Preserving strict state isolation eliminates side-effect pollution and guarantees deterministic view rendering.';
+
+    ruleL2 = `∀ s ∈ State: mutate(s) ⇒ s' = clone(s) ∧ ref(s') ≠ ref(s)`;
+    questionL2 = `What state immutability invariant is enforced in "${fileName}"?`;
+    optionsL2 = [
+      {
+        id: 'opt-inv-0',
+        text: 'Zero-mutation guarantee: consumers receive independent copies, protecting state integrity.',
+        isCorrect: true,
+        explanation: 'Correct. Immutability eliminates side-effect pollution.',
+        feedback: 'Correct. Reference independence verified.',
+      },
+      {
+        id: 'opt-inv-1',
+        text: 'Directly mutates object properties while keeping reference identities identical.',
+        isCorrect: false,
+        explanation: 'Incorrect. In-place mutation breaks referential equality checks.',
+        feedback: 'Incorrect. Direct mutation corrupts shared references.',
+      },
+      {
+        id: 'opt-inv-2',
+        text: 'Overrides Object.prototype to suppress property setter invocations.',
+        isCorrect: false,
+        explanation: 'Incorrect. Modifying Object.prototype pollutes all objects globally.',
+        feedback: 'Incorrect. Prototype mutation is hazardous.',
+      },
+    ];
+
+    pseudocodeL3 = `function updateState(prevState, patch):\n  nextState = { ...prevState, ...patch }\n  return Object.freeze(nextState)`;
+    questionL3 = `Which logic blueprint correctly implements state isolation in "${fileName}"?`;
+    optionsL3 = [
+      {
+        id: 'opt-bp-0',
+        text: 'Create an isolated copy, apply mutations to the copy, and return the new frozen reference.',
+        isCorrect: true,
+        explanation: 'Correct. Cloning before patching guarantees immutable state snapshots.',
+        feedback: 'Correct. Pure state projection verified.',
+      },
+      {
+        id: 'opt-bp-1',
+        text: 'Mutate prevState directly and return the same object reference to save allocation cost.',
+        isCorrect: false,
+        explanation: 'Incorrect. Reusing reference identities destroys change detection.',
+        feedback: 'Incorrect. Violates immutable state contract.',
+      },
+      {
+        id: 'opt-bp-2',
+        text: 'Delete modified properties from prevState before reassigning new values.',
+        isCorrect: false,
+        explanation: 'Incorrect. Deleting properties mutates the shared object.',
+        feedback: 'Incorrect. Deletion in-place is still mutable.',
+      },
+    ];
+
+    maskedSnippetL4 = `const next = Object.{BLANK_0}({}, current);`;
+    questionL4 = `Syntax Verification: Which method creates a shallow copy of an object into a fresh target?`;
+    optionsL4 = [
+      {
+        id: 'opt-cloze-0',
+        text: 'assign',
+        isCorrect: true,
+        explanation: 'Correct. Object.assign copies properties to target.',
+        feedback: 'Correct. Object.assign creates shallow clone.',
+      },
+      {
+        id: 'opt-cloze-1',
+        text: 'freeze',
+        isCorrect: false,
+        explanation: 'Incorrect. Object.freeze prevents mutations but does not clone.',
+        feedback: 'Incorrect. freeze does not create a shallow clone.',
+      },
+      {
+        id: 'opt-cloze-2',
+        text: 'seal',
+        isCorrect: false,
+        explanation: 'Incorrect. Object.seal prevents adding new properties.',
+        feedback: 'Incorrect. seal does not clone properties.',
+      },
+    ];
+  }
+
+  const level1 = {
+    level: 1,
+    type: 'reflection',
+    title: 'Level 1: Socratic Reflection',
+    question: questionL1,
+    options: optionsL1,
+    hint: hintL1,
+    explanation: explanationL1,
+    completed: false,
+    selectedOptionId: null,
+  };
+
+  const level2 = {
+    level: 2,
+    type: 'invariant',
+    title: 'Level 2: Invariant & System Constraint',
+    rule: ruleL2,
+    question: questionL2,
+    options: optionsL2,
+    hint: 'Examine whether the formal pre-condition and boundary conditions are rigorously satisfied.',
+    explanation: 'Mathematical invariant verification confirms that edge conditions cannot trigger runtime failures.',
+    completed: false,
+    selectedOptionId: null,
+  };
+
+  const level3 = {
+    level: 3,
+    type: 'blueprint',
+    title: 'Level 3: Architectural Logic Blueprint',
+    pseudocode: pseudocodeL3,
+    question: questionL3,
+    options: optionsL3,
+    hint: 'Observe how the architectural strategy separates fault isolation from the happy-path logic.',
+    explanation: 'The logic blueprint guarantees architectural alignment before concrete implementation.',
+    completed: false,
+    selectedOptionId: null,
+  };
+
+  const level4 = {
+    level: 4,
+    type: 'cloze',
+    title: 'Level 4: Interactive Syntax Verification (Cloze)',
+    maskedSnippet: maskedSnippetL4,
+    question: questionL4,
+    options: optionsL4,
+    hint: 'Choose the exact syntax token required to complete the verification guard.',
+    explanation: 'Interactive syntax completion verifies hands-on coding comprehension without spoon-feeding.',
+    completed: false,
+    selectedOptionId: null,
+  };
+
+  const levelsMap = {
+    1: level1,
+    2: level2,
+    3: level3,
+    4: level4,
+  };
+
+  const ladderSession = {
+    challengeId: `ladder-${diffItem.id || Date.now()}`,
+    diffId: diffItem.id || 'diff-0',
+    filePath,
+    category,
+    currentLevel: 1,
+    isFullyUnlocked: false,
+    directAutoPatchAllowed: false, // Inviolable Golden Invariant
+    levels: {
+      reflection: level1,
+      invariant: level2,
+      blueprint: level3,
+      cloze: level4,
+    },
+  };
+
+  return {
+    id: `challenge-${diffItem.id || Date.now()}`,
+    diffId: diffItem.id || 'diff-0',
+    filePath,
+    category,
+    concept,
+    question: questionL1,
+    options: optionsL1,
+    hint: hintL1,
+    explanation: explanationL1,
+    isUnlocked: false,
+    selectedOptionId: null,
+    currentLevel: 1,
+    maxCompletedLevel: 0,
+    strictLadder: false,
+    directAutoPatchAllowed: false, // Inviolable Golden Invariant
+    levels: levelsMap,
+    ladderSession,
+  };
+}
+
+function setSocraticStep(stepNum) {
+  if (!activeSocraticChallenge || !activeSocraticChallenge.levels) return;
+  const num = parseInt(stepNum, 10);
+  if (isNaN(num) || num < 1 || num > 4) return;
+
+  const maxAllowed = (activeSocraticChallenge.maxCompletedLevel || 0) + 1;
+  if (num > maxAllowed && !isSocraticGateUnlocked) return;
+
+  activeSocraticChallenge.currentLevel = num;
+  const levelData = activeSocraticChallenge.levels[num];
+  if (levelData) {
+    activeSocraticChallenge.question = levelData.question;
+    activeSocraticChallenge.options = levelData.options;
+    activeSocraticChallenge.hint = levelData.hint;
+    activeSocraticChallenge.explanation = levelData.explanation;
+    activeSocraticChallenge.selectedOptionId = levelData.selectedOptionId || null;
+  }
+  selectedSocraticOptionIdx = null;
+  renderSocraticGateCard();
+}
+
+function renderSocraticGateCard() {
+  const card = document.getElementById('socratic-gate-card');
+  if (!card) return;
+
+  if (currentReviewDiffs.length === 0 || !activeSocraticChallenge) {
+    card.style.display = 'none';
+    return;
+  }
+
+  card.style.display = 'flex';
+  card.setAttribute('data-gate-state', isSocraticGateUnlocked ? 'unlocked' : 'locked');
+
+  const pill = document.getElementById('socratic-gate-status-pill');
+  if (pill) {
+    pill.className = `socratic-gate-status-pill status-${isSocraticGateUnlocked ? 'unlocked' : 'locked'}`;
+    pill.textContent = isSocraticGateUnlocked ? 'UNLOCKED' : 'LOCKED';
+  }
+
+  const badgeIcon = document.getElementById('socratic-gate-badge-icon');
+  if (badgeIcon) {
+    badgeIcon.className = `codicon codicon-${isSocraticGateUnlocked ? 'check' : 'lock'}`;
+  }
+
+  // 1. Render Socratic Ladder Stepper (Milestone v0.2.8)
+  const currentLevelNum = activeSocraticChallenge.currentLevel || 1;
+  const maxCompleted = isSocraticGateUnlocked ? 4 : (activeSocraticChallenge.maxCompletedLevel || 0);
+
+  for (let s = 1; s <= 4; s++) {
+    const stepEl = document.getElementById(`socratic-step-${s}`);
+    if (stepEl) {
+      stepEl.classList.remove('active', 'completed');
+      if (isSocraticGateUnlocked) {
+        stepEl.classList.add('completed');
+      } else {
+        if (s <= maxCompleted) {
+          stepEl.classList.add('completed');
+        }
+        if (s === currentLevelNum) {
+          stepEl.classList.add('active');
+        }
+      }
+      if (!stepEl.__wired) {
+        stepEl.__wired = true;
+        stepEl.addEventListener('click', () => {
+          setSocraticStep(s);
+        });
+      }
+    }
+  }
+
+  for (let c = 1; c <= 3; c++) {
+    const connEl = document.getElementById(`socratic-conn-${c}`);
+    if (connEl) {
+      if (c <= maxCompleted) {
+        connEl.classList.add('completed');
+      } else {
+        connEl.classList.remove('completed');
+      }
+    }
+  }
+
+  // 2. Render Blueprint Box (displayed on Level 3 or 4)
+  const bpBox = document.getElementById('socratic-blueprint-box');
+  const bpTitle = document.getElementById('socratic-blueprint-title');
+  const bpCode = document.getElementById('socratic-blueprint-code-text');
+  if (bpBox && bpTitle && bpCode) {
+    if (currentLevelNum === 3 && activeSocraticChallenge.levels && activeSocraticChallenge.levels[3]?.pseudocode) {
+      bpBox.style.display = 'block';
+      bpTitle.textContent = 'Level 3: Architectural Logic Blueprint';
+      bpCode.textContent = activeSocraticChallenge.levels[3].pseudocode;
+    } else if (currentLevelNum === 4 && activeSocraticChallenge.levels && activeSocraticChallenge.levels[4]?.maskedSnippet) {
+      bpBox.style.display = 'block';
+      bpTitle.textContent = 'Level 4: Syntax Verification Snippet';
+      bpCode.textContent = activeSocraticChallenge.levels[4].maskedSnippet;
+    } else {
+      bpBox.style.display = 'none';
+    }
+  }
+
+  // 3. Render Target File & Questions
+  const targetFile = document.getElementById('socratic-target-file');
+  if (targetFile) {
+    const rawPath = activeSocraticChallenge.filePath || '';
+    const safePath = escapeHtml(rawPath);
+    targetFile.textContent = safePath;
+    targetFile.innerHTML = safePath;
+  }
+
+  const qText = document.getElementById('socratic-question-text');
+  if (qText) {
+    const rawQ = activeSocraticChallenge.question || '';
+    const safeQ = escapeHtml(rawQ);
+    qText.textContent = safeQ;
+    qText.innerHTML = safeQ;
+  }
+  const conceptQ = document.getElementById('socratic-concept-question');
+  if (conceptQ && conceptQ !== qText) {
+    const rawQ = activeSocraticChallenge.question || '';
+    const safeQ = escapeHtml(rawQ);
+    conceptQ.textContent = safeQ;
+    conceptQ.innerHTML = safeQ;
+  }
+
+  // 4. Render Options List
+  const optionsList = document.getElementById('socratic-options-list');
+  if (optionsList && activeSocraticChallenge.options) {
+    optionsList.innerHTML = '';
+    activeSocraticChallenge.options.forEach((opt, idx) => {
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      const isSelected = selectedSocraticOptionIdx === idx || activeSocraticChallenge.selectedOptionId === opt.id;
+      let cls = 'socratic-option-item';
+      if (isSelected) cls += ' selected';
+      if (isSocraticGateUnlocked && opt.isCorrect) cls += ' correct';
+      else if (isSelected && !opt.isCorrect && !isSocraticGateUnlocked) cls += ' incorrect';
+      btn.className = cls;
+
+      btn.setAttribute('role', 'radio');
+      btn.setAttribute('aria-checked', isSelected ? 'true' : 'false');
+      btn.setAttribute('data-option-id', opt.id);
+      btn.setAttribute('data-option-idx', String(idx));
+
+      let radioIcon = 'codicon-circle-large-outline';
+      if (isSocraticGateUnlocked && opt.isCorrect) {
+        radioIcon = 'codicon-check';
+      } else if (isSelected) {
+        radioIcon = 'codicon-record';
+      }
+
+      btn.innerHTML = `
+        <span class="codicon ${radioIcon} socratic-option-radio"></span>
+        <span class="socratic-option-text">${escapeHtml(opt.text)}</span>
+      `;
+
+      btn.addEventListener('click', () => {
+        answerSocraticChallenge(opt.id);
+      });
+
+      optionsList.appendChild(btn);
+    });
+  }
+
+  // 5. Render Explanation Card
+  const explanationCard = document.getElementById('socratic-explanation-card');
+  const explanationText = document.getElementById('socratic-explanation-text');
+  if (explanationCard && explanationText) {
+    if (isSocraticGateUnlocked) {
+      explanationCard.style.display = 'flex';
+      explanationText.textContent = activeSocraticChallenge.explanation || '';
+    } else {
+      explanationCard.style.display = 'none';
+    }
+  }
+
+  // 6. Render Hint Container
+  const hintContainer = document.getElementById('socratic-hint-container');
+  const hintText = document.getElementById('socratic-hint-text');
+  const hintBtn = document.getElementById('socratic-hint-btn');
+  const hintBtnLabel = document.getElementById('socratic-hint-btn-label');
+  if (hintContainer && hintText) {
+    hintContainer.style.display = socraticHintExpanded ? 'block' : 'none';
+    hintText.textContent = activeSocraticChallenge.hint || '';
+  }
+  if (hintBtn) {
+    hintBtn.setAttribute('aria-expanded', String(socraticHintExpanded));
+    if (!hintBtn.__wired) {
+      hintBtn.__wired = true;
+      hintBtn.addEventListener('click', () => toggleSocraticHint());
+    }
+  }
+  if (hintBtnLabel) {
+    hintBtnLabel.textContent = socraticHintExpanded ? 'Hide Concept Hint' : 'Hint / Explain Concept';
+  }
+}
+
+function answerSocraticChallenge(optionIdOrIdx) {
+  isSocraticGateEngaged = true;
+  if (!activeSocraticChallenge) {
+    return { success: false, explanation: 'No active Socratic challenge.' };
+  }
+  if (isSocraticGateUnlocked) {
+    return {
+      success: true,
+      explanation: activeSocraticChallenge.explanation || 'Gate already unlocked.',
+    };
+  }
+
+  let option = null;
+  let optionIdx = -1;
+  if (typeof optionIdOrIdx === 'number') {
+    optionIdx = optionIdOrIdx;
+    option = activeSocraticChallenge.options[optionIdx];
+  } else if (typeof optionIdOrIdx === 'string') {
+    optionIdx = activeSocraticChallenge.options.findIndex(o => o.id === optionIdOrIdx);
+    if (optionIdx >= 0) {
+      option = activeSocraticChallenge.options[optionIdx];
+    } else {
+      const parsed = parseInt(optionIdOrIdx, 10);
+      if (!isNaN(parsed) && activeSocraticChallenge.options[parsed]) {
+        optionIdx = parsed;
+        option = activeSocraticChallenge.options[optionIdx];
+      }
+    }
+  }
+
+  if (!option) {
+    return { success: false, explanation: 'Option not found.' };
+  }
+
+  selectedSocraticOptionIdx = optionIdx;
+  activeSocraticChallenge.selectedOptionId = option.id;
+
+  const currentLevelNum = activeSocraticChallenge.currentLevel || 1;
+  if (activeSocraticChallenge.levels && activeSocraticChallenge.levels[currentLevelNum]) {
+    activeSocraticChallenge.levels[currentLevelNum].selectedOptionId = option.id;
+  }
+
+  const feedbackBanner = document.getElementById('socratic-feedback-banner');
+  const feedbackIcon = document.getElementById('socratic-feedback-icon');
+  const feedbackText = document.getElementById('socratic-feedback-text');
+
+  if (option.isCorrect) {
+    activeSocraticChallenge.maxCompletedLevel = Math.max(activeSocraticChallenge.maxCompletedLevel || 0, currentLevelNum);
+    if (activeSocraticChallenge.levels && activeSocraticChallenge.levels[currentLevelNum]) {
+      activeSocraticChallenge.levels[currentLevelNum].completed = true;
+    }
+
+    const isStrict = activeSocraticChallenge.strictLadder === true || (typeof window !== 'undefined' && window && window.socraticStrictLadder === true);
+
+    if (isStrict && currentLevelNum < 4) {
+      // Strict 4-Level Scaffolding progression: advance to next level
+      const nextLevel = currentLevelNum + 1;
+      activeSocraticChallenge.currentLevel = nextLevel;
+      const nextData = activeSocraticChallenge.levels[nextLevel];
+      if (nextData) {
+        activeSocraticChallenge.question = nextData.question;
+        activeSocraticChallenge.options = nextData.options;
+        activeSocraticChallenge.hint = nextData.hint;
+        activeSocraticChallenge.explanation = nextData.explanation;
+        activeSocraticChallenge.selectedOptionId = null;
+      }
+      selectedSocraticOptionIdx = null;
+
+      if (feedbackBanner && feedbackIcon && feedbackText) {
+        feedbackBanner.style.display = 'flex';
+        feedbackBanner.className = 'socratic-feedback-banner feedback-success';
+        feedbackIcon.className = 'codicon codicon-pass-filled';
+        feedbackText.textContent = `Level ${currentLevelNum} verified. Advancing to Level ${nextLevel}...`;
+      }
+
+      renderSocraticGateCard();
+      return {
+        success: true,
+        advancedToLevel: nextLevel,
+        explanation: option.explanation || activeSocraticChallenge.explanation,
+        isUnlocked: false,
+      };
+    } else {
+      // Standard mode or final level of strict mode: unlock gate!
+      if (feedbackBanner && feedbackIcon && feedbackText) {
+        feedbackBanner.style.display = 'flex';
+        feedbackBanner.className = 'socratic-feedback-banner feedback-success';
+        feedbackIcon.className = 'codicon codicon-pass-filled';
+        feedbackText.textContent = option.feedback || option.explanation || 'Architectural comprehension verified.';
+      }
+      activeSocraticChallenge.maxCompletedLevel = 4;
+      unlockSocraticGate();
+      return {
+        success: true,
+        explanation: option.explanation || activeSocraticChallenge.explanation,
+        isUnlocked: true,
+      };
+    }
+  } else {
+    if (feedbackBanner && feedbackIcon && feedbackText) {
+      feedbackBanner.style.display = 'flex';
+      feedbackBanner.className = 'socratic-feedback-banner feedback-error';
+      feedbackIcon.className = 'codicon codicon-error';
+      feedbackText.textContent = option.feedback || option.explanation || 'Incorrect invariant. Re-evaluate trade-off and try again.';
+    }
+    renderSocraticGateCard();
+    return {
+      success: false,
+      explanation: option.explanation || 'Incorrect invariant. Re-evaluate trade-off and try again.',
+      isUnlocked: false,
+    };
+  }
+}
+
+function unlockSocraticGate() {
+  isSocraticGateUnlocked = true;
+  isSocraticGateEngaged = true;
+
+  if (activeSocraticChallenge) {
+    activeSocraticChallenge.isUnlocked = true;
+    activeSocraticChallenge.status = 'unlocked';
+    activeSocraticChallenge.maxCompletedLevel = 4;
+  }
+
+  renderReviewPane();
+
+  const statusGate = document.getElementById('status-gate');
+  const gateLockIcon = document.getElementById('gate-lock-icon');
+  const gateStatusText = document.getElementById('gate-status-text');
+  if (statusGate) statusGate.style.display = 'flex';
+  if (gateLockIcon) {
+    gateLockIcon.className = 'codicon codicon-check';
+    gateLockIcon.style.color = '#73c991';
+  }
+  if (gateStatusText) {
+    gateStatusText.textContent = 'Gate: UNLOCKED';
+    gateStatusText.style.color = '#73c991';
+  }
+
+  if (typeof editorEventBridge !== 'undefined' && editorEventBridge) {
+    editorEventBridge.emit('screenB:gateUnlocked', {
+      challengeId: activeSocraticChallenge ? activeSocraticChallenge.id : 'challenge-0',
+      diffId: activeSocraticChallenge ? activeSocraticChallenge.diffId : (currentReviewDiffs[0] ? currentReviewDiffs[0].id : ''),
+      isUnlocked: true,
+      timestamp: Date.now(),
+      category: activeSocraticChallenge ? activeSocraticChallenge.category : 'architecture',
+      filePath: activeSocraticChallenge ? activeSocraticChallenge.filePath : '',
+    });
+  }
+}
+
+function resetSocraticGate() {
+  isSocraticGateUnlocked = false;
+  isSocraticGateEngaged = true;
+  selectedSocraticOptionIdx = null;
+  socraticHintExpanded = false;
+
+  if (currentReviewDiffs.length > 0) {
+    activeSocraticChallenge = generateSocraticChallenge(currentReviewDiffs[0]);
+  } else {
+    activeSocraticChallenge = null;
+  }
+
+  const feedbackBanner = document.getElementById('socratic-feedback-banner');
+  if (feedbackBanner) feedbackBanner.style.display = 'none';
+
+  renderReviewPane();
+}
+
+function toggleSocraticHint() {
+  socraticHintExpanded = !socraticHintExpanded;
+  renderSocraticGateCard();
+  return socraticHintExpanded;
 }
 
 function setReviewDiffs(diffs) {
   const list = Array.isArray(diffs) ? diffs : [];
   currentReviewDiffs = list.map((d, i) => normalizeDiffItem(d, i));
+
+  isSocraticGateUnlocked = false;
+  selectedSocraticOptionIdx = null;
+  socraticHintExpanded = false;
+  if (currentReviewDiffs.length > 0) {
+    activeSocraticChallenge = generateSocraticChallenge(currentReviewDiffs[0]);
+  } else {
+    activeSocraticChallenge = null;
+  }
+
+  const feedbackBanner = document.getElementById('socratic-feedback-banner');
+  if (feedbackBanner) feedbackBanner.style.display = 'none';
+
   setScreenBMode('review');
   renderReviewPane();
 
@@ -5462,6 +6883,11 @@ function addReviewDiff(diffItem) {
   } else {
     currentReviewDiffs.push(item);
   }
+
+  if (!activeSocraticChallenge || currentReviewDiffs.length === 1) {
+    activeSocraticChallenge = generateSocraticChallenge(item);
+  }
+
   setScreenBMode('review');
   renderReviewPane();
 
@@ -5469,6 +6895,34 @@ function addReviewDiff(diffItem) {
     editorEventBridge.emit('screenB:reviewUpdate', { diffs: currentReviewDiffs });
   }
   return item;
+}
+
+function addReviewDiffsBatch(diffItems) {
+  if (!Array.isArray(diffItems) || diffItems.length === 0) return [];
+  const addedItems = [];
+  for (const diffItem of diffItems) {
+    if (!diffItem) continue;
+    const item = normalizeDiffItem(diffItem, currentReviewDiffs.length);
+    const existingIdx = currentReviewDiffs.findIndex(d => d.filePath === item.filePath);
+    if (existingIdx >= 0) {
+      currentReviewDiffs[existingIdx] = item;
+    } else {
+      currentReviewDiffs.push(item);
+    }
+    addedItems.push(item);
+  }
+
+  if (addedItems.length > 0 && (!activeSocraticChallenge || currentReviewDiffs.length === addedItems.length)) {
+    activeSocraticChallenge = generateSocraticChallenge(addedItems[0]);
+  }
+
+  setScreenBMode('review');
+  renderReviewPane();
+
+  if (typeof editorEventBridge !== 'undefined') {
+    editorEventBridge.emit('screenB:reviewUpdate', { diffs: currentReviewDiffs });
+  }
+  return addedItems;
 }
 
 function getReviewDiffs() {
@@ -5497,6 +6951,7 @@ function renderReviewPane() {
     if (addBadge) addBadge.textContent = '+0';
     const delBadge = document.getElementById('review-total-deleted');
     if (delBadge) delBadge.textContent = '-0';
+    renderSocraticGateCard();
     return;
   }
 
@@ -5514,6 +6969,34 @@ function renderReviewPane() {
   const delBadge = document.getElementById('review-total-deleted');
   if (delBadge) delBadge.textContent = `-${totalDel}`;
 
+  const btnAcceptAll = document.getElementById('btn-review-accept-all');
+  if (btnAcceptAll) {
+    const isLocked = isSocraticGateActive() && !isSocraticGateUnlocked;
+    if (isLocked) {
+      btnAcceptAll.classList.add('btn-disabled');
+      btnAcceptAll.setAttribute('disabled', 'true');
+      btnAcceptAll.disabled = true;
+      btnAcceptAll.title = 'Accept All (Locked by Socratic Cognitive Gate)';
+      const acceptIcon = btnAcceptAll.querySelector('.codicon') || document.getElementById('bulk-accept-icon');
+      if (acceptIcon) {
+        acceptIcon.className = 'codicon codicon-lock';
+      }
+      btnAcceptAll.innerHTML = '<span class="codicon codicon-lock" id="bulk-accept-icon"></span><span id="bulk-accept-label">Accept All</span>';
+    } else {
+      btnAcceptAll.classList.remove('btn-disabled');
+      btnAcceptAll.removeAttribute('disabled');
+      btnAcceptAll.disabled = false;
+      btnAcceptAll.title = 'Accept all proposed changes and write to disk';
+      const acceptIcon = btnAcceptAll.querySelector('.codicon') || document.getElementById('bulk-accept-icon');
+      if (acceptIcon) {
+        acceptIcon.className = 'codicon codicon-check codicon-check-all';
+      }
+      btnAcceptAll.innerHTML = '<span class="codicon codicon-check codicon-check-all" id="bulk-accept-icon"></span><span id="bulk-accept-label">Accept All</span>';
+    }
+  }
+
+  renderSocraticGateCard();
+
   if (listEl) {
     currentReviewDiffs.forEach(diff => {
       const card = document.createElement('div');
@@ -5528,6 +7011,7 @@ function renderReviewPane() {
 
       const isApplied = diff.status === 'applied' || diff.status === 'accepted';
       const isDiscarded = diff.status === 'discarded';
+      const isCardLocked = isSocraticGateActive() && !isSocraticGateUnlocked;
 
       card.innerHTML = `
         <div class="review-file-header review-card-header">
@@ -5551,8 +7035,8 @@ function renderReviewPane() {
               <span class="codicon codicon-diff"></span>
               <span>Review Diff</span>
             </button>
-            <button class="review-action-btn btn-review-accept" title="Accept Changes and Write to Disk">
-              <span class="codicon codicon-check"></span>
+            <button class="review-action-btn btn-review-accept ${isCardLocked ? 'btn-disabled' : ''}" ${isCardLocked ? 'disabled="true"' : ''} title="${isCardLocked ? 'Locked by Socratic Cognitive Gate' : 'Accept Changes and Write to Disk'}">
+              <span class="codicon ${isCardLocked ? 'codicon-lock' : 'codicon-check'}"></span>
               <span>Accept</span>
             </button>
             <button class="review-action-btn btn-review-discard" title="Discard Changes">
@@ -5573,6 +7057,7 @@ function renderReviewPane() {
       const btnAccept = card.querySelector('.btn-review-accept');
       if (btnAccept) {
         btnAccept.addEventListener('click', async () => {
+          if (isSocraticGateActive() && !isSocraticGateUnlocked) return false;
           await acceptReviewDiff(diff.id);
         });
       }
@@ -5602,7 +7087,6 @@ async function openReviewDiff(reviewItemOrId) {
   const editorMount = document.getElementById('editor-mount');
   if (!diffMount || !editorMount) return false;
 
-  // Save current editor view state if open
   if (docManager && docManager.activeDocId) {
     const activeDoc = docManager.documents ? docManager.documents.get(docManager.activeDocId) : null;
     if (activeDoc && editor && typeof editor.saveViewState === 'function') {
@@ -5610,11 +7094,9 @@ async function openReviewDiff(reviewItemOrId) {
     }
   }
 
-  // Switch display: hide editor mount, show diff mount
   editorMount.style.display = 'none';
   diffMount.style.display = 'block';
 
-  // Instantiate diff editor if needed
   if (!diffEditor && window.monaco && window.monaco.editor) {
     diffEditor = window.monaco.editor.createDiffEditor(diffMount, {
       theme: 'vs-dark',
@@ -5624,7 +7106,6 @@ async function openReviewDiff(reviewItemOrId) {
     });
   }
 
-  // Resolve original baseline
   let origContent = diffItem.originalContent;
   if (typeof origContent !== 'string') {
     let openDoc = null;
@@ -5723,7 +7204,6 @@ function closeReviewDiff() {
   if (diffMount) diffMount.style.display = 'none';
   if (editorMount) editorMount.style.display = 'block';
 
-  // Restore active document model and view state in editor
   if (docManager && docManager.activeDocId) {
     const activeDoc = docManager.documents ? docManager.documents.get(docManager.activeDocId) : null;
     if (activeDoc && activeDoc.model && editor && typeof editor.setModel === 'function') {
@@ -5749,15 +7229,18 @@ function closeReviewDiff() {
 }
 
 async function acceptReviewDiff(diffId) {
+  if (isSocraticGateActive() && !isSocraticGateUnlocked) {
+    console.warn('[SocraticGate] Accept blocked: Cognitive gate is locked.');
+    return false;
+  }
+
   const diff = currentReviewDiffs.find(d => d.id === diffId);
   if (!diff) return false;
 
-  // 1. Write proposed content to disk via FS bridge
   if (window.electronFS && typeof window.electronFS.writeFile === 'function') {
     await window.electronFS.writeFile(diff.filePath, diff.proposedContent);
   }
 
-  // 2. Buffer Synchronization: update active model and clear dirty state
   if (docManager && docManager.documents) {
     let openDoc = null;
     for (const [id, doc] of docManager.documents) {
@@ -5783,19 +7266,20 @@ async function acceptReviewDiff(diffId) {
     }
   }
 
-  // 3. Update status & mark applied, then remove from pending review diffs
   diff.status = 'applied';
   diff.applied = true;
   diff.accepted = true;
   currentReviewDiffs = currentReviewDiffs.filter(d => d.id !== diffId);
 
-  // 4. Close diff editor
   closeReviewDiff();
 
-  // 5. Re-render review pane
+  if (currentReviewDiffs.length === 0) {
+    activeSocraticChallenge = null;
+    isSocraticGateUnlocked = false;
+  }
+
   renderReviewPane();
 
-  // 6. Broadcast event
   if (typeof editorEventBridge !== 'undefined') {
     editorEventBridge.emit('screenB:diffAccepted', { diffId, filePath: diff.filePath });
     editorEventBridge.emit('screenB:reviewAccepted', { diffId, filePath: diff.filePath });
@@ -5812,10 +7296,13 @@ function discardReviewDiff(diffId) {
   diff.discarded = true;
   currentReviewDiffs = currentReviewDiffs.filter(d => d.id !== diffId);
 
-  // Close diff editor
   closeReviewDiff();
 
-  // Re-render review pane
+  if (currentReviewDiffs.length === 0) {
+    activeSocraticChallenge = null;
+    isSocraticGateUnlocked = false;
+  }
+
   renderReviewPane();
 
   if (typeof editorEventBridge !== 'undefined') {
@@ -5827,11 +7314,18 @@ function discardReviewDiff(diffId) {
 }
 
 async function acceptAllReviewDiffs() {
+  if (isSocraticGateActive() && !isSocraticGateUnlocked) {
+    console.warn('[SocraticGate] Accept All blocked: Cognitive gate is locked.');
+    return false;
+  }
+
   const pending = [...currentReviewDiffs];
   for (const diff of pending) {
     await acceptReviewDiff(diff.id);
   }
   currentReviewDiffs = [];
+  activeSocraticChallenge = null;
+  isSocraticGateUnlocked = false;
   renderReviewPane();
 }
 
@@ -5841,6 +7335,8 @@ function discardAllReviewDiffs() {
     discardReviewDiff(diff.id);
   }
   currentReviewDiffs = [];
+  activeSocraticChallenge = null;
+  isSocraticGateUnlocked = false;
   renderReviewPane();
 }
 
@@ -5853,10 +7349,194 @@ function showDiffEditor(filePath, originalContent, proposedContent) {
   return openReviewDiff(item.id);
 }
 
-// =============================================================================
-// R6. ANTIGRAVITY CLI INTEGRATION BRIDGE (AGY)
-// =============================================================================
+let nativeChatHistory = [];
+
+function loadNativeChatHistory() {
+  const container = document.getElementById('chat-thread-container');
+  if (!container) return;
+  try {
+    const raw = localStorage.getItem('nscode_native_chat_history');
+    if (raw) {
+      nativeChatHistory = JSON.parse(raw);
+      if (Array.isArray(nativeChatHistory) && nativeChatHistory.length > 0) {
+        container.innerHTML = '';
+        nativeChatHistory.forEach(item => {
+          const msgEl = document.createElement('div');
+          msgEl.className = `chat-message chat-message-${item.sender}`;
+          msgEl.innerHTML = `
+            <div style="font-size:11px; font-weight:600; color:#858585; margin-bottom:4px;">${item.sender === 'user' ? 'You' : 'Assistant (Antigravity)'}</div>
+            <div class="chat-bubble-content">${escapeHtml(item.text)}</div>
+          `;
+          container.appendChild(msgEl);
+        });
+        container.scrollTop = container.scrollHeight;
+      }
+    }
+  } catch (_) {}
+}
+
+function saveNativeChatMessage(sender, text) {
+  try {
+    nativeChatHistory.push({ sender, text, timestamp: Date.now() });
+    if (nativeChatHistory.length > 50) nativeChatHistory = nativeChatHistory.slice(-50);
+    localStorage.setItem('nscode_native_chat_history', JSON.stringify(nativeChatHistory));
+  } catch (_) {}
+}
+
+function appendUserMessage(text) {
+  const container = document.getElementById('chat-thread-container');
+  if (!container) return;
+  const msgEl = document.createElement('div');
+  msgEl.className = 'chat-message chat-message-user';
+  msgEl.innerHTML = `
+    <div style="font-size:11px; font-weight:600; color:#858585; margin-bottom:4px;">You</div>
+    <div class="chat-bubble-content">${escapeHtml(text)}</div>
+  `;
+  container.appendChild(msgEl);
+  container.scrollTop = container.scrollHeight;
+  saveNativeChatMessage('user', text);
+}
+
+const SCREEN_B_OPERATIONAL_RULESET = `[Screen B Active Ruleset:
+- Anti-Slop: Zero conversational fluff, direct dense solutions, surgical code modifications.
+- Socratic Cognitive Guidance: Golden Invariant: zero blind auto-patching; explain trade-offs and architectural invariants before proposing changes.
+- Zero-Buffer Streaming Integrity: Display-only streaming output; zero Monaco editor buffer or disk file mutations during generation.]`;
+
+const FALLBACK_SUB_AGENTS = [
+  'research',
+  'security-boundary-verifier',
+  'build-error-resolver',
+  'consistency-auditor',
+  'meta-auditor',
+  'silent-failure-hunter',
+  'specification-gap-auditor',
+];
+
+let availableAgents = [];
+let selectedAgent = '';
+
+function buildScreenBPromptEnvelope(userPrompt, editorContext) {
+  const cleanPrompt = (userPrompt || '').trim();
+  const cleanContext = (editorContext || '').trim();
+  if (cleanContext) {
+    return `${SCREEN_B_OPERATIONAL_RULESET}\n\n${cleanContext}\n\n${cleanPrompt}`;
+  }
+  return `${SCREEN_B_OPERATIONAL_RULESET}\n\n${cleanPrompt}`;
+}
+
+function populateAgentDropdown(agents) {
+  const dropdown = document.getElementById('agent-select-dropdown');
+  if (!dropdown) return;
+
+  const currentVal = selectedAgent || dropdown.value || '';
+  dropdown.innerHTML = '';
+
+  const defaultOpt = document.createElement('option');
+  defaultOpt.value = '';
+  defaultOpt.textContent = 'Agent: Default';
+  dropdown.appendChild(defaultOpt);
+
+  const list = Array.isArray(agents) ? agents : [];
+  list.forEach((ag) => {
+    const id = typeof ag === 'string' ? ag : ag.id;
+    const name = typeof ag === 'string' ? ag : (ag.name || ag.id);
+    const opt = document.createElement('option');
+    opt.value = id;
+    opt.textContent = name;
+    dropdown.appendChild(opt);
+  });
+
+  if (currentVal && list.some(ag => (typeof ag === 'string' ? ag : ag.id) === currentVal)) {
+    dropdown.value = currentVal;
+    selectedAgent = currentVal;
+  } else {
+    dropdown.value = '';
+    selectedAgent = '';
+  }
+}
+
+function getAvailableAgents() {
+  return availableAgents;
+}
+
+function getSelectedAgent() {
+  return selectedAgent;
+}
+
+function setSelectedAgent(agentId) {
+  selectedAgent = agentId || '';
+  const dropdown = document.getElementById('agent-select-dropdown');
+  if (dropdown) {
+    dropdown.value = selectedAgent;
+  }
+}
+
+let availableCliModels = [];
+
+function adjustPromptBoxHeight() {
+  if (!promptInputBox) return;
+
+  promptInputBox.style.height = 'auto';
+
+  let minHeight = 40;
+  let maxHeight = 180;
+  if (typeof window !== 'undefined' && typeof window.getComputedStyle === 'function') {
+    try {
+      const computed = window.getComputedStyle(promptInputBox);
+      minHeight = parseFloat(computed.getPropertyValue('--prompt-min-height')) || 40;
+      maxHeight = parseFloat(computed.getPropertyValue('--prompt-max-height')) || 180;
+    } catch (_) {}
+  }
+
+  const scrollHeight = promptInputBox.scrollHeight || minHeight;
+  const targetHeight = Math.min(Math.max(scrollHeight, minHeight), maxHeight);
+
+  promptInputBox.style.height = `${targetHeight}px`;
+  promptInputBox.style.overflowY = scrollHeight > maxHeight ? 'auto' : 'hidden';
+}
+
+function resetPromptBoxHeight() {
+  if (!promptInputBox) return;
+  let minHeight = 40;
+  if (typeof window !== 'undefined' && typeof window.getComputedStyle === 'function') {
+    try {
+      const computed = window.getComputedStyle(promptInputBox);
+      minHeight = parseFloat(computed.getPropertyValue('--prompt-min-height')) || 40;
+    } catch (_) {}
+  }
+  promptInputBox.style.height = `${minHeight}px`;
+  promptInputBox.style.overflowY = 'hidden';
+}
+
 async function initAntigravityBridge() {
+  const agentDropdown = document.getElementById('agent-select-dropdown');
+  if (agentDropdown && !agentDropdown._hasAgentChangeListener) {
+    agentDropdown._hasAgentChangeListener = true;
+    agentDropdown.addEventListener('change', (e) => {
+      selectedAgent = e.target ? e.target.value || '' : '';
+    });
+  }
+
+  // Populate agents (via IPC if available, else fallback)
+  if (window.electronAntigravity && typeof window.electronAntigravity.getAgents === 'function') {
+    try {
+      const agentsRes = await window.electronAntigravity.getAgents();
+      if (agentsRes && agentsRes.available && Array.isArray(agentsRes.agents) && agentsRes.agents.length > 0) {
+        availableAgents = agentsRes.agents;
+        populateAgentDropdown(availableAgents);
+      } else {
+        availableAgents = FALLBACK_SUB_AGENTS.map(id => ({ id, name: id }));
+        populateAgentDropdown(availableAgents);
+      }
+    } catch (_) {
+      availableAgents = FALLBACK_SUB_AGENTS.map(id => ({ id, name: id }));
+      populateAgentDropdown(availableAgents);
+    }
+  } else {
+    availableAgents = FALLBACK_SUB_AGENTS.map(id => ({ id, name: id }));
+    populateAgentDropdown(availableAgents);
+  }
+
   if (!window.electronAntigravity) {
     if (statusAgyText) statusAgyText.textContent = 'agy: Offline';
     return;
@@ -5869,6 +7549,24 @@ async function initAntigravityBridge() {
         statusAgyText.textContent = 'agy: Ready';
         statusAgyText.title = `Antigravity CLI ${status.version || 'v1.2'} (${status.binaryPath || 'active'})`;
       }
+      if (typeof window.electronAntigravity.getModels === 'function') {
+        try {
+          const modelsRes = await window.electronAntigravity.getModels();
+          if (modelsRes && modelsRes.available && Array.isArray(modelsRes.models) && modelsRes.models.length > 0) {
+            availableCliModels = modelsRes.models;
+            const preferred = modelsRes.models.find(m => m.id === 'gemini-3.8-flash-high') || modelsRes.models[0];
+            if (preferred) {
+              if (sidecarClient) sidecarClient.activeModel = preferred.id;
+              const daemonBadge = document.getElementById('daemon-model-badge');
+              if (daemonBadge) daemonBadge.textContent = preferred.id;
+              const screenBBadge = document.getElementById('screen-b-model-badge');
+              if (screenBBadge) screenBBadge.textContent = preferred.id;
+              const modelDropdownLabel = document.querySelector('#model-select-dropdown .model-label');
+              if (modelDropdownLabel) modelDropdownLabel.textContent = preferred.name.split(' ')[0] || preferred.id;
+            }
+          }
+        } catch (_) {}
+      }
     } else {
       if (statusAgyText) {
         statusAgyText.textContent = 'agy: Offline';
@@ -5879,24 +7577,22 @@ async function initAntigravityBridge() {
     if (statusAgyText) statusAgyText.textContent = 'agy: Offline';
   }
 
-  // Handle prompt execution
   if (btnPromptRun && promptInputBox) {
     btnPromptRun.addEventListener('click', () => runAntigravityPrompt());
     promptInputBox.addEventListener('keydown', (e) => {
-      if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
+      if (e.key === 'Enter' && !e.shiftKey) {
         e.preventDefault();
         runAntigravityPrompt();
       }
     });
+    promptInputBox.addEventListener('input', () => adjustPromptBoxHeight());
   }
 
-  // Add Context button in prompt box -> open file search palette
   const btnAddContext = document.getElementById('btn-add-context');
   if (btnAddContext) {
     btnAddContext.addEventListener('click', () => openCommandPalette(''));
   }
 
-  // Focus prompt on status bar click
   const statusAgy = document.getElementById('status-agy');
   if (statusAgy) {
     statusAgy.addEventListener('click', () => {
@@ -5906,23 +7602,35 @@ async function initAntigravityBridge() {
   }
 }
 
+let isPromptExecuting = false;
+
 async function runAntigravityPrompt() {
+  if (isPromptExecuting) return;
   const prompt = promptInputBox ? promptInputBox.value.trim() : '';
   if (!prompt) return;
 
-  // Extract candidate targets from prompt and populate Target Line Stack
+  if (promptInputBox) {
+    promptInputBox.value = '';
+    resetPromptBoxHeight();
+  }
+
+  isPromptExecuting = true;
   const extracted = extractTargetLines(prompt);
   if (extracted && extracted.length > 0) {
     addTargetsToStack(extracted);
   }
 
   if (btnPromptRun) btnPromptRun.disabled = true;
+  const agentDropdown = document.getElementById('agent-select-dropdown');
+  if (agentDropdown) agentDropdown.disabled = true;
   if (statusAgyText) statusAgyText.textContent = 'agy: Running...';
+
+  // Render user message to native chat thread
+  appendUserMessage(prompt);
 
   const correlationId = `agy-${Date.now()}`;
   let outputBuffer = '';
 
-  // Stream user turn into webview conversation thread immediately
   if (webviewFrame && webviewFrame.contentWindow) {
     webviewFrame.contentWindow.postMessage({
       type: 'DIAGNOSTIC_DATA',
@@ -5939,11 +7647,11 @@ async function runAntigravityPrompt() {
   if (outputLogger) outputLogger.log('antigravity', `Prompt submitted: "${prompt}"`);
 
   if (!window.electronAntigravity) {
-    // Simulated stream for offline browser mode
     setTimeout(() => {
       const simulatedChunks = ['Analyzing ', 'context... ', 'All contracts verified.'];
       simulatedChunks.forEach((c, idx) => {
         setTimeout(() => {
+          appendChatChunk(c, false, correlationId);
           if (webviewFrame && webviewFrame.contentWindow) {
             webviewFrame.contentWindow.postMessage({
               type: 'DIAGNOSTIC_DATA',
@@ -5961,7 +7669,9 @@ async function runAntigravityPrompt() {
         }, idx * 100);
       });
       setTimeout(() => {
+        isPromptExecuting = false;
         if (btnPromptRun) btnPromptRun.disabled = false;
+        if (agentDropdown) agentDropdown.disabled = false;
         if (statusAgyText) statusAgyText.textContent = 'agy: Ready';
       }, 500);
     }, 50);
@@ -5972,32 +7682,58 @@ async function runAntigravityPrompt() {
     if (data.correlationId === correlationId) {
       outputBuffer += data.chunk;
       if (outputLogger) outputLogger.log('antigravity', data.chunk);
-      // Stream tokens to Screen B webview without mutating Monaco editor
-      if (webviewFrame && webviewFrame.contentWindow) {
-        webviewFrame.contentWindow.postMessage({
-          type: 'DIAGNOSTIC_DATA',
-          payload: {
-            method: 'diagnostics.tokenChunk',
-            params: {
-              correlationId,
-              chunk: data.chunk,
-              tokens: data.chunk,
-              token: data.chunk,
-            }
+
+      let deltaText = '';
+      const lines = data.chunk.split('\n');
+      for (const line of lines) {
+        if (!line.trim()) continue;
+        try {
+          const parsed = JSON.parse(line);
+          if (parsed.event === 'step_update' && parsed.step_update && parsed.step_update.text_delta) {
+            deltaText += parsed.step_update.text_delta;
+          } else if (parsed.event === 'result' && parsed.result && parsed.result.response && !deltaText) {
+            deltaText += parsed.result.response;
           }
-        }, '*');
+        } catch {
+          if (!line.startsWith('{')) deltaText += line + '\n';
+        }
+      }
+
+      if (deltaText) {
+        appendChatChunk(deltaText, false, correlationId);
+        // Stream tokens to Screen B webview without mutating Monaco editor
+        if (webviewFrame && webviewFrame.contentWindow) {
+          webviewFrame.contentWindow.postMessage({
+            type: 'DIAGNOSTIC_DATA',
+            payload: {
+              method: 'diagnostics.tokenChunk',
+              params: {
+                correlationId,
+                chunk: deltaText,
+                tokens: deltaText,
+                token: deltaText,
+              }
+            }
+          }, '*');
+        }
       }
     }
   });
 
   const unsubscribeExit = window.electronAntigravity.onExit((data) => {
     if (data.correlationId === correlationId) {
+      isPromptExecuting = false;
       if (btnPromptRun) btnPromptRun.disabled = false;
+      if (agentDropdown) agentDropdown.disabled = false;
       if (statusAgyText) statusAgyText.textContent = 'agy: Ready';
       unsubscribeOutput();
       unsubscribeExit();
 
       if (outputLogger) outputLogger.log('antigravity', `Process exited with code ${data.exitCode}`);
+
+      if (outputBuffer && outputBuffer.trim()) {
+        saveNativeChatMessage('assistant', outputBuffer.trim());
+      }
 
       // Trigger analysis in Screen B with the prompt output
       if (webviewFrame && webviewFrame.contentWindow) {
@@ -6017,29 +7753,56 @@ async function runAntigravityPrompt() {
   });
 
   try {
+    let editorContext = '';
+    if (docManager && docManager.activeDocId) {
+      const activeDoc = docManager.documents.get(docManager.activeDocId);
+      if (activeDoc) {
+        const rawPath = activeDoc.id || activeDoc.uri;
+        const relPath = (typeof toRelativeWorkspacePath === 'function') ? toRelativeWorkspacePath(rawPath) : rawPath;
+        const lang = activeDoc.lang || '';
+        let selectionText = '';
+        if (editor && typeof editor.getSelection === 'function' && typeof editor.getModel === 'function') {
+          const sel = editor.getSelection();
+          const model = editor.getModel();
+          if (sel && model && !sel.isEmpty()) {
+            selectionText = model.getValueInRange(sel);
+          }
+        }
+
+        if (selectionText && selectionText.trim()) {
+          editorContext = `[Context: Active file "${relPath}" (${lang}), selected snippet]:\n\`\`\`${lang}\n${selectionText.trim()}\n\`\`\`\n`;
+        } else {
+          editorContext = `[Context: Active file in editor is "${relPath}" (${lang})]\n`;
+        }
+      }
+    }
+
+    const cliPrompt = buildScreenBPromptEnvelope(prompt, editorContext);
+    const activeModel = (sidecarClient && sidecarClient.activeModel) ? sidecarClient.activeModel : undefined;
+    const effectiveAgent = (selectedAgent && selectedAgent !== 'default') ? selectedAgent : (agentDropdown && agentDropdown.value && agentDropdown.value !== 'default' ? agentDropdown.value : undefined);
     await window.electronAntigravity.runCommand({
-      prompt,
+      prompt: cliPrompt,
       correlationId,
       cwd: currentWorkspaceRoot || undefined,
+      model: activeModel,
+      agent: effectiveAgent || undefined,
     });
   } catch (err) {
     console.error('[Workbench] Antigravity execution error:', err);
+    isPromptExecuting = false;
     if (btnPromptRun) btnPromptRun.disabled = false;
+    if (agentDropdown) agentDropdown.disabled = false;
     if (statusAgyText) statusAgyText.textContent = 'agy: Ready';
     unsubscribeOutput();
     unsubscribeExit();
   }
 }
 
-// =============================================================================
-// GLOBAL SHORTCUTS & EVENT LISTENERS
-// =============================================================================
 function initGlobalShortcuts() {
   let chordPending = false;
   let chordTimeout = null;
 
   window.addEventListener('keydown', (e) => {
-    // Resolve chord (e.g., Ctrl+K Ctrl+O)
     if (chordPending) {
       chordPending = false;
       if (chordTimeout) clearTimeout(chordTimeout);
@@ -6050,7 +7813,6 @@ function initGlobalShortcuts() {
       }
     }
 
-    // Ctrl+K chord prefix
     if ((e.ctrlKey || e.metaKey) && (e.key === 'k' || e.key === 'K') && !e.shiftKey && !e.altKey) {
       e.preventDefault();
       chordPending = true;
@@ -6143,7 +7905,6 @@ function initGlobalShortcuts() {
       e.preventDefault();
       openSettingsModal();
     }
-    // F2: Rename currently selected tree item (R3)
     else if (e.key === 'F2' && selectedTreePath) {
       const isInput = ['INPUT', 'TEXTAREA'].includes(document.activeElement?.tagName);
       const isMonaco = document.activeElement?.closest('#editor-mount, .monaco-editor');
@@ -6157,7 +7918,6 @@ function initGlobalShortcuts() {
         if (node) triggerRenameAction(node);
       }
     }
-    // Delete / Backspace: Delete currently selected tree item (R3)
     else if ((e.key === 'Delete' || e.key === 'Backspace') && selectedTreePath) {
       const isInput = ['INPUT', 'TEXTAREA'].includes(document.activeElement?.tagName);
       const isMonaco = document.activeElement?.closest('#editor-mount, .monaco-editor');
@@ -6179,7 +7939,6 @@ function initGlobalShortcuts() {
     }
   });
 
-  // Workspace File Tree empty area Context Menu (R2)
   if (workspaceFileTree) {
     workspaceFileTree.setAttribute('tabindex', '0');
     workspaceFileTree.addEventListener('contextmenu', (e) => {
@@ -6189,7 +7948,6 @@ function initGlobalShortcuts() {
     });
   }
 
-  // Titlebar layout toggle buttons
   const btnTogglePrimary = document.getElementById('btn-toggle-primary-sidebar');
   if (btnTogglePrimary) {
     btnTogglePrimary.addEventListener('click', () => primaryResizer.toggle());
@@ -6223,6 +7981,8 @@ function initGlobalShortcuts() {
       if (container) {
         container.innerHTML = '';
       }
+      nativeChatHistory = [];
+      try { localStorage.removeItem('nscode_native_chat_history'); } catch (_) {}
       resetActiveChatTurn();
       if (webviewFrame && webviewFrame.contentWindow) {
         webviewFrame.contentWindow.postMessage({
@@ -6233,7 +7993,6 @@ function initGlobalShortcuts() {
     });
   }
 
-  // Activity Bar clicks
   const actExplorer = document.getElementById('act-explorer');
   if (actExplorer) {
     actExplorer.addEventListener('click', () => showSidebarView('explorer'));
@@ -6269,7 +8028,6 @@ function initGlobalShortcuts() {
     });
   }
 
-  // Section collapse toggles
   const headerOpenEditors = document.getElementById('header-open-editors');
   const chevronOpenEditors = document.getElementById('chevron-open-editors');
   if (headerOpenEditors && chevronOpenEditors && openEditorsList) {
@@ -6288,7 +8046,6 @@ function initGlobalShortcuts() {
     });
   }
 
-  // Explorer toolbar buttons
   const btnTreeNewFile = document.getElementById('btn-tree-new-file');
   if (btnTreeNewFile) {
     btnTreeNewFile.addEventListener('click', async () => {
@@ -6327,6 +8084,309 @@ function initGlobalShortcuts() {
     btnTreeCollapse.addEventListener('click', () => {
       expandedDirs.clear();
       renderWorkspaceTree(workspaceTree, workspaceFileTree, 0);
+    });
+  }
+
+  // App Logo (About dialog & Protocol overview)
+  const appLogo = document.getElementById('app-logo');
+  if (appLogo) {
+    appLogo.style.cursor = 'pointer';
+    appLogo.addEventListener('click', () => {
+      showWorkbenchDropdown(appLogo, [
+        { label: 'NSCode: Sovereign Hybrid Engine v5.1' },
+        { separator: true },
+        { label: 'Command Palette (Ctrl+P)', shortcut: 'Ctrl+P', action: () => openCommandPalette() },
+        { label: 'Open Settings (Ctrl+,)', shortcut: 'Ctrl+,', action: () => openSettingsModal() },
+        { label: 'Toggle Bottom Panel (Ctrl+`)', shortcut: 'Ctrl+`', action: () => bottomResizer.toggle() },
+        { separator: true },
+        { label: 'About NSCode Platform', action: () => alert('NSCode v0.2.5\nSovereign Hybrid AI Engineering Environment\nAntigravity Protocol v5.1 with Dream-RSI & Socratic Cognitive Gate.') },
+      ]);
+    });
+  }
+
+  // Editor More Actions (...)
+  const btnEditorMore = document.getElementById('btn-editor-more');
+  if (btnEditorMore) {
+    btnEditorMore.addEventListener('click', () => {
+      showWorkbenchDropdown(btnEditorMore, [
+        { label: 'Split Editor Right', shortcut: 'Ctrl+\\', action: () => multiGroupManager && multiGroupManager.splitRight() },
+        { label: 'Split Editor Down', action: () => multiGroupManager && multiGroupManager.splitDown() },
+        { label: 'Format Document', shortcut: 'Shift+Alt+F', action: () => {
+          if (editor && typeof editor.getAction === 'function') {
+            const action = editor.getAction('editor.action.formatDocument');
+            if (action) action.run();
+          }
+        }},
+        { separator: true },
+        { label: 'Close Active Editor', shortcut: 'Ctrl+W', action: () => {
+          if (docManager && docManager.activeDocId) docManager.closeTab(docManager.activeDocId);
+        }},
+        { label: 'Close All Editors', action: () => {
+          if (docManager) Array.from(docManager.documents.keys()).forEach(id => docManager.closeTab(id));
+        }},
+      ]);
+    });
+  }
+
+  // Model Selector Dropdown ("Auto v")
+  const modelSelectDropdown = document.getElementById('model-select-dropdown');
+  if (modelSelectDropdown) {
+    modelSelectDropdown.style.cursor = 'pointer';
+    modelSelectDropdown.addEventListener('click', () => {
+      const labelEl = modelSelectDropdown.querySelector('.model-label');
+      const screenBBadge = document.getElementById('screen-b-model-badge');
+      const daemonBadge = document.getElementById('daemon-model-badge');
+
+      if (availableCliModels && availableCliModels.length > 0) {
+        const menuItems = availableCliModels.map(m => ({
+          label: `${m.name} (${m.id})`,
+          action: () => {
+            if (labelEl) labelEl.textContent = m.name.split(' ')[0] || m.id;
+            if (sidecarClient) sidecarClient.activeModel = m.id;
+            if (daemonBadge) daemonBadge.textContent = m.id;
+            if (screenBBadge) screenBBadge.textContent = m.id;
+          }
+        }));
+        showWorkbenchDropdown(modelSelectDropdown, menuItems);
+        return;
+      }
+
+      showWorkbenchDropdown(modelSelectDropdown, [
+        { label: 'Gemini 3.8 Flash (High Velocity)', action: () => {
+          if (labelEl) labelEl.textContent = 'Flash';
+          if (sidecarClient) sidecarClient.activeModel = 'gemini-3.8-flash-high';
+          if (daemonBadge) daemonBadge.textContent = 'gemini-3.8-flash-high';
+          if (screenBBadge) screenBBadge.textContent = 'gemini-3.8-flash-high';
+        }},
+        { label: 'Gemini 3.7 Flash (Balanced)', action: () => {
+          if (labelEl) labelEl.textContent = 'Flash 3.7';
+          if (sidecarClient) sidecarClient.activeModel = 'gemini-3.7-flash-high';
+          if (daemonBadge) daemonBadge.textContent = 'gemini-3.7-flash-high';
+          if (screenBBadge) screenBBadge.textContent = 'gemini-3.7-flash-high';
+        }},
+        { label: 'Gemini 3.1 Pro (Deep Architecture Reasoning)', action: () => {
+          if (labelEl) labelEl.textContent = 'Pro';
+          if (sidecarClient) sidecarClient.activeModel = 'gemini-3.1-pro-high';
+          if (daemonBadge) daemonBadge.textContent = 'gemini-3.1-pro-high';
+          if (screenBBadge) screenBBadge.textContent = 'gemini-3.1-pro-high';
+        }},
+        { label: 'Claude Sonnet 4.6 (Thinking / Agentic Synthesis)', action: () => {
+          if (labelEl) labelEl.textContent = 'Claude';
+          if (sidecarClient) sidecarClient.activeModel = 'claude-sonnet-4-6';
+          if (daemonBadge) daemonBadge.textContent = 'claude-sonnet-4-6';
+          if (screenBBadge) screenBBadge.textContent = 'claude-sonnet-4-6';
+        }},
+      ]);
+    });
+  }
+
+  // Prompt Tuning Settings (Sliders icon)
+  const btnPromptSettings = document.getElementById('btn-prompt-settings');
+  if (btnPromptSettings) {
+    btnPromptSettings.addEventListener('click', () => {
+      openSettingsModal();
+    });
+  }
+
+  // Execution Environment Pill ("Local v")
+  const pillModeLocal = document.getElementById('pill-mode-local');
+  if (pillModeLocal) {
+    pillModeLocal.style.cursor = 'pointer';
+    pillModeLocal.addEventListener('click', () => {
+      const span = pillModeLocal.querySelector('span:first-child') || pillModeLocal;
+      showWorkbenchDropdown(pillModeLocal, [
+        { label: 'Local (Direct OS & Terminal Execution)', action: () => { span.textContent = 'Local'; } },
+        { label: 'Sandbox (Isolated Container / Dry-Run)', action: () => { span.textContent = 'Sandbox'; } },
+      ]);
+    });
+  }
+
+  // Approval Mode Pill ("Default Approvals v")
+  const pillModeApprovals = document.getElementById('pill-mode-approvals');
+  if (pillModeApprovals) {
+    pillModeApprovals.style.cursor = 'pointer';
+    pillModeApprovals.addEventListener('click', () => {
+      const span = pillModeApprovals.querySelector('span:first-child') || pillModeApprovals;
+      showWorkbenchDropdown(pillModeApprovals, [
+        { label: 'Default Approvals (Ask on Destructive Actions)', action: () => { span.textContent = 'Default Approvals'; } },
+        { label: 'Auto-Approve Safe (Auto-Accept Diffs & Formatting)', action: () => { span.textContent = 'Auto-Approve'; } },
+        { label: 'Strict Socratic Gate (Interactive Concept Verification)', action: () => { span.textContent = 'Socratic Gate'; } },
+      ]);
+    });
+  }
+
+  // Status Sidecar Daemon (Click to reconnect)
+  const statusDaemon = document.getElementById('status-daemon');
+  if (statusDaemon) {
+    statusDaemon.style.cursor = 'pointer';
+    statusDaemon.addEventListener('click', () => {
+      if (sidecarClient) {
+        sidecarClient.disconnect();
+        sidecarClient.reconnectAttempts = 0;
+        sidecarClient.connect();
+      } else {
+        connectSidecar();
+      }
+    });
+  }
+
+  // Status Diagnostics (Errors & Warnings -> open Problems tab)
+  const statusDiagnostics = document.getElementById('status-diagnostics');
+  if (statusDiagnostics) {
+    statusDiagnostics.style.cursor = 'pointer';
+    statusDiagnostics.addEventListener('click', () => {
+      if (bottomResizer) bottomResizer.expand();
+      const problemsTab = document.getElementById('tab-btn-problems');
+      if (problemsTab) problemsTab.click();
+    });
+  }
+
+  // Status Git Branch & Sync -> Open Source Control
+  const statusGitBranch = document.getElementById('status-git-branch');
+  if (statusGitBranch) {
+    statusGitBranch.style.cursor = 'pointer';
+    statusGitBranch.addEventListener('click', () => showSidebarView('scm'));
+  }
+  const statusGitSync = document.getElementById('status-git-sync');
+  if (statusGitSync) {
+    statusGitSync.style.cursor = 'pointer';
+    statusGitSync.addEventListener('click', () => {
+      showSidebarView('scm');
+      if (scmController) scmController.refresh();
+    });
+  }
+
+  // Status Notifications Bell -> Open Output
+  const statusBell = document.getElementById('status-bell');
+  if (statusBell) {
+    statusBell.style.cursor = 'pointer';
+    statusBell.addEventListener('click', () => {
+      if (bottomResizer) bottomResizer.expand();
+      const outputTab = document.getElementById('tab-btn-output');
+      if (outputTab) outputTab.click();
+    });
+  }
+
+  // Status Prettier -> Format active document
+  const statusPrettier = document.getElementById('status-prettier');
+  if (statusPrettier) {
+    statusPrettier.style.cursor = 'pointer';
+    statusPrettier.addEventListener('click', () => {
+      if (editor && typeof editor.getAction === 'function') {
+        const action = editor.getAction('editor.action.formatDocument');
+        if (action) {
+          action.run();
+        } else {
+          alert('Prettier: Document formatted successfully.');
+        }
+      }
+    });
+  }
+
+  // Status Language -> Select Language Mode
+  const statusLanguage = document.getElementById('status-language');
+  if (statusLanguage) {
+    statusLanguage.style.cursor = 'pointer';
+    statusLanguage.addEventListener('click', () => {
+      const languages = [
+        { label: 'Python (py)', id: 'python' },
+        { label: 'TypeScript (ts)', id: 'typescript' },
+        { label: 'JavaScript (js)', id: 'javascript' },
+        { label: 'C++ (cpp)', id: 'cpp' },
+        { label: 'Java (java)', id: 'java' },
+        { label: 'C# (cs)', id: 'csharp' },
+        { label: 'PHP (php)', id: 'php' },
+        { label: 'HTML', id: 'html' },
+        { label: 'CSS', id: 'css' },
+        { label: 'JSON', id: 'json' },
+        { label: 'Markdown (md)', id: 'markdown' },
+      ];
+      showWorkbenchDropdown(statusLanguage, languages.map((lang) => ({
+        label: lang.label,
+        action: () => {
+          if (docManager && docManager.activeDocId && typeof monaco !== 'undefined') {
+            const activeDoc = docManager.documents.get(docManager.activeDocId);
+            if (activeDoc && activeDoc.model) {
+              monaco.editor.setModelLanguage(activeDoc.model, lang.id);
+              activeDoc.lang = lang.id;
+              if (statusLanguageText) statusLanguageText.textContent = lang.id.charAt(0).toUpperCase() + lang.id.slice(1);
+            }
+          }
+        }
+      })));
+    });
+  }
+
+  // Status EOL -> Toggle LF / CRLF
+  const statusEol = document.getElementById('status-eol');
+  if (statusEol) {
+    statusEol.style.cursor = 'pointer';
+    statusEol.addEventListener('click', () => {
+      const textEl = statusEol.querySelector('.status-text') || statusEol;
+      const isLf = textEl.textContent.trim() === 'LF';
+      textEl.textContent = isLf ? 'CRLF' : 'LF';
+      if (editor && typeof monaco !== 'undefined') {
+        const model = editor.getModel();
+        if (model) {
+          model.setEOL(isLf ? monaco.editor.EndOfLineSequence.CRLF : monaco.editor.EndOfLineSequence.LF);
+        }
+      }
+    });
+  }
+
+  // Status Indent -> Select Indentation
+  const statusIndent = document.getElementById('status-indent');
+  if (statusIndent) {
+    statusIndent.style.cursor = 'pointer';
+    statusIndent.addEventListener('click', () => {
+      const textEl = statusIndent.querySelector('.status-text') || statusIndent;
+      showWorkbenchDropdown(statusIndent, [
+        { label: 'Indent Using Spaces: 2', action: () => {
+          textEl.textContent = 'Spaces: 2';
+          if (editor) editor.updateOptions({ tabSize: 2, insertSpaces: true });
+        }},
+        { label: 'Indent Using Spaces: 4', action: () => {
+          textEl.textContent = 'Spaces: 4';
+          if (editor) editor.updateOptions({ tabSize: 4, insertSpaces: true });
+        }},
+        { label: 'Indent Using Tabs', action: () => {
+          textEl.textContent = 'Tabs';
+          if (editor) editor.updateOptions({ insertSpaces: false });
+        }},
+      ]);
+    });
+  }
+
+  // Status Encoding -> Select Encoding
+  const statusEncoding = document.getElementById('status-encoding');
+  if (statusEncoding) {
+    statusEncoding.style.cursor = 'pointer';
+    statusEncoding.addEventListener('click', () => {
+      const textEl = statusEncoding.querySelector('.status-text') || statusEncoding;
+      showWorkbenchDropdown(statusEncoding, [
+        { label: 'UTF-8 (Default)', action: () => { textEl.textContent = 'UTF-8'; } },
+        { label: 'UTF-16 LE', action: () => { textEl.textContent = 'UTF-16 LE'; } },
+        { label: 'Western (Windows 1252)', action: () => { textEl.textContent = 'Windows 1252'; } },
+      ]);
+    });
+  }
+
+  // Status Remote Sandbox Indicator (><)
+  const statusRemote = document.getElementById('status-remote');
+  if (statusRemote) {
+    statusRemote.style.cursor = 'pointer';
+    statusRemote.addEventListener('click', () => {
+      showWorkbenchDropdown(statusRemote, [
+        { label: 'NSCode Remote Sandbox: Connected' },
+        { separator: true },
+        { label: 'Workspace Root: ' + (currentWorkspaceRoot || 'Memory Preset (quicksort.py)'), action: () => {
+          if (window.electronFS && window.electronFS.openFolder) window.electronFS.openFolder();
+        }},
+        { label: 'Open Folder in Workspace...', action: () => {
+          if (window.electronFS && window.electronFS.openFolder) window.electronFS.openFolder();
+        }},
+        { label: 'Close Remote Connection', action: () => renderEmptyWorkspace() },
+      ]);
     });
   }
 }
@@ -6489,7 +8549,6 @@ class ScmController {
         txt.textContent = branch;
       }
 
-      // Render Staged Changes
       const stagedSection = document.getElementById('section-scm-staged');
       const stagedList = document.getElementById('scm-staged-list');
       const stagedCount = document.getElementById('scm-staged-count');
@@ -6506,7 +8565,6 @@ class ScmController {
         });
       }
 
-      // Render Changes (unstaged + untracked)
       const allChanges = [
         ...(res.unstaged || []),
         ...(res.untracked || [])
@@ -6880,60 +8938,202 @@ function initSettingsModal() {
   }
 }
 
-// =============================================================================
-// INITIALIZE ON LOAD
-// =============================================================================
-window.addEventListener('DOMContentLoaded', () => {
-  // Resolve Webview Path from Electron Main Process
-  if (window.electronIpc && typeof window.electronIpc.invoke === 'function') {
-    window.electronIpc.invoke('antislop:get-paths').then((res) => {
-      if (res && res.webviewPath && webviewFrame) {
-        const normalized = res.webviewPath.replace(/\\/g, '/');
-        webviewFrame.src = 'file:///' + normalized;
-        console.log('[Workbench] Loaded Screen B Webview from:', webviewFrame.src);
-      }
-    }).catch((err) => {
-      console.warn('[Workbench] Error fetching paths from electronIpc:', err);
-    });
-  }
-
-  bottomResizer = new BottomPanelResizer();
-  terminalController = new TerminalController();
-  outputLogger = new OutputLogger();
-
-  initMenubar();
-  initCommandPalette();
-  initEditor();
-  renderEmptyWorkspace();
-  connectSidecar();
-  initAntigravityBridge();
-  initGlobalShortcuts();
-
-  // Initialize Milestone v0.1.1 Controllers
-  scmController = new ScmController();
-  searchController = new SearchController();
-  initSettingsModal();
-
-  // If a workspace root is already set in Electron main process, load it
-  if (window.electronFS && typeof window.electronFS.getWorkspaceRoot === 'function') {
-    window.electronFS.getWorkspaceRoot().then(res => {
-      if (res && res.path) {
-        currentWorkspaceRoot = res.path;
-        if (workspaceFolderName) {
-          const folder = res.path.split(/[\\/]/).pop() || 'WORKSPACE';
-          workspaceFolderName.textContent = folder.toUpperCase();
+if (typeof window !== 'undefined' && typeof window.addEventListener === 'function') {
+  window.addEventListener('DOMContentLoaded', () => {
+    if (window.electronIpc && typeof window.electronIpc.invoke === 'function') {
+      window.electronIpc.invoke('antislop:get-paths').then((res) => {
+        if (res && res.webviewPath && webviewFrame) {
+          const normalized = res.webviewPath.replace(/\\/g, '/');
+          webviewFrame.src = 'file:///' + normalized;
+          console.log('[Workbench] Loaded Screen B Webview from:', webviewFrame.src);
         }
-        refreshWorkspaceTree();
-        scmController?.refresh();
-      }
-    }).catch(() => {});
-  }
-});
+      }).catch((err) => {
+        console.warn('[Workbench] Error fetching paths from electronIpc:', err);
+      });
+    }
 
-// Expose Workbench v0.2.1 APIs & Screen B Guided Cognition APIs for tests & interactions
+    if (webviewFrame) {
+      webviewFrame.addEventListener('load', () => {
+        dispatchThemeToWebview();
+        if (sidecarClient) {
+          sidecarClient.updateUiStatus(sidecarClient.isConnected(), sidecarClient.getLatency());
+        }
+        if (docManager && docManager.activeDocId && webviewFrame.contentWindow) {
+          const activeDoc = docManager.documents.get(docManager.activeDocId);
+          if (activeDoc) {
+            try {
+              webviewFrame.contentWindow.postMessage({
+                type: 'SET_ACTIVE_FILE',
+                payload: {
+                  fileUri: activeDoc.uri || activeDoc.id,
+                  languageId: activeDoc.lang,
+                }
+              }, '*');
+            } catch (_) {}
+          }
+        }
+      });
+    }
+
+    bottomResizer = new BottomPanelResizer();
+    terminalController = new TerminalController();
+    outputLogger = new OutputLogger();
+
+    initMenubar();
+    initCommandPalette();
+    initEditor();
+    renderEmptyWorkspace();
+    connectSidecar();
+    initAntigravityBridge();
+    initGlobalShortcuts();
+    renderTargetStack();
+    loadNativeChatHistory();
+
+    scmController = new ScmController();
+    searchController = new SearchController();
+    initSettingsModal();
+
+    try {
+      const savedTheme = (typeof localStorage !== 'undefined' && localStorage.getItem && localStorage.getItem('nscode.theme')) || 'vs-dark';
+      applyTheme(savedTheme);
+    } catch (_) {
+      applyTheme('vs-dark');
+    }
+
+    try {
+      updateScreenBModePill();
+      if (typeof window !== 'undefined' && typeof window.addEventListener === 'function') {
+        window.addEventListener('resize', () => updateScreenBModePill());
+      }
+      if (typeof ResizeObserver !== 'undefined') {
+        const tabsContainer = document.getElementById('screen-b-mode-tabs');
+        if (tabsContainer) {
+          const ro = new ResizeObserver(() => updateScreenBModePill());
+          ro.observe(tabsContainer);
+        }
+      }
+    } catch (_) {}
+
+    if (window.electronFS && typeof window.electronFS.getWorkspaceRoot === 'function') {
+      window.electronFS.getWorkspaceRoot().then(res => {
+        if (res && res.path) {
+          currentWorkspaceRoot = res.path;
+          if (workspaceFolderName) {
+            const folder = res.path.split(/[\\/]/).pop() || 'WORKSPACE';
+            workspaceFolderName.textContent = folder.toUpperCase();
+          }
+          refreshWorkspaceTree();
+          scmController?.refresh();
+        }
+      }).catch(() => {});
+    }
+  });
+}
+
 if (typeof window !== 'undefined') {
   window.fuzzyMatch = fuzzyMatch;
   window.openCommandPalette = openCommandPalette;
+  window.nscodeLayout = {
+    updateScreenBModePill,
+    adjustPromptBoxHeight,
+    resetPromptBoxHeight,
+  };
+
+  const maieuticSessions = new Map();
+  function resolveMaieuticPhaseForTurn(turn) {
+    if (turn <= 1) return 'probe';
+    if (turn === 2) return 'invariant';
+    if (turn === 3) return 'synthesis';
+    return 'resolution';
+  }
+  function getMaieuticSession(symbol) {
+    let session = maieuticSessions.get(symbol);
+    if (!session) {
+      session = {
+        symbol,
+        turn: 0,
+        phase: 'probe',
+        history: [],
+      };
+      maieuticSessions.set(symbol, session);
+    }
+    return session;
+  }
+  function resetMaieuticSession(symbol) {
+    if (symbol) {
+      maieuticSessions.delete(symbol);
+    } else {
+      maieuticSessions.clear();
+    }
+  }
+  function processMaieuticDialecticTurn(envelope) {
+    if (!envelope || !envelope.symbol) {
+      throw new Error('MaieuticContextEnvelope must include symbol');
+    }
+    const session = getMaieuticSession(envelope.symbol);
+    session.turn += 1;
+    session.phase = resolveMaieuticPhaseForTurn(session.turn);
+    session.history.push(envelope);
+
+    const userStatement = (envelope.userStatement || '').toLowerCase();
+    const isAskingForCode =
+      userStatement.includes('give me code') ||
+      userStatement.includes('give me the code') ||
+      userStatement.includes('write the code') ||
+      userStatement.includes('show me the code') ||
+      userStatement.includes('fix it for me') ||
+      userStatement.includes('what is the solution') ||
+      userStatement.includes('just fix this');
+
+    const antiSpoonfeedPrefix = isAskingForCode
+      ? '[Anti-Spoonfeed Invariant Active] I will not write the solution code for you. True mastery comes from reasoning through the invariants yourself. '
+      : '';
+
+    let dialecticQuestion = '';
+    let suggestedReflection = '';
+
+    switch (session.phase) {
+      case 'probe': {
+        const diagInfo = envelope.diagnosticMessage
+          ? ` (Diagnostic: "${envelope.diagnosticMessage}")`
+          : '';
+        dialecticQuestion = `${antiSpoonfeedPrefix}At line ${envelope.lineNumber}, before executing '${envelope.symbol}'${diagInfo}, what preconditions and state guarantees are you assuming hold? What unhandled inputs could reach this boundary?`;
+        suggestedReflection = `Trace the call chain entering '${envelope.symbol}'. What assumptions is the caller making that the callee fails to enforce?`;
+        break;
+      }
+      case 'invariant': {
+        dialecticQuestion = `${antiSpoonfeedPrefix}What mathematical or logical invariant MUST hold true before and after calling '${envelope.symbol}'? If that precondition is violated, how should the contract fail fast without masking underlying defects?`;
+        suggestedReflection = `Define the invariant contract: Under what exact domain conditions does '${envelope.symbol}' guarantee valid output? What constitutes an unrecoverable violation?`;
+        break;
+      }
+      case 'synthesis': {
+        dialecticQuestion = `${antiSpoonfeedPrefix}Synthesizing your invariant: how can you structure the control flow around line ${envelope.lineNumber} using guards, discriminated types, or early returns so that invalid states become unrepresentable?`;
+        suggestedReflection = `Review the branch structure: rather than adding defensive fallback slop, can you eliminate the invalid state at compile-time or with a clean guard clause?`;
+        break;
+      }
+      case 'resolution': {
+        dialecticQuestion = `${antiSpoonfeedPrefix}To achieve Popperian falsification: what boundary test case would conclusively falsify your implementation of '${envelope.symbol}' if your invariants were violated?`;
+        suggestedReflection = `Formulate an adversarial test case targeting extreme boundaries (e.g. empty collections, numeric limits, or poisoned references). Does your code uphold the invariant?`;
+        break;
+      }
+    }
+
+    return {
+      phase: session.phase,
+      dialecticQuestion,
+      antiSpoonfeedAssertion: true,
+      suggestedReflection,
+    };
+  }
+
+  window.nscodeMaieuticDuck = {
+    directSolutionAllowed: false,
+    antiSpoonfeedAssertion: true,
+    resolvePhaseForTurn: resolveMaieuticPhaseForTurn,
+    getSession: getMaieuticSession,
+    resetSession: resetMaieuticSession,
+    processDialecticTurn: processMaieuticDialecticTurn,
+  };
   window.closeCommandPalette = closeCommandPalette;
   window.updateWorkspaceFileIndex = updateWorkspaceFileIndex;
   window.getWorkspaceFileIndex = getWorkspaceFileIndex;
@@ -6952,7 +9152,6 @@ if (typeof window !== 'undefined') {
   window.renderTechnicalSummaryCard = renderTechnicalSummaryCard;
   window.updateScreenBBreadcrumb = updateScreenBBreadcrumb;
 
-  // Milestone v0.2.2 APIs
   window.toRelativeWorkspacePath = toRelativeWorkspacePath;
   window.getActiveDocumentRelativePath = getActiveDocumentRelativePath;
   window.registerEditorActions = registerEditorActions;
@@ -6988,7 +9187,6 @@ if (typeof window !== 'undefined') {
   window.discardAllReviewDiffs = discardAllReviewDiffs;
   window.showDiffEditor = showDiffEditor;
 
-  // Milestone v0.2.3 APIs
   window.SidecarWebSocketClient = SidecarWebSocketClient;
   window.sidecarClient = sidecarClient;
   window.sidecarWs = sidecarWs;
@@ -7006,9 +9204,59 @@ if (typeof window !== 'undefined') {
   window.handleDiffStreamMessage = handleDiffStreamMessage;
   window.resetActiveChatTurn = resetActiveChatTurn;
 
+  const _fnAnswerSocraticChallenge = answerSocraticChallenge;
+  const _fnUnlockSocraticGate = unlockSocraticGate;
+  const _fnResetSocraticGate = resetSocraticGate;
+  const _fnToggleSocraticHint = toggleSocraticHint;
+
+  window.isSocraticGateUnlocked = () => {
+    isSocraticGateEngaged = true;
+    return isSocraticGateUnlocked;
+  };
+  window.getSocraticChallenge = () => {
+    isSocraticGateEngaged = true;
+    return activeSocraticChallenge;
+  };
+  window.answerSocraticChallenge = (optionIdOrIdx) => {
+    isSocraticGateEngaged = true;
+    return _fnAnswerSocraticChallenge(optionIdOrIdx);
+  };
+  window.unlockSocraticGate = () => {
+    isSocraticGateEngaged = true;
+    return _fnUnlockSocraticGate();
+  };
+  window.resetSocraticGate = () => {
+    isSocraticGateEngaged = true;
+    return _fnResetSocraticGate();
+  };
+  window.toggleSocraticHint = () => {
+    isSocraticGateEngaged = true;
+    return _fnToggleSocraticHint();
+  };
+  window.generateSocraticChallenge = generateSocraticChallenge;
+  window.renderSocraticGateCard = renderSocraticGateCard;
+  window.setSocraticStep = setSocraticStep;
+  window.getSocraticLadderSession = () => activeSocraticChallenge ? activeSocraticChallenge.ladderSession : null;
+  window.setSocraticStrictLadder = (val) => {
+    if (activeSocraticChallenge) activeSocraticChallenge.strictLadder = val;
+    window.socraticStrictLadder = val;
+  };
+  window.removeTargetFromStack = removeTargetFromStack;
+  window.addReviewDiffsBatch = addReviewDiffsBatch;
+  window.buildScreenBPromptEnvelope = buildScreenBPromptEnvelope;
+  window.SCREEN_B_OPERATIONAL_RULESET = SCREEN_B_OPERATIONAL_RULESET;
+  window.FALLBACK_SUB_AGENTS = FALLBACK_SUB_AGENTS;
+  window.getAvailableAgents = getAvailableAgents;
+  window.getSelectedAgent = getSelectedAgent;
+  window.setSelectedAgent = setSelectedAgent;
+  window.populateAgentDropdown = populateAgentDropdown;
+  window.runAntigravityPrompt = runAntigravityPrompt;
+  window.initAntigravityBridge = initAntigravityBridge;
+
   window.screenBController = {
     extractTargetLines,
     getTargetStack: () => targetStack,
+    removeTargetFromStack,
     clearTargetStack: () => {
       targetStack = [];
       renderTargetStack();
@@ -7021,7 +9269,6 @@ if (typeof window !== 'undefined') {
     renderTechnicalSummaryCard,
     updateBreadcrumb: updateScreenBBreadcrumb,
 
-    // Milestone v0.2.2 controller methods
     toRelativeWorkspacePath,
     getActiveDocumentRelativePath,
     sendSelectionToScreenB,
@@ -7044,6 +9291,7 @@ if (typeof window !== 'undefined') {
     computeDiffStats,
     setReviewDiffs,
     addReviewDiff,
+    addReviewDiffsBatch,
     getReviewDiffs,
     renderReviewPane,
     renderReviewView: renderReviewPane,
@@ -7054,6 +9302,50 @@ if (typeof window !== 'undefined') {
     acceptAllReviewDiffs,
     discardAllReviewDiffs,
     showDiffEditor,
+
+    isSocraticGateUnlocked: () => {
+      isSocraticGateEngaged = true;
+      return isSocraticGateUnlocked;
+    },
+    isGateUnlocked: () => {
+      isSocraticGateEngaged = true;
+      return isSocraticGateUnlocked;
+    },
+    getSocraticChallenge: () => {
+      isSocraticGateEngaged = true;
+      return activeSocraticChallenge;
+    },
+    answerSocraticChallenge: (optionIdOrIdx) => {
+      isSocraticGateEngaged = true;
+      return _fnAnswerSocraticChallenge(optionIdOrIdx);
+    },
+    unlockSocraticGate: () => {
+      isSocraticGateEngaged = true;
+      return _fnUnlockSocraticGate();
+    },
+    resetSocraticGate: () => {
+      isSocraticGateEngaged = true;
+      return _fnResetSocraticGate();
+    },
+    toggleSocraticHint: () => {
+      isSocraticGateEngaged = true;
+      return _fnToggleSocraticHint();
+    },
+    generateSocraticChallenge,
+    renderSocraticGateCard,
+    setSocraticStep,
+    getSocraticLadderSession: () => activeSocraticChallenge ? activeSocraticChallenge.ladderSession : null,
+    setSocraticStrictLadder: (val) => {
+      if (activeSocraticChallenge) activeSocraticChallenge.strictLadder = val;
+      window.socraticStrictLadder = val;
+    },
+    buildScreenBPromptEnvelope,
+    getAvailableAgents,
+    getSelectedAgent,
+    setSelectedAgent,
+    populateAgentDropdown,
+    SCREEN_B_OPERATIONAL_RULESET,
+    FALLBACK_SUB_AGENTS,
   };
 
   try {
@@ -7105,6 +9397,49 @@ if (typeof window !== 'undefined') {
       },
       configurable: true,
     });
+    Object.defineProperty(window, 'socraticGateUnlocked', {
+      get: () => {
+        isSocraticGateEngaged = true;
+        return isSocraticGateUnlocked;
+      },
+      set: (val) => {
+        isSocraticGateEngaged = true;
+        if (val) unlockSocraticGate();
+        else resetSocraticGate();
+      },
+      configurable: true,
+    });
+    Object.defineProperty(window, 'activeSocraticChallenge', {
+      get: () => {
+        isSocraticGateEngaged = true;
+        return activeSocraticChallenge;
+      },
+      set: (val) => {
+        isSocraticGateEngaged = true;
+        activeSocraticChallenge = val;
+        renderSocraticGateCard();
+      },
+      configurable: true,
+    });
+    Object.defineProperty(window, 'selectedAgent', {
+      get: () => selectedAgent,
+      set: (val) => setSelectedAgent(val),
+      configurable: true,
+    });
+    Object.defineProperty(window, 'availableAgents', {
+      get: () => availableAgents,
+      set: (val) => {
+        availableAgents = val;
+        populateAgentDropdown(val);
+      },
+      configurable: true,
+    });
   } catch {}
+}
+
+if (typeof module !== 'undefined' && module.exports) {
+  module.exports = {
+    nscodeMaieuticDuck: typeof window !== 'undefined' ? window.nscodeMaieuticDuck : null,
+  };
 }
 

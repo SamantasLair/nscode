@@ -96,12 +96,10 @@ export const TypeAlongPractice: React.FC<TypeAlongPracticeProps> = ({
         </div>
       )}
 
-      {/* Target Character Stream */}
       <pre className="type-along-stream" onClick={() => inputRef.current?.focus()}>
         <code>{renderCharacterStream()}</code>
       </pre>
 
-      {/* Native Typing Input */}
       <textarea
         ref={inputRef}
         value={typedInput}

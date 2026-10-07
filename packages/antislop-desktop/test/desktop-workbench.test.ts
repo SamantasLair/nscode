@@ -17,9 +17,6 @@ describe('Milestone 6: VS Code Dark+ Desktop Workbench Shell Transformation', ()
     }
   });
 
-  // ===========================================================================
-  // R1. 5-Zone VS Code Authentic Workbench Shell & Design Tokens
-  // ===========================================================================
   describe('R1: 5-Zone Workbench Layout & Tokens', () => {
     it('verifies index.html contains all 5 canonical VS Code Dark+ zones', () => {
       const htmlPath = path.resolve(__dirname, '../src/workbench/index.html');
@@ -79,7 +76,6 @@ describe('Milestone 6: VS Code Dark+ Desktop Workbench Shell Transformation', ()
       expect(css).toContain('--vscode-secondary-sidebar-bg: #18181b');
       expect(css).toContain('--vscode-statusbar-bg: #007acc');
 
-      // Dimension tokens
       expect(css).toContain('--size-titlebar-height: 30px');
       expect(css).toContain('--size-activitybar-width: 48px');
       expect(css).toContain('--size-sidebar-default-width: 260px');
@@ -90,12 +86,8 @@ describe('Milestone 6: VS Code Dark+ Desktop Workbench Shell Transformation', ()
     });
   });
 
-  // ===========================================================================
-  // R2. Real File System IPC Implementation
-  // ===========================================================================
   describe('R2: Real File System IPC Capabilities', () => {
     it('hierarchically reads directory with ignore filtering and sorting', async () => {
-      // Create a test directory structure
       const srcDir = path.join(testTempDir, 'src');
       const gitDir = path.join(testTempDir, '.git');
       const nodeModulesDir = path.join(testTempDir, 'node_modules');
@@ -110,7 +102,6 @@ describe('Milestone 6: VS Code Dark+ Desktop Workbench Shell Transformation', ()
       fs.writeFileSync(path.join(nodeModulesDir, 'package.json'), '{}', 'utf-8');
       fs.writeFileSync(path.join(testTempDir, '.DS_Store'), 'trash', 'utf-8');
 
-      // Import traversal logic directly
       const IGNORE_DIRECTORIES = new Set(['.git', 'node_modules', 'dist']);
       const IGNORE_FILES = new Set(['.DS_Store']);
 
@@ -158,7 +149,6 @@ describe('Milestone 6: VS Code Dark+ Desktop Workbench Shell Transformation', ()
     });
 
     it('safely reads files with binary detection and 5MB size limit', async () => {
-      // 1. Valid text file
       const validPath = path.join(testTempDir, 'quicksort.py');
       fs.writeFileSync(validPath, 'def quicksort(): pass', 'utf-8');
 
@@ -167,7 +157,6 @@ describe('Milestone 6: VS Code Dark+ Desktop Workbench Shell Transformation', ()
       const content = await fs.promises.readFile(validPath, 'utf-8');
       expect(content).toBe('def quicksort(): pass');
 
-      // 2. Binary file with null byte
       const binaryPath = path.join(testTempDir, 'image.png');
       const binBuf = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x00, 0x01, 0x02]);
       fs.writeFileSync(binaryPath, binBuf);
@@ -203,9 +192,7 @@ describe('Milestone 6: VS Code Dark+ Desktop Workbench Shell Transformation', ()
     });
   });
 
-  // ===========================================================================
   // R3. Multi-Tab Document Manager & Undo-Stack Preservation Invariant
-  // ===========================================================================
   describe('R3: Multi-Tab Document Manager & Dirty Tracking Invariant', () => {
     it('verifies alternativeVersionId dirty tracking invariant (clean undo)', () => {
       // Simulate Monaco model versionId tracking
@@ -292,9 +279,6 @@ describe('Milestone 6: VS Code Dark+ Desktop Workbench Shell Transformation', ()
     });
   });
 
-  // ===========================================================================
-  // R4. Secondary Sidebar & Anti-Trap Sash Resizing
-  // ===========================================================================
   describe('R4: Anti-Trap Sash & Secondary Sidebar Rules', () => {
     it('verifies anti-trap sash CSS rules strictly disable iframe pointer events during drag', () => {
       const cssPath = path.resolve(__dirname, '../src/workbench/workbench.css');
@@ -319,12 +303,8 @@ describe('Milestone 6: VS Code Dark+ Desktop Workbench Shell Transformation', ()
     });
   });
 
-  // ===========================================================================
-  // R5. RPC Convergence & Typed Webview Zod Bridge
-  // ===========================================================================
   describe('R5: RPC Convergence & Webview Zod Bridge', () => {
     it('verifies host-to-webview notifications pass ExtensionToWebviewMessageSchema', () => {
-      // 1. DIAGNOSTIC_DATA streaming notification
       const streamMessage = {
         type: 'DIAGNOSTIC_DATA',
         payload: {
@@ -347,7 +327,6 @@ describe('Milestone 6: VS Code Dark+ Desktop Workbench Shell Transformation', ()
       const result = ExtensionToWebviewMessageSchema.safeParse(streamMessage);
       expect(result.success).toBe(true);
 
-      // 2. SET_ACTIVE_FILE notification
       const setActiveFileMsg = {
         type: 'SET_ACTIVE_FILE',
         payload: {
@@ -401,9 +380,6 @@ describe('Milestone 6: VS Code Dark+ Desktop Workbench Shell Transformation', ()
     });
   });
 
-  // ===========================================================================
-  // R6. Antigravity CLI Integration Bridge (agy)
-  // ===========================================================================
   describe('R6: Antigravity CLI Bridge (agy)', () => {
     it('verifies preload.ts exposes window.electronFS and window.electronAntigravity', () => {
       const preloadPath = path.resolve(__dirname, '../src/preload.ts');
@@ -433,9 +409,6 @@ describe('Milestone 6: VS Code Dark+ Desktop Workbench Shell Transformation', ()
     });
   });
 
-  // ===========================================================================
-  // R1-R6. VS Code & Cursor Authentic Transformation Regression Suite
-  // ===========================================================================
   describe('R1-R6: Authentic VS Code & Cursor Transformation Regression Suite', () => {
     it('R1: verifies frameless window titleBarStyle hidden, titleBarOverlay, and zero duplicate window buttons', () => {
       const mainPath = path.resolve(__dirname, '../src/main.ts');

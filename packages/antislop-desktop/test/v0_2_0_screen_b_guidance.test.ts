@@ -4,10 +4,6 @@ import fs from 'fs';
 import os from 'os';
 import vm from 'vm';
 
-// =============================================================================
-// ELECTRON IPC MOCK HARNESS
-// =============================================================================
-
 const { ipcHandlers, mockWebContents, mockMainWindow, mockShell } = vi.hoisted(() => {
   const handlers = new Map<string, Function>();
   const webContents = {
@@ -56,10 +52,6 @@ vi.mock('electron', () => {
 
 // Import main module to register all IPC handlers including guidance:scoutPattern
 import { setCurrentWorkspaceRootForTesting } from '../src/main';
-
-// =============================================================================
-// WORKBENCH SANDBOX HELPER (DOM & MONACO SIMULATOR)
-// =============================================================================
 
 interface MockElement {
   id: string;
@@ -396,10 +388,6 @@ function setupWorkbenchSandbox(jsContent: string, mockGuidanceScout?: Function) 
   };
 }
 
-// =============================================================================
-// TEST SUITE: MILESTONE v0.2.0 SCREEN B GUIDED COGNITION
-// =============================================================================
-
 describe('Milestone v0.2.0: Screen B Guided Cognition & Monaco Zero-Buffer Pointer', () => {
   let testTempDir: string;
   let workspaceDir: string;
@@ -435,40 +423,31 @@ describe('Milestone v0.2.0: Screen B Guided Cognition & Monaco Zero-Buffer Point
     }
   });
 
-  // ===========================================================================
-  // TIER 1: FEATURE COVERAGE
-  // ===========================================================================
   describe('Tier 1: Feature Coverage', () => {
     it('1.1 Screen B Visual Tokens & VS Code Dark+ Parity (R1)', () => {
-      // Background & border tokens
       expect(cssContent).toContain('--vscode-secondary-sidebar-bg: #18181b');
       expect(cssContent).toContain('--vscode-secondary-sidebar-border: #27272a');
       expect(cssContent).toContain('--size-secondary-sidebar-default-width: 380px');
 
-      // Card styling
       expect(cssContent).toContain('.target-line-stack-container');
       expect(cssContent).toContain('.technical-summary-card');
       expect(cssContent).toContain('background-color: #252526');
       expect(cssContent).toContain('border: 1px solid #2d2d2d');
 
-      // Zero mobile/horizontal overflow
       expect(cssContent).toContain('overflow-x: hidden');
       expect(cssContent).toContain('max-width: 100%');
       expect(cssContent).toContain('word-break: break-word');
 
-      // Zero emojis in Screen B HTML markup
       const screenBZone = htmlContent.slice(htmlContent.indexOf('id="secondary-sidebar"'));
       expect(screenBZone).not.toMatch(/[\u{1F300}-\u{1F9FF}]/u);
     });
 
     it('1.2 3-Tier Clean Layout & Prompt Placeholder (R1)', () => {
-      // Top Tier: Minimal header with breadcrumb
       expect(htmlContent).toContain('id="screen-b-header"');
       expect(htmlContent).toContain('id="screen-b-breadcrumb"');
       expect(htmlContent).toContain('id="screen-b-ws-name"');
       expect(htmlContent).toContain('id="screen-b-active-file"');
 
-      // Middle Tier: Interaction thread, Target Stack container, Summary cards container
       expect(htmlContent).toContain('id="secondary-middle-container"');
       expect(htmlContent).toContain('id="screen-b-interaction-container"');
       expect(htmlContent).toContain('id="target-line-stack-container"');
@@ -477,7 +456,6 @@ describe('Milestone v0.2.0: Screen B Guided Cognition & Monaco Zero-Buffer Point
       expect(htmlContent).toContain('id="technical-summary-cards-container"');
       expect(htmlContent).toContain('id="webview-frame"');
 
-      // Bottom Tier: Unified prompt container with exact placeholder
       expect(htmlContent).toContain('id="antigravity-prompt-container"');
       expect(htmlContent).toContain('id="prompt-input-box"');
       expect(htmlContent).toContain('placeholder="Apa yang akan kita kerjakan hari ini?"');
@@ -555,13 +533,10 @@ describe('Milestone v0.2.0: Screen B Guided Cognition & Monaco Zero-Buffer Point
       const target = { id: 't-1', filePath: 'src/main.ts', startLine: 288, endLine: 305 };
       await revealTargetInMonaco(target);
 
-      // 1. Monaco viewport revealed in center
       expect(spies.editorRevealLine).toHaveBeenCalledWith(288);
 
-      // 2. Cursor positioned at target start
       expect(spies.editorSetPosition).toHaveBeenCalledWith({ lineNumber: 288, column: 1 });
 
-      // 3. Selection range set non-destructively
       expect(spies.editorSetSelection).toHaveBeenCalled();
 
       // 4. Zero buffer mutation invariant: NO applyEdits and NO setValue
@@ -571,11 +546,9 @@ describe('Milestone v0.2.0: Screen B Guided Cognition & Monaco Zero-Buffer Point
     });
 
     it('1.6 Guidance Trigger & Electron IPC Handler (R3)', async () => {
-      // IPC Handler in main.ts
       expect(ipcHandlers.has('guidance:scoutPattern')).toBe(true);
       const handler = ipcHandlers.get('guidance:scoutPattern')!;
 
-      // Create a test file in temporary workspace
       const testFile = path.join(workspaceDir, 'service.ts');
       fs.writeFileSync(testFile, 'export function compute() {\n  const x = null;\n  return x.value;\n}\n');
 
@@ -641,9 +614,6 @@ describe('Milestone v0.2.0: Screen B Guided Cognition & Monaco Zero-Buffer Point
     });
   });
 
-  // ===========================================================================
-  // TIER 2: BOUNDARY & CORNER CASES
-  // ===========================================================================
   describe('Tier 2: Boundary & Corner Cases', () => {
     it('2.1 Empty & Malformed Prompts Handling', () => {
       const { sandbox } = setupWorkbenchSandbox(jsContent);
@@ -744,16 +714,12 @@ describe('Milestone v0.2.0: Screen B Guided Cognition & Monaco Zero-Buffer Point
     });
   });
 
-  // ===========================================================================
-  // TIER 3: CROSS-FEATURE INTERACTIONS
-  // ===========================================================================
   describe('Tier 3: Cross-Feature Interactions', () => {
     it('3.1 Prompt Extraction -> Monaco Line Reveal Coordination', async () => {
       const { sandbox, spies, elementRegistry } = setupWorkbenchSandbox(jsContent);
       const extractTargetLines = sandbox.extractTargetLines;
       const addTargetsToStack = sandbox.addTargetsToStack;
 
-      // 1. User prompt is processed and added to stack
       const targets = extractTargetLines('Cek issue di src/main.ts:288-305');
       addTargetsToStack(targets);
 
@@ -762,7 +728,6 @@ describe('Milestone v0.2.0: Screen B Guided Cognition & Monaco Zero-Buffer Point
 
       const cardEl = listEl.children[0];
 
-      // 2. User clicks the rendered card -> navigates Monaco
       cardEl.dispatchEvent({ type: 'click', target: cardEl });
 
       expect(spies.editorRevealLine).toHaveBeenCalledWith(288);
@@ -852,9 +817,6 @@ describe('Milestone v0.2.0: Screen B Guided Cognition & Monaco Zero-Buffer Point
     });
   });
 
-  // ===========================================================================
-  // TIER 4: REAL-WORLD APPLICATION SCENARIOS
-  // ===========================================================================
   describe('Tier 4: Real-World Application Scenarios', () => {
     it('4.1 Complete Developer Workflow: Prompt -> Stack -> Inspection -> Guidance', async () => {
       const mockScout = vi.fn().mockResolvedValue({
@@ -877,28 +839,23 @@ describe('Milestone v0.2.0: Screen B Guided Cognition & Monaco Zero-Buffer Point
 
       const { sandbox, elementRegistry, spies, openDoc } = setupWorkbenchSandbox(jsContent, mockScout);
 
-      // 1. Developer starts from central prompt box with canonical placeholder
       const promptInput = elementRegistry.get('prompt-input-box')!;
       expect(htmlContent).toContain('placeholder="Apa yang akan kita kerjakan hari ini?"');
 
-      // 2. Developer enters prompt
       promptInput.value = 'Apa yang akan kita kerjakan hari ini? Periksa race condition di src/main.ts:288-305';
       const extracted = sandbox.extractTargetLines(promptInput.value);
       sandbox.addTargetsToStack(extracted);
 
-      // 3. Target Line Stack renders item
       const listEl = elementRegistry.get('target-stack-list')!;
       expect(listEl.children).toHaveLength(1);
       const card = listEl.children[0];
       expect(card.innerHTML).toContain('src/main.ts');
       expect(card.innerHTML).toContain(':288-305');
 
-      // 4. Developer clicks target badge to inspect location in Screen A Monaco editor
       await sandbox.revealTargetInMonaco(extracted[0]);
       expect(spies.editorRevealLine).toHaveBeenCalledWith(288);
       expect(spies.editorSetPosition).toHaveBeenCalledWith({ lineNumber: 288, column: 1 });
 
-      // 5. Developer clicks "Minta Saran Pengerjaan"
       await sandbox.requestGuidanceForTarget(extracted[0]);
       expect(mockScout).toHaveBeenCalledWith(expect.objectContaining({
         filePath: 'src/main.ts',
@@ -906,7 +863,6 @@ describe('Milestone v0.2.0: Screen B Guided Cognition & Monaco Zero-Buffer Point
         endLine: 305,
       }));
 
-      // 6. Technical Summary Card appears in Screen B
       const summaryContainer = elementRegistry.get('technical-summary-cards-container')!;
       expect(summaryContainer.children).toHaveLength(1);
       const summaryCard = summaryContainer.children[0];
@@ -914,7 +870,6 @@ describe('Milestone v0.2.0: Screen B Guided Cognition & Monaco Zero-Buffer Point
       expect(summaryCard.innerHTML).toContain('Node.js Event Emitter Docs');
       expect(summaryCard.innerHTML).toContain('ipcMain.eventNames().includes');
 
-      // 7. Developer reviews suggestion with ZERO silent auto-patching
       expect(spies.editorApplyEdits).not.toHaveBeenCalled();
       expect(spies.editorSetValue).not.toHaveBeenCalled();
       expect(openDoc.isDirty).toBe(false);
@@ -937,13 +892,10 @@ describe('Milestone v0.2.0: Screen B Guided Cognition & Monaco Zero-Buffer Point
       await sandbox.requestGuidanceForTarget({ id: '1', filePath: 'src/main.ts', startLine: 1 });
 
       // IMMUTABLE INVARIANT ASSERTIONS:
-      // 1. Buffer content remains 100% identical
       expect(openDoc.model.getValue()).toBe(initialContent);
 
-      // 2. Document is not marked dirty
       expect(openDoc.isDirty).toBe(false);
 
-      // 3. No edit or value replacement operations invoked
       expect(spies.editorApplyEdits).toHaveBeenCalledTimes(0);
       expect(spies.editorSetValue).toHaveBeenCalledTimes(0);
     });

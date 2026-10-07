@@ -40,7 +40,6 @@ export const ContractViolated: React.FC<ContractViolatedProps> = ({
 
   return (
     <article className="contract-violated-card" aria-labelledby="diagnostic-title">
-      {/* Top Header */}
       <div className="diagnostic-header">
         <div className="badge-group">
           <span className={`severity-badge ${severityBadgeClass}`}>
@@ -53,16 +52,14 @@ export const ContractViolated: React.FC<ContractViolatedProps> = ({
         <h2 id="diagnostic-title" className="diagnostic-title">{title}</h2>
       </div>
 
-      {/* Contract Broken Callout */}
       <div className="contract-callout" role="alert">
         <div className="contract-callout-header">
-          <span className="icon" style={{ color: '#f87171', fontWeight: 700 }}>[!]</span>
+          <span className="icon" style={{ color: 'var(--accent-red)', fontWeight: 700 }}>[!]</span>
           <strong>KONTRAK TERLANGGAR (Broken Invariant):</strong>
         </div>
         <p className="contract-statement">{contract}</p>
       </div>
 
-      {/* Source Location & Line Pointer */}
       <div className="source-location-section">
         <div className="location-info">
           <span className="location-file">{sourceLocation.fileUri}</span>
@@ -80,7 +77,6 @@ export const ContractViolated: React.FC<ContractViolatedProps> = ({
         />
       </div>
 
-      {/* Raw Error & Related Spans Frame */}
       <div className="code-frame-container">
         <div className="code-frame-header">Cuplikan Kesalahan:</div>
         <pre className="raw-error-frame">
@@ -103,25 +99,21 @@ export const ContractViolated: React.FC<ContractViolatedProps> = ({
         )}
       </div>
 
-      {/* Rule Explanation */}
       <div className="diagnostic-section rule-section">
         <h3>Aturan Semantik</h3>
         <p>{ruleExplanation}</p>
       </div>
 
-      {/* Root Cause Analysis */}
       <div className="diagnostic-section root-cause-section">
         <h3>Akar Masalah (Root Cause)</h3>
         <p>{rootCause}</p>
       </div>
 
-      {/* Mental Model */}
       <div className="diagnostic-section mental-model-section">
         <h3>Model Mental Pedagogis</h3>
         <p>{mentalModel}</p>
       </div>
 
-      {/* Progressive Token Stream (if actively streaming) */}
       {isStreaming && streamingTokens && (
         <div className="streaming-token-box" role="status">
           <span className="streaming-label">Aliran Analisis Langsung:</span>

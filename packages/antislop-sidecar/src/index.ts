@@ -5,3 +5,6 @@ export * from './context-aggregator.js';
 export * from './pedagogical-engine.js';
 export * from './stream-batcher.js';
 export * from './rpc-router.js';
+export * from './socratic-ladder-engine.js';
+export * from './popper-gate-falsifier.js';
+export * from './maieutic-duck-engine.js';

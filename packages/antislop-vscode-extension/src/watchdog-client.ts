@@ -231,13 +231,11 @@ export class WatchdogClient implements vscode.Disposable {
       this.ws = null;
     }
 
-    // Reject all pending in-flight requests
     for (const [id, req] of this.pendingRequests.entries()) {
       req.reject(new Error('Connection lost while awaiting response'));
     }
     this.pendingRequests.clear();
 
-    // Auto-reconnect loop
     if (!this.isDisposed && !this.reconnectTimer) {
       this.reconnectTimer = setTimeout(() => {
         this.reconnectTimer = null;
@@ -254,7 +252,6 @@ export class WatchdogClient implements vscode.Disposable {
   public async rehydrateState(): Promise<void> {
     if (this.lastActiveBuffer) {
       try {
-        // Ping or sync active buffer context
         console.log(
           '[WatchdogClient] State rehydrated: active buffer synchronized for',
           this.lastActiveBuffer.uri
@@ -321,7 +318,6 @@ export class WatchdogClient implements vscode.Disposable {
             }
           }
         } else if ('method' in parsed) {
-          // JSON-RPC Notification event
           for (const listener of this.notificationListeners) {
             listener(parsed.method, parsed.params);
           }

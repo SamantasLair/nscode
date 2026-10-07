@@ -6,10 +6,6 @@
  * Zero external runtime dependencies.
  */
 
-// ============================================================================
-// Interfaces & Types
-// ============================================================================
-
 export interface IconMapping {
   /** CSS class or icon identifier, e.g. 'codicon codicon-file-code file-icon-ts' */
   icon: string;
@@ -65,10 +61,6 @@ export interface IconThemeChangeEvent {
 }
 
 export type IconThemeChangeListener = (event: IconThemeChangeEvent) => void;
-
-// ============================================================================
-// Built-in Themes: Seti (Standard VS Code / Seti Theme)
-// ============================================================================
 
 export const SETI_ICON_THEME: IconThemeDefinition = {
   id: 'seti',
@@ -162,19 +154,16 @@ export const SETI_ICON_THEME: IconThemeDefinition = {
     'favicon.ico': { icon: 'codicon codicon-file-media file-icon-media', color: '#cbcb41' }
   },
   fileExtensions: {
-    // TypeScript & JavaScript
     ts: { icon: 'codicon codicon-file-code file-icon-ts', color: '#3178c6' },
     tsx: { icon: 'codicon codicon-file-code file-icon-react', color: '#61dafb' },
     js: { icon: 'codicon codicon-file-code file-icon-js', color: '#cbcb41' },
     jsx: { icon: 'codicon codicon-file-code file-icon-react', color: '#61dafb' },
     mjs: { icon: 'codicon codicon-file-code file-icon-js', color: '#cbcb41' },
     cjs: { icon: 'codicon codicon-file-code file-icon-js', color: '#cbcb41' },
-    // Python
     py: { icon: 'codicon codicon-python file-icon-python', color: '#3572a5' },
     pyw: { icon: 'codicon codicon-python file-icon-python', color: '#3572a5' },
     pyi: { icon: 'codicon codicon-python file-icon-python', color: '#3572a5' },
     pyc: { icon: 'codicon codicon-file-binary file-icon-python', color: '#519aba' },
-    // Systems & Native
     rs: { icon: 'codicon codicon-file-code file-icon-rust', color: '#dea584' },
     go: { icon: 'codicon codicon-file-code file-icon-go', color: '#00add8' },
     c: { icon: 'codicon codicon-file-code file-icon-c', color: '#555555' },
@@ -196,7 +185,6 @@ export const SETI_ICON_THEME: IconThemeDefinition = {
     erb: { icon: 'codicon codicon-file-code file-icon-ruby', color: '#701516' },
     swift: { icon: 'codicon codicon-file-code file-icon-swift', color: '#ffac45' },
     zig: { icon: 'codicon codicon-file-code file-icon-zig', color: '#ec915c' },
-    // Web & Markup
     html: { icon: 'codicon codicon-file-code file-icon-html', color: '#e34c26' },
     htm: { icon: 'codicon codicon-file-code file-icon-html', color: '#e34c26' },
     css: { icon: 'codicon codicon-file-code file-icon-css', color: '#563d7c' },
@@ -206,13 +194,11 @@ export const SETI_ICON_THEME: IconThemeDefinition = {
     vue: { icon: 'codicon codicon-file-code file-icon-vue', color: '#41b883' },
     svelte: { icon: 'codicon codicon-file-code file-icon-svelte', color: '#ff3e00' },
     astro: { icon: 'codicon codicon-file-code file-icon-astro', color: '#ff5d01' },
-    // Markdown & Documentation
     md: { icon: 'codicon codicon-markdown file-icon-markdown', color: '#519aba' },
     markdown: { icon: 'codicon codicon-markdown file-icon-markdown', color: '#519aba' },
     mdown: { icon: 'codicon codicon-markdown file-icon-markdown', color: '#519aba' },
     txt: { icon: 'codicon codicon-file-text file-icon-txt', color: '#6d8086' },
     log: { icon: 'codicon codicon-file-text file-icon-txt', color: '#6d8086' },
-    // Data & Configuration
     json: { icon: 'codicon codicon-json file-icon-json', color: '#cbcb41' },
     jsonc: { icon: 'codicon codicon-json file-icon-json', color: '#cbcb41' },
     yaml: { icon: 'codicon codicon-file-code file-icon-yaml', color: '#cb171e' },
@@ -226,7 +212,6 @@ export const SETI_ICON_THEME: IconThemeDefinition = {
     proto: { icon: 'codicon codicon-file-code file-icon-proto', color: '#00979d' },
     graphql: { icon: 'codicon codicon-file-code file-icon-graphql', color: '#e535ab' },
     gql: { icon: 'codicon codicon-file-code file-icon-graphql', color: '#e535ab' },
-    // Shell & Terminal
     sh: { icon: 'codicon codicon-terminal-bash file-icon-shell', color: '#89e051' },
     bash: { icon: 'codicon codicon-terminal-bash file-icon-shell', color: '#89e051' },
     zsh: { icon: 'codicon codicon-terminal-bash file-icon-shell', color: '#89e051' },
@@ -235,12 +220,10 @@ export const SETI_ICON_THEME: IconThemeDefinition = {
     psd1: { icon: 'codicon codicon-terminal-powershell file-icon-powershell', color: '#012456' },
     bat: { icon: 'codicon codicon-terminal file-icon-shell', color: '#c1f12e' },
     cmd: { icon: 'codicon codicon-terminal file-icon-shell', color: '#c1f12e' },
-    // Databases
     sql: { icon: 'codicon codicon-database file-icon-sql', color: '#e38c00' },
     db: { icon: 'codicon codicon-database file-icon-db', color: '#dad8d8' },
     sqlite: { icon: 'codicon codicon-database file-icon-db', color: '#dad8d8' },
     sqlite3: { icon: 'codicon codicon-database file-icon-db', color: '#dad8d8' },
-    // Media & Visuals
     png: { icon: 'codicon codicon-file-media file-icon-media', color: '#a074c4' },
     jpg: { icon: 'codicon codicon-file-media file-icon-media', color: '#a074c4' },
     jpeg: { icon: 'codicon codicon-file-media file-icon-media', color: '#a074c4' },
@@ -257,7 +240,6 @@ export const SETI_ICON_THEME: IconThemeDefinition = {
     mp4: { icon: 'codicon codicon-file-media file-icon-media', color: '#d35400' },
     mkv: { icon: 'codicon codicon-file-media file-icon-media', color: '#d35400' },
     webm: { icon: 'codicon codicon-file-media file-icon-media', color: '#d35400' },
-    // Archives
     zip: { icon: 'codicon codicon-file-zip file-icon-zip', color: '#cca700' },
     tar: { icon: 'codicon codicon-file-zip file-icon-zip', color: '#cca700' },
     gz: { icon: 'codicon codicon-file-zip file-icon-zip', color: '#cca700' },
@@ -265,7 +247,6 @@ export const SETI_ICON_THEME: IconThemeDefinition = {
     rar: { icon: 'codicon codicon-file-zip file-icon-zip', color: '#cca700' },
     bz2: { icon: 'codicon codicon-file-zip file-icon-zip', color: '#cca700' },
     xz: { icon: 'codicon codicon-file-zip file-icon-zip', color: '#cca700' },
-    // Documents & Binaries
     pdf: { icon: 'codicon codicon-file-pdf file-icon-pdf', color: '#b30b00' },
     wasm: { icon: 'codicon codicon-file-binary file-icon-wasm', color: '#654ff0' },
     wat: { icon: 'codicon codicon-file-code file-icon-wasm', color: '#654ff0' },
@@ -274,7 +255,6 @@ export const SETI_ICON_THEME: IconThemeDefinition = {
     so: { icon: 'codicon codicon-file-binary file-icon-binary', color: '#e5e5e5' },
     dylib: { icon: 'codicon codicon-file-binary file-icon-binary', color: '#e5e5e5' },
     bin: { icon: 'codicon codicon-file-binary file-icon-binary', color: '#e5e5e5' },
-    // Other Languages
     dart: { icon: 'codicon codicon-file-code file-icon-dart', color: '#00b4ab' },
     lua: { icon: 'codicon codicon-file-code file-icon-lua', color: '#000080' },
     r: { icon: 'codicon codicon-file-code file-icon-r', color: '#198ce7' },
@@ -295,10 +275,6 @@ export const SETI_ICON_THEME: IconThemeDefinition = {
     woff2: { icon: 'codicon codicon-file-binary file-icon-font', color: '#ff2c70' }
   }
 };
-
-// ============================================================================
-// Built-in Themes: Minimal (Clean Monochromatic Theme)
-// ============================================================================
 
 export const MINIMAL_ICON_THEME: IconThemeDefinition = {
   id: 'minimal',
@@ -354,7 +330,6 @@ export const MINIMAL_ICON_THEME: IconThemeDefinition = {
     'go.sum': { icon: 'codicon codicon-lock' }
   },
   fileExtensions: {
-    // Code
     ts: { icon: 'codicon codicon-file-code' },
     tsx: { icon: 'codicon codicon-file-code' },
     js: { icon: 'codicon codicon-file-code' },
@@ -389,12 +364,10 @@ export const MINIMAL_ICON_THEME: IconThemeDefinition = {
     dart: { icon: 'codicon codicon-file-code' },
     lua: { icon: 'codicon codicon-file-code' },
     zig: { icon: 'codicon codicon-file-code' },
-    // Documentation & Text
     md: { icon: 'codicon codicon-markdown' },
     markdown: { icon: 'codicon codicon-markdown' },
     txt: { icon: 'codicon codicon-file-text' },
     log: { icon: 'codicon codicon-file-text' },
-    // Config & Data
     json: { icon: 'codicon codicon-json' },
     jsonc: { icon: 'codicon codicon-json' },
     yaml: { icon: 'codicon codicon-file-code' },
@@ -404,19 +377,16 @@ export const MINIMAL_ICON_THEME: IconThemeDefinition = {
     ini: { icon: 'codicon codicon-gear' },
     cfg: { icon: 'codicon codicon-gear' },
     conf: { icon: 'codicon codicon-gear' },
-    // Shell
     sh: { icon: 'codicon codicon-terminal-bash' },
     bash: { icon: 'codicon codicon-terminal-bash' },
     zsh: { icon: 'codicon codicon-terminal-bash' },
     ps1: { icon: 'codicon codicon-terminal-powershell' },
     bat: { icon: 'codicon codicon-terminal' },
     cmd: { icon: 'codicon codicon-terminal' },
-    // Databases
     sql: { icon: 'codicon codicon-database' },
     db: { icon: 'codicon codicon-database' },
     sqlite: { icon: 'codicon codicon-database' },
     sqlite3: { icon: 'codicon codicon-database' },
-    // Media
     png: { icon: 'codicon codicon-file-media' },
     jpg: { icon: 'codicon codicon-file-media' },
     jpeg: { icon: 'codicon codicon-file-media' },
@@ -426,7 +396,6 @@ export const MINIMAL_ICON_THEME: IconThemeDefinition = {
     svg: { icon: 'codicon codicon-file-media' },
     mp3: { icon: 'codicon codicon-file-media' },
     mp4: { icon: 'codicon codicon-file-media' },
-    // Archives & Documents
     zip: { icon: 'codicon codicon-file-zip' },
     tar: { icon: 'codicon codicon-file-zip' },
     gz: { icon: 'codicon codicon-file-zip' },
@@ -441,17 +410,12 @@ export const MINIMAL_ICON_THEME: IconThemeDefinition = {
   }
 };
 
-// ============================================================================
-// Icon Theme Registry
-// ============================================================================
-
 export class IconThemeRegistry {
   private readonly themes = new Map<string, IconThemeDefinition>();
   private activeThemeId = 'seti';
   private readonly listeners = new Set<IconThemeChangeListener>();
 
   constructor(initialThemeId: string = 'seti') {
-    // Register built-in default themes
     this.registerTheme(SETI_ICON_THEME);
     this.registerTheme(MINIMAL_ICON_THEME);
 
@@ -605,7 +569,6 @@ export class IconThemeRegistry {
 
     const lower = basename.toLowerCase();
 
-    // 1. Exact filename match (case-insensitive)
     if (theme.fileNames) {
       if (theme.fileNames[lower]) {
         return this.normalizeIconMapping(theme.fileNames[lower]);
@@ -620,7 +583,6 @@ export class IconThemeRegistry {
       }
     }
 
-    // 2. Extension match
     if (theme.fileExtensions) {
       const parts = lower.split('.');
       if (parts.length > 2) {
@@ -639,7 +601,6 @@ export class IconThemeRegistry {
       }
     }
 
-    // 3. Fallback to default file icon
     return this.normalizeIconMapping(theme.defaultFile);
   }
 
@@ -676,10 +637,6 @@ export class IconThemeRegistry {
     return mapping;
   }
 }
-
-// ============================================================================
-// Singleton Default Export & Convenience API
-// ============================================================================
 
 export const defaultIconThemeRegistry = new IconThemeRegistry();
 

@@ -1,6 +1,5 @@
 import { describe, it, expect } from 'vitest';
 import {
-  // JSON-RPC
   READ_ONLY_RPC_METHODS,
   READ_ONLY_METHODS,
   isReadOnlyRpcMethod,
@@ -13,24 +12,29 @@ import {
   TokenChunkParamsSchema,
   ContractViolatedNotificationParamsSchema,
   SmartCardsReadyNotificationParamsSchema,
-  // Error Anatomy
   ContractViolatedSchema,
   TextSpanRangeSchema,
-  // Smart Card
   BIG_O_TIME_REGEX,
   BIG_O_SPACE_REGEX,
   ComplexityMetricSchema,
   MemoryImpactSchema,
   SmartCardSchema,
-  // Cognitive Gate
   ClozeChallengeSchema,
   TypeAlongPracticeSchema,
   CognitiveFrictionSessionSchema,
   transitionGateSession,
   type CognitiveFrictionSessionDTO,
-  // Webview messages
   WebviewToExtensionMessageSchema,
   ExtensionToWebviewMessageSchema,
+  BridgeWireCoordinatesSchema,
+  BridgeWireSplinePathSchema,
+  computeBridgeWireSpline,
+  FalsificationDomainSchema,
+  FalsificationCaseSchema,
+  PopperGateReportSchema,
+  MaieuticPhaseSchema,
+  MaieuticContextEnvelopeSchema,
+  MaieuticResponseSchema,
 } from '../src/index.js';
 
 describe('packages/antislop-protocol: Unit Test Suite', () => {
@@ -472,23 +476,19 @@ describe('packages/antislop-protocol: Unit Test Suite', () => {
         clozeAttempts: 0,
       };
 
-      // 1. Start Cloze
       session = transitionGateSession(session, { type: 'START_CLOZE' });
       expect(session.status).toBe('CLOZE_PENDING');
       expect(session.clipboardUnlocked).toBe(false);
 
-      // 2. Complete Cloze
       session = transitionGateSession(session, { type: 'CLOZE_COMPLETED' });
       expect(session.status).toBe('UNLOCKED');
       expect(session.clozeSolved).toBe(true);
       expect(session.clipboardUnlocked).toBe(true);
 
-      // 3. Start Type-Along
       session = transitionGateSession(session, { type: 'START_TYPE_ALONG' });
       expect(session.status).toBe('TYPE_ALONG_PENDING');
       expect(session.clipboardUnlocked).toBe(false);
 
-      // 4. Complete Type-Along
       session = transitionGateSession(session, {
         type: 'TYPE_ALONG_COMPLETED',
         accuracyPercent: 98.5,
@@ -533,6 +533,14 @@ describe('packages/antislop-protocol: Unit Test Suite', () => {
       };
       expect(
         WebviewToExtensionMessageSchema.safeParse(practiceDone).success
+      ).toBe(true);
+
+      const collapseScreenB = {
+        type: 'COLLAPSE_SCREEN_B',
+        payload: {},
+      };
+      expect(
+        WebviewToExtensionMessageSchema.safeParse(collapseScreenB).success
       ).toBe(true);
     });
 
@@ -733,6 +741,118 @@ describe('packages/antislop-protocol: Unit Test Suite', () => {
         };
         expect(ContractViolatedNotificationParamsSchema.safeParse(invertedNotification).success).toBe(false);
       });
+    });
+  });
+
+  describe('7. Radical Innovations: BridgeWire & Popper Gate Contracts', () => {
+    it('validates BridgeWireCoordinatesSchema with required and optional fields', () => {
+      const validCoords = { x1: 100, y1: 50, x2: 400, y2: 250, active: true, strokeWidth: 2, colorVar: '--accent' };
+      const parsed = BridgeWireCoordinatesSchema.safeParse(validCoords);
+      expect(parsed.success).toBe(true);
+
+      const minimalCoords = { x1: 0, y1: 0, x2: 10, y2: 10 };
+      expect(BridgeWireCoordinatesSchema.safeParse(minimalCoords).success).toBe(true);
+
+      const invalidCoords = { x1: '10', y1: 0, x2: 10, y2: 10 };
+      expect(BridgeWireCoordinatesSchema.safeParse(invalidCoords).success).toBe(false);
+    });
+
+    it('computes bridge wire spline accurately according to mathematical formula', () => {
+      const res = computeBridgeWireSpline(0, 100, 200, 300);
+      expect(res.cx1).toBeGreaterThan(0);
+      expect(res.cy1).toBe(100);
+      expect(res.cx2).toBeLessThan(200);
+      expect(res.cy2).toBe(300);
+      expect(res.path).toBe(`M 0,100 C ${res.cx1},100 ${res.cx2},300 200,300`);
+      expect(res.length).toBeGreaterThan(200);
+
+      // Custom tension override
+      const customRes = computeBridgeWireSpline(0, 0, 100, 0, 0.5);
+      expect(customRes.cx1).toBe(50);
+      expect(customRes.cx2).toBe(50);
+      expect(customRes.path).toBe('M 0,0 C 50,0 50,0 100,0');
+    });
+
+    it('validates BridgeWireSplinePathSchema', () => {
+      const valid = { path: 'M 0,0 C 20,0 80,100 100,100', length: 141.42, tension: 0.35 };
+      expect(BridgeWireSplinePathSchema.safeParse(valid).success).toBe(true);
+      expect(BridgeWireSplinePathSchema.safeParse({ path: 'M 0,0', length: 'invalid' }).success).toBe(false);
+    });
+
+    it('validates FalsificationDomainSchema enums strictly', () => {
+      const validDomains = ['null_undefined', 'empty_container', 'numeric_boundary', 'type_mismatch', 'reentrancy', 'async_race'];
+      for (const d of validDomains) {
+        expect(FalsificationDomainSchema.safeParse(d).success).toBe(true);
+      }
+      expect(FalsificationDomainSchema.safeParse('invalid_domain').success).toBe(false);
+    });
+
+    it('validates FalsificationCaseSchema with expected outcome domain', () => {
+      const validCase = {
+        id: 'fc-001',
+        domain: 'numeric_boundary',
+        inputDescription: 'Zero division check',
+        testValue: 0,
+        expectedOutcome: 'fallback_return',
+        rationale: 'Must return fallback 0 instead of throwing NaN or infinite',
+      };
+      expect(FalsificationCaseSchema.safeParse(validCase).success).toBe(true);
+
+      const invalidCase = { ...validCase, expectedOutcome: 'unsupported_outcome' };
+      expect(FalsificationCaseSchema.safeParse(invalidCase).success).toBe(false);
+    });
+
+    it('validates PopperGateReportSchema', () => {
+      const validReport = {
+        targetSymbol: 'calculateAverage',
+        paramSignatures: ['values: number[]'],
+        boundaryCases: [
+          {
+            id: 'case-1',
+            domain: 'empty_container',
+            inputDescription: 'Empty list',
+            testValue: [],
+            expectedOutcome: 'fallback_return',
+            rationale: 'Empty list should return 0',
+          },
+        ],
+        cognitiveScore: 95,
+        passesPopperFalsification: true,
+      };
+      expect(PopperGateReportSchema.safeParse(validReport).success).toBe(true);
+
+      const outOfBoundsReport = { ...validReport, cognitiveScore: 105 };
+      expect(PopperGateReportSchema.safeParse(outOfBoundsReport).success).toBe(false);
+    });
+
+    it('validates MaieuticPhaseSchema, ContextEnvelope, and Response schemas', () => {
+      const validPhases = ['probe', 'invariant', 'synthesis', 'resolution'];
+      for (const p of validPhases) {
+        expect(MaieuticPhaseSchema.safeParse(p).success).toBe(true);
+      }
+
+      const validEnvelope = {
+        symbol: 'processToken',
+        lineNumber: 42,
+        diagnosticCode: 'TS2532',
+        diagnosticMessage: 'Object is possibly undefined',
+        userStatement: 'Why is this failing on null?',
+      };
+      expect(MaieuticContextEnvelopeSchema.safeParse(validEnvelope).success).toBe(true);
+
+      const validResponse = {
+        phase: 'probe',
+        dialecticQuestion: 'What guarantee prevents null at line 42?',
+        antiSpoonfeedAssertion: true,
+        suggestedReflection: 'Inspect the return type of the caller.',
+      };
+      expect(MaieuticResponseSchema.safeParse(validResponse).success).toBe(true);
+
+      const spoonfeedViolation = {
+        ...validResponse,
+        antiSpoonfeedAssertion: false,
+      };
+      expect(MaieuticResponseSchema.safeParse(spoonfeedViolation).success).toBe(false);
     });
   });
 });

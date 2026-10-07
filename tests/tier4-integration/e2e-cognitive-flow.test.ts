@@ -46,14 +46,8 @@ describe('Tier 4: End-to-End Active Cognition Flow Suite', () => {
     mockVscode.window.visibleTextEditors.length = 0;
   });
 
-  // =========================================================================
-  // The Complete 6-Stage E2E Journey
-  // =========================================================================
   describe('Full 6-Stage Active Cognition Pipeline Verification', () => {
     it('executes Stage 1 through Stage 6 with absolute buffer integrity and zero auto-patch buttons', async () => {
-      // -----------------------------------------------------------------------
-      // Initial Setup: Screen A Document & Decoration Manager
-      // -----------------------------------------------------------------------
       const targetFileUri = mockVscode.Uri.file('/workspace/src/main.rs');
       const pristineCode = [
         'fn main() {',
@@ -82,9 +76,6 @@ describe('Tier 4: End-to-End Active Cognition Flow Suite', () => {
         decorationManager
       );
 
-      // -----------------------------------------------------------------------
-      // STAGE 1: Terminal Non-Zero Exit Error Capture (TerminalWatcher)
-      // -----------------------------------------------------------------------
       let capturedTerminalError = '';
       let capturedExitCode = 0;
 
@@ -117,15 +108,11 @@ describe('Tier 4: End-to-End Active Cognition Flow Suite', () => {
         },
       });
 
-      // Stage 1 Assertions:
       expect(capturedExitCode).toBe(1);
       expect(capturedTerminalError).toContain('error[E0502]: cannot borrow `data` as mutable');
       expect(capturedTerminalError).not.toContain('\u001b[31m'); // ANSI codes stripped cleanly
       expect(terminalWatcher.getLastCapturedError()?.exitCode).toBe(1);
 
-      // -----------------------------------------------------------------------
-      // STAGE 2: Sidecar Context Analysis & 3-Card Pedagogical Generation
-      // -----------------------------------------------------------------------
       const pedagogicalEngine = new PedagogicalEngine();
       const contextAggregator = new ContextAggregator();
       const rpcRouter = new RpcRouter({
@@ -174,13 +161,10 @@ describe('Tier 4: End-to-End Active Cognition Flow Suite', () => {
       const contractViolated: ContractViolatedDTO = contractNotif!.params;
       const generatedCards: SmartCardDTO[] = smartCardsNotif!.params.cards;
 
-      // Stage 2 Assertions:
-      // A. Contract Violated schema conformance (Rustc / Elm style)
       expect(ContractViolatedSchema.safeParse(contractViolated).success).toBe(true);
       expect(contractViolated.ruleExplanation).toBeDefined();
       expect(contractViolated.sourceLocation.fileUri).toBe(targetFileUri.toString());
 
-      // B. 3-Card Solution Matrix conformance (Idiomatic, Minimalist, Performance)
       expect(generatedCards).toHaveLength(3);
       const variants = generatedCards.map((c) => c.variant);
       expect(variants).toContain('idiomatic');
@@ -195,9 +179,6 @@ describe('Tier 4: End-to-End Active Cognition Flow Suite', () => {
         expect(card.whyItWorks).toBeDefined();
       }
 
-      // -----------------------------------------------------------------------
-      // STAGE 3: Screen B Webview Delivery (ScreenBWebviewProvider)
-      // -----------------------------------------------------------------------
       const panel = webviewProvider.show(true);
       expect(panel).toBeDefined();
       expect(panel.viewColumn).toBe(mockVscode.ViewColumn.Two);
@@ -239,9 +220,6 @@ describe('Tier 4: End-to-End Active Cognition Flow Suite', () => {
       expect(session.status).toBe('LOCKED');
       expect(session.clipboardUnlocked).toBe(false);
 
-      // -----------------------------------------------------------------------
-      // STAGE 4: Cross-Editor Line Highlight Trigger ("Sorot Baris di Layar A")
-      // -----------------------------------------------------------------------
       // User clicks "Sorot Baris di Layar A" in Screen B webview
       const highlightMessage = {
         type: 'HIGHLIGHT_LINE' as const,
@@ -257,14 +235,11 @@ describe('Tier 4: End-to-End Active Cognition Flow Suite', () => {
       // Wait for decoration dispatch microtask
       await new Promise((r) => setTimeout(r, 20));
 
-      // Stage 4 Assertions (Zero-Buffer Mutation Invariant):
-      // A. Decoration applied visually to editor
       const faultDecorations = editor.decorations.get(decorationManager.getFaultDecorationType());
       expect(faultDecorations).toBeDefined();
       expect(faultDecorations).toHaveLength(1);
       expect(faultDecorations![0].start.line).toBe(3); // 1-indexed 4 -> 0-indexed 3
 
-      // B. Viewport revealed without stealing focus
       expect(mockVscode.window.showTextDocument).toHaveBeenCalledWith(document, {
         viewColumn: mockVscode.ViewColumn.One,
         preserveFocus: true,
@@ -275,13 +250,9 @@ describe('Tier 4: End-to-End Active Cognition Flow Suite', () => {
       expect(document.getText()).toBe(pristineCode);
       expect(editor.editCalls).toHaveLength(0);
 
-      // -----------------------------------------------------------------------
-      // STAGE 5: Cognitive Friction Challenge Completion
-      // -----------------------------------------------------------------------
       // 1. Premature copy attempt must be locked
       expect(session.clipboardUnlocked).toBe(false);
 
-      // 2. Developer initiates guided typing practice
       session = transitionGateSession(session, { type: 'START_TYPE_ALONG' });
       expect(session.status).toBe('TYPE_ALONG_PENDING');
       expect(session.clipboardUnlocked).toBe(false);
@@ -304,42 +275,34 @@ describe('Tier 4: End-to-End Active Cognition Flow Suite', () => {
       expect(session.status).toBe('UNLOCKED');
       expect(session.typeAlongSolved).toBe(true);
 
-      // -----------------------------------------------------------------------
       // STAGE 6: Clipboard Copy Unlock & Absolute Auto-Patch Prohibition
-      // -----------------------------------------------------------------------
       // 1. Solution copy is now unlocked
       expect(session.clipboardUnlocked).toBe(true);
 
       // 2. INVIOLABLE GOLDEN INVARIANTS:
-      // A. directAutoPatchAllowed is strictly FALSE and immutable
       expect(session.directAutoPatchAllowed).toBe(false);
 
-      // B. Malicious attempt to forge directAutoPatchAllowed: true fails schema validation
       const illegalForgeAttempt = {
         ...session,
         directAutoPatchAllowed: true,
       };
       expect(CognitiveFrictionSessionSchema.safeParse(illegalForgeAttempt).success).toBe(false);
 
-      // C. Whitelisted RPC methods omit all write/patch endpoints
       expect(READ_ONLY_RPC_METHODS).not.toContain('file.write');
       expect(READ_ONLY_RPC_METHODS).not.toContain('buffer.patch');
       expect(READ_ONLY_RPC_METHODS).not.toContain('editor.applyEdit');
       expect(isReadOnlyRpcMethod('ide.autoPatch')).toBe(false);
 
-      // D. Webview protocol schema contains NO auto-patch or applyFix action
       const illegalMessage = {
         type: 'AUTO_APPLY_FIX',
         payload: { code: 'some fix' },
       };
       expect(WebviewToExtensionMessageSchema.safeParse(illegalMessage).success).toBe(false);
 
-      // E. Final Buffer State Check: Document text is still 100% pristine after all stages!
       expect(document.isDirty).toBe(false);
       expect(document.getText()).toBe(pristineCode);
       expect(editor.editCalls).toHaveLength(0);
 
-      // Cleanup
       terminalWatcher.dispose();
       webviewProvider.dispose();
       decorationManager.dispose();
@@ -357,12 +320,10 @@ describe('Tier 4: End-to-End Active Cognition Flow Suite', () => {
         clozeAttempts: 0,
       };
 
-      // 1. Start Cloze
       session = transitionGateSession(session, { type: 'START_CLOZE' });
       expect(session.status).toBe('CLOZE_PENDING');
       expect(session.clipboardUnlocked).toBe(false);
 
-      // 2. Complete Cloze
       session = transitionGateSession(session, { type: 'CLOZE_COMPLETED' });
       expect(session.status).toBe('UNLOCKED');
       expect(session.clozeSolved).toBe(true);
@@ -371,9 +332,6 @@ describe('Tier 4: End-to-End Active Cognition Flow Suite', () => {
     });
   });
 
-  // =========================================================================
-  // Multi-Vector Error Ingestion: LSP Diagnostics to Screen B
-  // =========================================================================
   describe('Multi-Vector Ingestion: LSP Diagnostics Flow', () => {
     it('captures LSP diagnostics and translates to sidecar pedagogical query', async () => {
       let forwardedDiagnostics: any[] = [];

@@ -59,7 +59,6 @@ export class SidecarServer {
     }
 
     this.server = http.createServer((req, res) => {
-      // Basic health check endpoint
       if (req.url === '/health' || req.url === '/ping') {
         res.writeHead(200, { 'Content-Type': 'application/json' });
         res.end(JSON.stringify({ status: 'ok', uptime: Math.floor(process.uptime()) }));
@@ -74,30 +73,25 @@ export class SidecarServer {
     this.server.on('upgrade', (req, socket, head) => {
       const clientIp = req.socket.remoteAddress;
 
-      // 1. Loopback safety verification
       if (!isLoopbackAddress(clientIp)) {
         socket.write('HTTP/1.1 403 Forbidden\r\n\r\n');
         socket.destroy();
         return;
       }
 
-      // 2. Bearer token authentication check
       if (this.authToken) {
         let providedToken: string | undefined;
 
-        // Check Authorization header: Bearer <token>
         const authHeader = req.headers['authorization'];
         if (authHeader && authHeader.startsWith('Bearer ')) {
           providedToken = authHeader.substring(7).trim();
         }
 
-        // Fallback: Check ?token=<token> in query params
         if (!providedToken && req.url) {
           try {
             const parsedUrl = new URL(req.url, `http://${this.host}`);
             providedToken = parsedUrl.searchParams.get('token') ?? undefined;
           } catch {
-            // URL parse failure fallback
           }
         }
 
@@ -108,7 +102,6 @@ export class SidecarServer {
         }
       }
 
-      // 3. Upgrade to WebSocket connection
       this.wss!.handleUpgrade(req, socket, head, (ws) => {
         this.wss!.emit('connection', ws, req);
       });

@@ -2,10 +2,6 @@ import { z } from 'zod';
 import { TextSpanRangeSchema } from './error-anatomy.js';
 import { SmartCardSchema } from './smart-card.js';
 
-// ==========================================
-// 1. JSON-RPC 2.0 Base Primitives & Constants
-// ==========================================
-
 export const JSONRPC_VERSION = '2.0' as const;
 export type JsonRpcVersion = typeof JSONRPC_VERSION;
 
@@ -89,10 +85,6 @@ export type JsonRpcMessage =
 
 export type JsonRpcBatch = JsonRpcMessage[];
 
-// ==========================================
-// 2. Read-Only Method Whitelist
-// ==========================================
-
 export const READ_ONLY_RPC_METHODS = [
   'rpc.ping',
   'diagnostics.analyzeError',
@@ -115,10 +107,6 @@ export function isReadOnlyRpcMethod(method: string): method is ReadOnlyRpcMethod
 export function isReadOnlyMethod(method: string): method is ReadOnlyMethod {
   return isReadOnlyRpcMethod(method);
 }
-
-// ==========================================
-// 3. Shared Position & Range DTOs
-// ==========================================
 
 export const PositionSchema = z.object({
   line: z.number().int().nonnegative(),
@@ -158,10 +146,6 @@ export const LspDiagnosticSchema = z.object({
     .optional(),
 });
 export type LspDiagnosticDTO = z.infer<typeof LspDiagnosticSchema>;
-
-// ==========================================
-// 4. Method Parameter Schemas (Requests)
-// ==========================================
 
 export const PingParamsSchema = z
   .object({
@@ -214,10 +198,6 @@ export const GetLspDiagnosticsParamsSchema = z
   })
   .optional();
 export type GetLspDiagnosticsParams = z.infer<typeof GetLspDiagnosticsParamsSchema>;
-
-// ==========================================
-// 5. Method Result Schemas (Responses)
-// ==========================================
 
 export const PingResultSchema = z.object({
   status: z.literal('pong'),
@@ -279,10 +259,6 @@ export const LspDiagnosticsResultSchema = z.object({
 });
 export type LspDiagnosticsResult = z.infer<typeof LspDiagnosticsResultSchema>;
 
-// ==========================================
-// 6. Generic Framing Schemas
-// ==========================================
-
 export const JsonRpcRequestSchema = z.object({
   jsonrpc: JsonRpcVersionSchema,
   id: JsonRpcIdSchema,
@@ -319,10 +295,6 @@ export const JsonRpcMessageSchema = z.union([
   JsonRpcSuccessResponseSchema,
   JsonRpcErrorResponseSchema,
 ]);
-
-// ==========================================
-// 7. Notification Event Schemas
-// ==========================================
 
 export const TokenChunkParamsSchema = z.object({
   correlationId: z.string().min(1),
@@ -382,10 +354,6 @@ export type HeartbeatNotificationParams = z.infer<
   typeof HeartbeatNotificationParamsSchema
 >;
 
-// ==========================================
-// 8. Zero-Mutation Protocol Guard & Router Helpers
-// ==========================================
-
 export interface ZeroMutationRejectionData {
   method: string;
   violationType: 'ZERO_MUTATION_INVARIANT_VIOLATION' | 'UNKNOWN_METHOD';
@@ -439,7 +407,7 @@ export function validateIncomingRequest(raw: unknown):
         jsonrpc: '2.0',
         id: rawId,
         error: {
-          code: -32600, // Invalid Request
+          code: -32600,
           message:
             'Invalid Request: JSON payload does not conform to JSON-RPC 2.0 Request framing',
           data: parseResult.error.format(),

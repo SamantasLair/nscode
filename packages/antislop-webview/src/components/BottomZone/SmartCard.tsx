@@ -49,7 +49,6 @@ export const SmartCard: React.FC<SmartCardProps> = ({
 
   return (
     <article className={`smart-card card-${card.variant}`} aria-labelledby={`card-title-${card.id}`}>
-      {/* Header */}
       <div className="card-header">
         <span className={`variant-pill ${variantLabels[card.variant].badgeClass}`}>
           {variantLabels[card.variant].title}
@@ -57,14 +56,12 @@ export const SmartCard: React.FC<SmartCardProps> = ({
         <h3 id={`card-title-${card.id}`} className="card-title">{card.title}</h3>
       </div>
 
-      {/* Quantitative Big-O Badges */}
       <BigOBadges
         timeComplexity={timeComplexity}
         spaceComplexity={spaceComplexity}
         complexityProof={complexityProof}
       />
 
-      {/* Interactive Mode Selector / Status */}
       <div className="mode-selector-bar">
         <button
           type="button"
@@ -101,7 +98,6 @@ export const SmartCard: React.FC<SmartCardProps> = ({
         </button>
       </div>
 
-      {/* Code or Cognitive Gate Sandbox Area */}
       <div className="card-sandbox-area">
         {activeMode === 'view' && (
           <div className="code-viewer-container">
@@ -129,22 +125,17 @@ export const SmartCard: React.FC<SmartCardProps> = ({
         )}
       </div>
 
-      {/* Why It Works Section */}
       <div className="card-section why-it-works">
         <h4>Mengapa Pendekatan Ini Berhasil</h4>
         <p>{card.whyItWorks}</p>
       </div>
 
-      {/* Quantitative Memory Profile */}
       {card.memoryImpact && <MemoryProfileView memoryImpact={card.memoryImpact} />}
 
-      {/* Language Idiom & Syntax Breakdown */}
       {card.languageBreakdown && <LanguageIdiomView languageBreakdown={card.languageBreakdown} />}
 
-      {/* Trade-Offs Matrix */}
       {card.tradeOffs && <TradeOffsView tradeOffs={card.tradeOffs} />}
 
-      {/* Action Footer: Locked Copy Button ONLY */}
       <div className="card-footer">
         <LockedCopyButton
           codeSnippet={card.codeSnippet}

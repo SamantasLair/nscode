@@ -22,7 +22,6 @@ export class HeartbeatWatchdog {
 
   public registerSession(session: ClientSession): void {
     this.sessions.set(session.id, session);
-    // Wire pong event if available on ws
     session.ws.on('pong', () => {
       this.handlePong(session);
     });

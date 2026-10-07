@@ -1,6 +1,5 @@
 import { describe, it, expect } from 'vitest';
 import {
-  // Cognitive Gate
   CognitiveFrictionSessionSchema,
   transitionGateSession,
   type CognitiveFrictionSessionDTO,
@@ -8,15 +7,12 @@ import {
   TypeAlongPracticeSchema,
   ClozeChallengeSchema,
   MIN_TYPE_ALONG_ACCURACY_PERCENT,
-  // Error Anatomy
   TextSpanRangeSchema,
   type TextSpanRange,
   ContractViolatedSchema,
-  // Smart Card
   BIG_O_TIME_REGEX,
   BIG_O_SPACE_REGEX,
   ComplexityMetricSchema,
-  // JSON-RPC
   validateIncomingRequest,
   READ_ONLY_RPC_METHODS,
   isReadOnlyRpcMethod,
@@ -26,9 +22,6 @@ describe('Adversarial Challenge Suite: Milestone 1 Invariant Stress-Testing', ()
   const validUUID = 'a0000000-0000-0000-0000-000000000001';
   const cardUUID = 'b0000000-0000-0000-0000-000000000002';
 
-  // =========================================================================
-  // Challenge Vector 1: directAutoPatchAllowed Schema Parse Rejection
-  // =========================================================================
   describe('Challenge Vector 1: directAutoPatchAllowed Inviolability', () => {
     it('ADVERSARIAL: Rejects directAutoPatchAllowed: true across all possible statuses', () => {
       const allStatuses: GateSessionStatus[] = [
@@ -83,9 +76,7 @@ describe('Adversarial Challenge Suite: Milestone 1 Invariant Stress-Testing', ()
     });
   });
 
-  // =========================================================================
   // Challenge Vector 2: clipboardUnlocked with Non-UNLOCKED Status
-  // =========================================================================
   describe('Challenge Vector 2: Clipboard Unlock Guarding', () => {
     it('ADVERSARIAL: Rejects clipboardUnlocked: true when status is LOCKED', () => {
       const payload = {
@@ -176,9 +167,6 @@ describe('Adversarial Challenge Suite: Milestone 1 Invariant Stress-Testing', ()
     });
   });
 
-  // =========================================================================
-  // Challenge Vector 3: State Machine Transitions via transitionGateSession
-  // =========================================================================
   describe('Challenge Vector 3: State Machine Illegal Jumps & Transition Invariants', () => {
     function createInitialSession(status: GateSessionStatus = 'LOCKED'): CognitiveFrictionSessionDTO {
       return {
@@ -312,9 +300,6 @@ describe('Adversarial Challenge Suite: Milestone 1 Invariant Stress-Testing', ()
     });
   });
 
-  // =========================================================================
-  // Challenge Vector 4: TextSpanRange Boundary Violations
-  // =========================================================================
   describe('Challenge Vector 4: TextSpanRange Boundary Violations', () => {
     it('ADVERSARIAL: Rejects endLine < startLine across varied coordinates', () => {
       const invertedLineCases = [
@@ -408,9 +393,7 @@ describe('Adversarial Challenge Suite: Milestone 1 Invariant Stress-Testing', ()
     });
   });
 
-  // =========================================================================
   // Challenge Vector 5: Extended Invariant & Security Stress Tests
-  // =========================================================================
   describe('Challenge Vector 5: Extended Anti-Slop Security Boundaries', () => {
     it('ADVERSARIAL: TypeAlongPracticeSchema strictly rejects allowPaste: true', () => {
       const hostilePractice = {
@@ -518,9 +501,6 @@ describe('Adversarial Challenge Suite: Milestone 1 Invariant Stress-Testing', ()
     });
   });
 
-  // =========================================================================
-  // Challenge Vector 6: Cognitive Friction Gate Iteration 2 Paths & Accuracy
-  // =========================================================================
   describe('Challenge Vector 6: Cognitive Gate Iteration 2 Alternative Paths & Accuracy Verification', () => {
     function initialLockedSession(): CognitiveFrictionSessionDTO {
       return {

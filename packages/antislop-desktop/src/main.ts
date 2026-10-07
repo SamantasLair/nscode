@@ -105,7 +105,6 @@ async function startSidecarDaemon(): Promise<void> {
 }
 
 export function registerFileSystemIpc(): void {
-  // fs:openDirectory
   ipcMain.handle('fs:openDirectory', async () => {
     if (!mainWindow) return { canceled: true, path: null };
     const result = await dialog.showOpenDialog(mainWindow, {
@@ -123,12 +122,10 @@ export function registerFileSystemIpc(): void {
     return { canceled: false, path: currentWorkspaceRoot, name: folderName };
   });
 
-  // fs:getWorkspaceRoot
   ipcMain.handle('fs:getWorkspaceRoot', async () => {
     return { path: currentWorkspaceRoot };
   });
 
-  // fs:readDirectory
   ipcMain.handle('fs:readDirectory', async (_event, options?: { dirPath?: string; maxDepth?: number }) => {
     const targetDir = options?.dirPath ? path.normalize(options.dirPath) : currentWorkspaceRoot;
     if (!targetDir || !fs.existsSync(targetDir)) {
@@ -202,7 +199,6 @@ export function registerFileSystemIpc(): void {
     return { error: null, rootPath: targetDir, nodes: tree, tree };
   });
 
-  // fs:listFiles (Milestone v0.2.1 - Quick Open)
   ipcMain.handle('fs:listFiles', async (_event, options?: { dirPath?: string; maxDepth?: number }) => {
     const targetDir = options?.dirPath ? path.normalize(options.dirPath) : currentWorkspaceRoot;
     if (!targetDir || !fs.existsSync(targetDir)) {
@@ -247,7 +243,6 @@ export function registerFileSystemIpc(): void {
     return files;
   });
 
-  // fs:readFile
   ipcMain.handle('fs:readFile', async (_event, { filePath }: { filePath: string }) => {
     try {
       const normalizedPath = path.normalize(filePath);
@@ -307,7 +302,6 @@ export function registerFileSystemIpc(): void {
     return null;
   }
 
-  // fs:writeFile
   ipcMain.handle('fs:writeFile', async (_event, { filePath, content }: { filePath: string; content: string }) => {
     try {
       const normalizedPath = path.normalize(filePath);
@@ -319,7 +313,6 @@ export function registerFileSystemIpc(): void {
     }
   });
 
-  // fs:createFile
   ipcMain.handle('fs:createFile', async (_event, params?: { filePath?: string; path?: string; dirPath?: string; fileName?: string; content?: string; overwrite?: boolean } | string) => {
     try {
       const targetPath = typeof params === 'string'
@@ -368,7 +361,6 @@ export function registerFileSystemIpc(): void {
     }
   });
 
-  // fs:createDirectory
   ipcMain.handle('fs:createDirectory', async (_event, params?: { dirPath?: string; path?: string } | string) => {
     try {
       const targetPath = typeof params === 'string' ? params : (params?.dirPath || params?.path);
@@ -402,7 +394,6 @@ export function registerFileSystemIpc(): void {
     }
   });
 
-  // fs:rename
   ipcMain.handle('fs:rename', async (_event, arg1?: any, arg2?: string) => {
     try {
       let oldPath: string | undefined;
@@ -498,7 +489,6 @@ export function registerFileSystemIpc(): void {
     }
   });
 
-  // fs:delete
   ipcMain.handle('fs:delete', async (_event, params?: { filePath?: string; path?: string } | string) => {
     try {
       const targetPath = typeof params === 'string' ? params : (params?.filePath || params?.path);
@@ -545,7 +535,6 @@ export function registerFileSystemIpc(): void {
     }
   });
 
-  // shell:revealInFolder
   ipcMain.handle('shell:revealInFolder', async (_event, params?: { filePath?: string; path?: string } | string) => {
     try {
       const targetPath = typeof params === 'string' ? params : (params?.filePath || params?.path);
@@ -867,7 +856,62 @@ export function registerAntigravityIpc(): void {
     });
   });
 
-  ipcMain.handle('antigravity:runCommand', async (_event, params: { prompt: string; correlationId: string; cwd?: string }) => {
+  ipcMain.handle('antigravity:getModels', async () => {
+    const binary = resolveAgyBinaryPath();
+    if (!binary) {
+      return { available: false, models: [] };
+    }
+
+    return new Promise((resolve) => {
+      execFile(binary, ['models'], { timeout: 5000 }, (error, stdout) => {
+        if (error) {
+          resolve({ available: false, models: [] });
+        } else {
+          const lines = stdout.split('\n');
+          const models: Array<{ id: string; name: string }> = [];
+          for (const line of lines) {
+            const trimmed = line.trim();
+            if (!trimmed || trimmed.toLowerCase().startsWith('fetching')) continue;
+            const parts = trimmed.split('\t');
+            const p0 = parts[0]?.trim();
+            const p1 = parts[1]?.trim();
+            if (p0 && p1) {
+              models.push({ id: p0, name: p1 });
+            } else if (p0) {
+              models.push({ id: p0, name: p0 });
+            }
+          }
+          resolve({ available: true, models });
+        }
+      });
+    });
+  });
+
+  ipcMain.handle('antigravity:getAgents', async () => {
+    const binary = resolveAgyBinaryPath();
+    if (!binary) {
+      return { available: false, agents: [] };
+    }
+
+    return new Promise((resolve) => {
+      execFile(binary, ['agents'], { timeout: 5000 }, (error, stdout) => {
+        if (error) {
+          resolve({ available: false, agents: [] });
+        } else {
+          const lines = stdout.split('\n');
+          const agents: Array<{ id: string; name: string }> = [];
+          for (const line of lines) {
+            const trimmed = line.trim();
+            if (!trimmed || trimmed.toLowerCase().startsWith('fetching')) continue;
+            agents.push({ id: trimmed, name: trimmed });
+          }
+          resolve({ available: true, agents });
+        }
+      });
+    });
+  });
+
+  ipcMain.handle('antigravity:runCommand', async (_event, params: { prompt: string; correlationId: string; cwd?: string; model?: string; agent?: string }) => {
     const binary = resolveAgyBinaryPath();
     if (!binary) {
       throw new Error('Antigravity CLI (agy) is not available on this system.');
@@ -884,6 +928,12 @@ export function registerAntigravityIpc(): void {
 
     const startTime = Date.now();
     const args = ['--print', params.prompt, '--output-format', 'stream-json'];
+    if (params.agent && params.agent.trim() !== '' && params.agent !== 'default') {
+      args.push('--agent', params.agent.trim());
+    }
+    if (params.model) {
+      args.push('--model', params.model);
+    }
 
     activeAgyProcess = spawn(binary, args, {
       cwd: params.cwd || currentWorkspaceRoot || process.cwd(),
@@ -1241,7 +1291,6 @@ async function createWindow(): Promise<void> {
   });
 }
 
-// Register Handlers
 ipcMain.handle('antislop:get-status', async () => {
   return {
     daemonRunning: sidecarServer !== null,

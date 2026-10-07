@@ -1,6 +1,6 @@
 {
   "name": "@antislop/sidecar",
-  "version": "0.1.1",
+  "version": "0.2.5",
   "description": "Stateless WebSocket JSON-RPC 2.0 daemon and pedagogical engine for AIAssistedAntiSlopIDE",
   "private": false,
   "main": "./dist/index.js",
@@ -21,7 +21,7 @@
     "start": "node ./dist/bin.js"
   },
   "dependencies": {
-    "@antislop/protocol": "0.1.1",
+    "@antislop/protocol": "0.2.5",
     "ws": "^8.18.0",
     "zod": "^3.24.2"
   },

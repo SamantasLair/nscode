@@ -4,10 +4,6 @@ import fs from 'fs';
 import vm from 'vm';
 import os from 'os';
 
-// =============================================================================
-// ROBUST DOM SIMULATOR FOR NODE VM SANDBOX
-// =============================================================================
-
 interface MockElement {
   id: string;
   tagName: string;
@@ -174,7 +170,6 @@ function createMockDomElement(tag = 'div', id = ''): MockElement {
       childrenList.length = 0;
       if (!val) return;
 
-      // Simple HTML snippet parser for buttons, spans, divs, icons
       const tagRegex = /<([a-zA-Z0-9]+)([^>]*)>([\s\S]*?)<\/\1>|<([a-zA-Z0-9]+)([^>]*)\/>/g;
       let match: RegExpExecArray | null;
       while ((match = tagRegex.exec(val)) !== null) {
@@ -312,10 +307,6 @@ function createMockDomElement(tag = 'div', id = ''): MockElement {
   return el;
 }
 
-// =============================================================================
-// SANDBOX ENVIRONMENT FACTORY
-// =============================================================================
-
 function setupAdversarialSandbox(jsContent: string) {
   const elementRegistry = new Map<string, MockElement>();
 
@@ -326,13 +317,11 @@ function setupAdversarialSandbox(jsContent: string) {
     return elementRegistry.get(id)!;
   };
 
-  // Editor Mounts (Layar A)
   const editorMount = getOrCreateEl('editor-mount');
   editorMount.style.display = 'block';
   const diffEditorMount = getOrCreateEl('diff-editor-mount');
   diffEditorMount.style.display = 'none';
 
-  // Review Elements (Screen B)
   const viewReview = getOrCreateEl('screen-b-view-review');
   viewReview.style.display = 'none';
   const reviewEmptyPane = getOrCreateEl('review-empty-pane');
@@ -362,7 +351,6 @@ function setupAdversarialSandbox(jsContent: string) {
   viewReview.appendChild(reviewEmptyPane);
   viewReview.appendChild(reviewActivePane);
 
-  // Monaco and Document Manager Mocks
   let modelVersionId = 1;
   let modelContent = 'def quicksort(arr):\n    return sorted(arr)\n';
 
@@ -389,7 +377,6 @@ function setupAdversarialSandbox(jsContent: string) {
     viewState: { cursor: { lineNumber: 5, column: 12 } },
   };
 
-  // Additional secondary open tabs
   const tab2Model: any = {
     getValue: vi.fn(() => 'export const API_KEY = "xyz";'),
     setValue: vi.fn(),
@@ -608,9 +595,7 @@ function setupAdversarialSandbox(jsContent: string) {
   };
 }
 
-// =============================================================================
 // ADVERSARIAL CHALLENGER 2 TEST SUITE (ZERO-BUFFER DIFF INSPECTION)
-// =============================================================================
 
 describe('Adversarial Challenger 2: Requirement R4 Zero-Buffer Diff Inspection & Review Lifecycle', () => {
   let jsContent: string;
@@ -620,30 +605,25 @@ describe('Adversarial Challenger 2: Requirement R4 Zero-Buffer Diff Inspection &
     jsContent = fs.readFileSync(workbenchJsPath, 'utf8');
   });
 
-  // ===========================================================================
   // SUITE 1: EMPIRICAL PROOF OF ZERO-BUFFER & ZERO-DISK-WRITE INVARIANTS
-  // ===========================================================================
   describe('Suite 1: Empirical Proof of Zero-Buffer & Zero-Disk-Write Invariants (R4)', () => {
     it('1.1 openReviewDiff NEVER calls electronFS.writeFile under standard and edge payloads', async () => {
       const ctx = setupAdversarialSandbox(jsContent);
       const setDiffs = ctx.sandbox.setReviewDiffs;
       const openDiff = ctx.sandbox.openReviewDiff;
 
-      // 1. Normal diff
       setDiffs([
         { id: 'diff-normal', filePath: 'quicksort.py', originalContent: 'orig', proposedContent: 'prop' },
       ]);
       await openDiff('diff-normal');
       expect(ctx.spies.writeFile).not.toHaveBeenCalled();
 
-      // 2. Empty diff (empty strings)
       setDiffs([
         { id: 'diff-empty', filePath: 'empty.py', originalContent: '', proposedContent: '' },
       ]);
       await openDiff('diff-empty');
       expect(ctx.spies.writeFile).not.toHaveBeenCalled();
 
-      // 3. Huge diff (10,000 lines)
       const hugeOrig = Array.from({ length: 10000 }, (_, i) => `line ${i}`).join('\n');
       const hugeProp = Array.from({ length: 10000 }, (_, i) => `modified line ${i}`).join('\n');
       setDiffs([
@@ -652,7 +632,6 @@ describe('Adversarial Challenger 2: Requirement R4 Zero-Buffer Diff Inspection &
       await openDiff('diff-huge');
       expect(ctx.spies.writeFile).not.toHaveBeenCalled();
 
-      // 4. Non-existent file not in docManager and missing from disk
       setDiffs([
         { id: 'diff-missing', filePath: 'missing_nowhere.py', proposedContent: 'new code' },
       ]);
@@ -763,9 +742,6 @@ describe('Adversarial Challenger 2: Requirement R4 Zero-Buffer Diff Inspection &
     });
   });
 
-  // ===========================================================================
-  // SUITE 2: RAPID SWITCHING & CONCURRENCY STRESS TESTING
-  // ===========================================================================
   describe('Suite 2: Rapid Switching & Concurrency Stress Testing', () => {
     it('2.1 rapid alternating openReviewDiff calls across 5 files without closing (100 switches)', async () => {
       const ctx = setupAdversarialSandbox(jsContent);
@@ -870,9 +846,6 @@ describe('Adversarial Challenger 2: Requirement R4 Zero-Buffer Diff Inspection &
     });
   });
 
-  // ===========================================================================
-  // SUITE 3: ADVERSARIAL BOUNDARY & INVALID DIFF ID HANDLING
-  // ===========================================================================
   describe('Suite 3: Adversarial Boundary & Invalid Diff ID Handling', () => {
     it('3.1 acceptReviewDiff with non-existent or malformed diff IDs returns false without disk writes', async () => {
       const ctx = setupAdversarialSandbox(jsContent);
@@ -908,7 +881,6 @@ describe('Adversarial Challenger 2: Requirement R4 Zero-Buffer Diff Inspection &
         { id: 'diff-idem-2', filePath: 'main.go', proposedContent: 'idem 2' },
       ]);
 
-      // 1. Double Accept: first succeeds, second returns false
       const firstAccept = await acceptDiff('diff-idem-1');
       expect(firstAccept).toBe(true);
       expect(ctx.spies.writeFile).toHaveBeenCalledTimes(1);
@@ -918,7 +890,6 @@ describe('Adversarial Challenger 2: Requirement R4 Zero-Buffer Diff Inspection &
       // Ensure NO duplicate disk write occurred
       expect(ctx.spies.writeFile).toHaveBeenCalledTimes(1);
 
-      // 2. Discard then Accept: discard removes item, subsequent accept returns false
       const discardRes = discardDiff('diff-idem-2');
       expect(discardRes).toBe(true);
 
@@ -946,9 +917,6 @@ describe('Adversarial Challenger 2: Requirement R4 Zero-Buffer Diff Inspection &
     });
   });
 
-  // ===========================================================================
-  // SUITE 4: LARGE PAYLOADS, PERFORMANCE & SPECIAL ENCODING STRESS TESTS
-  // ===========================================================================
   describe('Suite 4: Large Payloads, Performance & Special Encoding Stress Tests', () => {
     it('4.1 massive diff (>10,000 lines payload) computes diff stats and opens preview in <200ms', async () => {
       const ctx = setupAdversarialSandbox(jsContent);
@@ -1034,9 +1002,6 @@ describe('Adversarial Challenger 2: Requirement R4 Zero-Buffer Diff Inspection &
     });
   });
 
-  // ===========================================================================
-  // SUITE 5: BATCH OPERATIONS & MULTI-TAB WORKSPACE RESILIENCE
-  // ===========================================================================
   describe('Suite 5: Batch Operations & Multi-Tab Workspace Resilience', () => {
     it('5.1 acceptAllReviewDiffs processes batch of 20 diffs, updates buffers and resets review UI', async () => {
       const ctx = setupAdversarialSandbox(jsContent);

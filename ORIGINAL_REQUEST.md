@@ -266,3 +266,46 @@ Integrity mode: development
 - [ ] All 527 existing tests continue to pass (zero regression).
 - [ ] New unit test suite `v0_2_3_live_ai_streaming.test.ts` passes 100%.
 - [ ] `corepack yarn --cwd packages/antislop-desktop build` compiles cleanly with exit code 0.
+
+
+## 2026-10-05T08:09:02Z
+
+# Teamwork Project Prompt
+
+Requested team: Full team
+
+Implement dynamic Antigravity sub-agent discovery and invocation alongside a 100% ephemeral, isolated ruleset for Screen B (Layar B) in NSCode Desktop, ensuring external terminal CLI environments remain entirely unmodified and unpolluted.
+
+Working directory: C:\laragon\www\_Projek\NSCode
+Integrity mode: development
+
+## Requirements
+
+### R1. Antigravity Sub-Agent Dynamic Discovery & Invocation
+Provide Screen B users with dynamic access to available Antigravity sub-agents (discovered via `agy agents`), allowing agent selection directly within the prompt interface, and ensure `agy.exe` is invoked with `--agent <selected_agent>` when an agent is chosen.
+
+### R2. 100% Isolated In-Flight Screen B Ruleset
+Provide Screen B with its own dedicated operational ruleset (incorporating Anti-Slop principles, Socratic cognitive guidance, and zero-buffer streaming integrity). The ruleset must be injected dynamically into the in-flight prompt envelope so that global configuration files (`~/.gemini/GEMINI.md`) and external CLI sessions remain strictly untouched.
+
+### R3. Automated Verification and Build Integrity
+Ensure all existing and new test suites pass deterministically and the Electron application builds without packaging errors or regressions.
+
+## Verification Resources
+- Test command: `npx vitest run packages/antislop-desktop/test/v0_2_3_live_ai_streaming.test.ts packages/antislop-desktop/test/v0_2_4_socratic_cognitive_gate.test.ts`
+- Build command: `npm --prefix packages/antislop-desktop run build`
+- Isolation audit: Verify that `C:\Users\DELL\.gemini\GEMINI.md` md5 hash remains identical before and after execution.
+
+## Acceptance Criteria
+
+### Sub-Agent Discovery & Execution
+- [ ] Screen B UI includes an agent selection dropdown populated with the active system sub-agents (`research`, `security-boundary-verifier`, `build-error-resolver`, etc.).
+- [ ] Executing a prompt with a selected sub-agent triggers `agy.exe` with `--agent <name>`.
+- [ ] Sub-agent execution output streams seamlessly into Screen B without UI freezing.
+
+### Complete Isolation
+- [ ] Global configuration file `~/.gemini/GEMINI.md` is NOT modified or mutated.
+- [ ] Screen B ruleset is applied exclusively within NSCode Screen B sessions.
+
+### Quality & Stability
+- [ ] All Vitest unit tests pass with 0 failures.
+- [ ] TypeScript compilation and application build succeed with 0 errors.

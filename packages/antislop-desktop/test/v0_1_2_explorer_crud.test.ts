@@ -3,10 +3,6 @@ import path from 'path';
 import fs from 'fs';
 import os from 'os';
 
-// =============================================================================
-// ELECTRON IPC MOCK HARNESS
-// =============================================================================
-
 const { ipcHandlers, mockWebContents, mockMainWindow, mockShell } = vi.hoisted(() => {
   const handlers = new Map<string, Function>();
   const webContents = {
@@ -75,9 +71,6 @@ describe('Milestone v0.1.2: Explorer Context Menu & File Operations CRUD', () =>
     }
   });
 
-  // ===========================================================================
-  // 1. IPC Handler Registration & Safety Constraints (R1)
-  // ===========================================================================
   describe('1. IPC Handler Registration & Safety Constraints (R1)', () => {
     it('verifies all 5 Milestone v0.1.2 IPC handlers are registered', () => {
       expect(ipcHandlers.has('fs:createFile')).toBe(true);
@@ -250,17 +243,14 @@ describe('Milestone v0.1.2: Explorer Context Menu & File Operations CRUD', () =>
       const handler = ipcHandlers.get('fs:rename');
       const fsRoot = path.parse(workspaceDir).root;
 
-      // 1. Filesystem root
       const res1 = await handler!(null, { oldPath: fsRoot, newPath: path.join(fsRoot, 'sub') });
       expect(res1.success).toBe(false);
       expect(res1.error).toContain('Cannot rename filesystem root');
 
-      // 2. Workspace root
       const res2 = await handler!(null, { oldPath: workspaceDir, newPath: path.join(testTempDir, 'new_ws') });
       expect(res2.success).toBe(false);
       expect(res2.error).toContain('Cannot rename workspace root');
 
-      // 3. Parent of workspace root
       const res3 = await handler!(null, { oldPath: testTempDir, newPath: path.join(os.tmpdir(), 'other') });
       expect(res3.success).toBe(false);
       expect(res3.error).toContain('Cannot rename parent of workspace root');
@@ -382,21 +372,16 @@ describe('Milestone v0.1.2: Explorer Context Menu & File Operations CRUD', () =>
     });
   });
 
-  // ===========================================================================
-  // 2. Real File System CRUD Lifecycle Testing
-  // ===========================================================================
   describe('2. Real File System CRUD Lifecycle', () => {
     it('creates file at workspace root and deep nested folders via fs:createFile', async () => {
       const createHandler = ipcHandlers.get('fs:createFile')!;
 
-      // 1. Root level file
       const rootFile = path.join(workspaceDir, 'hello.ts');
       const res1 = await createHandler(null, { filePath: rootFile });
       expect(res1.success).toBe(true);
       expect(fs.existsSync(rootFile)).toBe(true);
       expect(fs.readFileSync(rootFile, 'utf-8')).toBe('');
 
-      // 2. Deep nested file creating intermediate directories
       const deepFile = path.join(workspaceDir, 'src', 'components', 'button.tsx');
       const res2 = await createHandler(null, { filePath: deepFile, content: 'export const Btn = () => null;' });
       expect(res2.success).toBe(true);
@@ -470,9 +455,6 @@ describe('Milestone v0.1.2: Explorer Context Menu & File Operations CRUD', () =>
     });
   });
 
-  // ===========================================================================
-  // 3. Preload Bridge Contract Exposure (R1)
-  // ===========================================================================
   describe('3. Preload Bridge API Contract Exposure', () => {
     let preloadContent: string;
 
@@ -514,9 +496,6 @@ describe('Milestone v0.1.2: Explorer Context Menu & File Operations CRUD', () =>
     });
   });
 
-  // ===========================================================================
-  // 4. UI Context Menu & Tree Operations Contract (R2 & R3)
-  // ===========================================================================
   describe('4. UI Context Menu & Tree Operations Contract', () => {
     let jsContent: string;
     let cssContent: string;
@@ -617,9 +596,6 @@ describe('Milestone v0.1.2: Explorer Context Menu & File Operations CRUD', () =>
     });
   });
 
-  // ===========================================================================
-  // 5. Tab Auto-Update & Close Behavior on File Rename / Deletion (R3)
-  // ===========================================================================
   describe('5. Tab Auto-Update & Close Behavior on File Rename / Deletion', () => {
     let jsContent: string;
 
@@ -713,7 +689,6 @@ describe('Milestone v0.1.2: Explorer Context Menu & File Operations CRUD', () =>
       });
       dm.activeDocId = '/workspace/src/index.ts';
 
-      // 1. Rename single file
       dm.handleFileRenamed('/workspace/src/index.ts', '/workspace/src/main.ts');
       expect(dm.documents.has('/workspace/src/index.ts')).toBe(false);
       expect(dm.documents.has('/workspace/src/main.ts')).toBe(true);
@@ -735,7 +710,6 @@ describe('Milestone v0.1.2: Explorer Context Menu & File Operations CRUD', () =>
       dm.documents.set('/workspace/readme.md', { id: '/workspace/readme.md', filePath: '/workspace/readme.md', fileName: 'readme.md', language: 'markdown' });
       dm.activeDocId = '/workspace/src/index.ts';
 
-      // 1. Delete single file
       dm.handleFileDeleted('/workspace/src/index.ts');
       expect(dm.documents.has('/workspace/src/index.ts')).toBe(false);
       expect(dm.activeDocId).toBe('/workspace/readme.md');
@@ -873,14 +847,12 @@ describe('Milestone v0.1.2: Explorer Context Menu & File Operations CRUD', () =>
       dm.documents.set('/workspace/src/utils.ts', { id: '/workspace/src/utils.ts', filePath: '/workspace/src/utils.ts', fileName: 'utils.ts', language: 'typescript' });
       dm.activeDocId = '/workspace/src/index.ts';
 
-      // 1. Rename folder: synchronizes entries in navHistory
       dm.handleFileRenamed('/workspace/src', '/workspace/lib');
       const updatedHistory1 = sandbox.getNavHistory();
       expect(updatedHistory1).toContain('/workspace/lib/index.ts');
       expect(updatedHistory1).toContain('/workspace/lib/utils.ts');
       expect(updatedHistory1).not.toContain('/workspace/src/index.ts');
 
-      // 2. Delete file: removes entry from navHistory
       dm.handleFileDeleted('/workspace/lib/index.ts');
       const updatedHistory2 = sandbox.getNavHistory();
       expect(updatedHistory2).not.toContain('/workspace/lib/index.ts');

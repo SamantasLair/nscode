@@ -1,6 +1,6 @@
 {
   "name": "noslop-code",
-  "version": "0.1.1",
+  "version": "0.2.5",
   "private": true,
   "description": "Make Coders Great Again. No Slop. - Active-cognition desktop IDE combating AI-induced developer skill atrophy",
   "packageManager": "yarn@1.22.22",

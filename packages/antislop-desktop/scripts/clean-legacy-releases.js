@@ -49,7 +49,6 @@ function cleanLegacyReleases(options = {}) {
       continue;
     }
 
-    // 1. Remove temporary uninstaller or debug artifacts
     if (file.startsWith('__uninstaller') || file === 'builder-debug.yml') {
       try {
         bytesFreed += stat.size;
@@ -63,7 +62,6 @@ function cleanLegacyReleases(options = {}) {
       continue;
     }
 
-    // 2. Check if file is an executable or blockmap with an older version or legacy brand prefix
     const isExeOrArtifact = file.endsWith('.exe') || file.endsWith('.blockmap');
     const match = file.match(versionRegex);
 

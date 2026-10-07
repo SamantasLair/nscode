@@ -3,10 +3,6 @@ import path from 'path';
 import fs from 'fs';
 import vm from 'vm';
 
-// =============================================================================
-// ELECTRON IPC & BROWSER MOCK HARNESS
-// =============================================================================
-
 const { ipcHandlers, mockWebContents, mockMainWindow, mockShell } = vi.hoisted(() => {
   const handlers = new Map<string, Function>();
   const webContents = {
@@ -52,10 +48,6 @@ vi.mock('electron', () => {
     },
   };
 });
-
-// =============================================================================
-// HIGH-FIDELITY BALANCED-TAG DOM SIMULATOR FOR NODE VM SANDBOX
-// =============================================================================
 
 interface MockElement {
   id: string;
@@ -147,7 +139,6 @@ function parseHtmlToMockElements(html: string, parent: MockElement): MockElement
     const el = createMockDomElement(tagName);
     el.parentNode = parent;
 
-    // Extract common attributes
     const idMatch = attrsStr.match(/id=["']([^"']+)["']/);
     if (idMatch) el.id = idMatch[1];
 
@@ -173,7 +164,6 @@ function parseHtmlToMockElements(html: string, parent: MockElement): MockElement
       continue;
     }
 
-    // Balanced tag nesting scanner
     const closeTag = `</${rawTag}>`;
     const openTagPrefix = `<${rawTag}`;
     let depth = 1;
@@ -400,10 +390,6 @@ function createMockDomElement(tag = 'div', id = ''): MockElement {
   return el;
 }
 
-// =============================================================================
-// WORKBENCH SANDBOX GENERATOR FOR ADVERSARIAL STRESS TESTING
-// =============================================================================
-
 function setupAdversarialSandbox(jsContent: string, options: { modelContent?: string; lineCount?: number } = {}) {
   const elementRegistry = new Map<string, MockElement>();
 
@@ -414,7 +400,6 @@ function setupAdversarialSandbox(jsContent: string, options: { modelContent?: st
     return elementRegistry.get(id)!;
   };
 
-  // Seed DOM Elements
   const editorMount = getOrCreateEl('editor-mount');
   editorMount.style.display = 'block';
   const diffEditorMount = getOrCreateEl('diff-editor-mount');
@@ -731,10 +716,6 @@ function setupAdversarialSandbox(jsContent: string, options: { modelContent?: st
   };
 }
 
-// =============================================================================
-// ADVERSARIAL TEST SUITE (CHALLENGER 1)
-// =============================================================================
-
 describe('Milestone v0.2.2: Adversarial Stress Testing (Challenger 1)', () => {
   let jsContent: string;
 
@@ -744,9 +725,6 @@ describe('Milestone v0.2.2: Adversarial Stress Testing (Challenger 1)', () => {
     vi.clearAllMocks();
   });
 
-  // ===========================================================================
-  // SUITE 1: CONTEXT BRIDGE (R1) ADVERSARIAL & STRESS TESTS
-  // ===========================================================================
   describe('Suite 1: Context Bridge (R1) Adversarial & Stress Testing', () => {
 
     it('1.1 normalizes severely inverted selection ranges (endLine < startLine) ensuring startLine <= endLine', () => {
@@ -875,7 +853,6 @@ describe('Milestone v0.2.2: Adversarial Stress Testing (Challenger 1)', () => {
       expect(target.codeSnippet).toContain('مرحبا بالعالم البرمجي');
       expect(target.codeSnippet).toContain('\u200D');
 
-      // DOM rendering verification
       const stackList = ctx.elementRegistry.get('target-stack-list')!;
       expect(stackList.children.length).toBeGreaterThan(0);
       const card = stackList.children[0];
@@ -969,9 +946,6 @@ describe('Milestone v0.2.2: Adversarial Stress Testing (Challenger 1)', () => {
     });
   });
 
-  // ===========================================================================
-  // SUITE 2: AGENTIC TASK PLAN STATE MACHINE (R3) ADVERSARIAL & STRESS TESTS
-  // ===========================================================================
   describe('Suite 2: Agentic Task Plan State Machine (R3) Adversarial & Stress Testing', () => {
 
     it('2.1 executes rapid state cycling: in_progress -> paused -> in_progress -> paused -> cancelled', () => {
@@ -992,23 +966,19 @@ describe('Milestone v0.2.2: Adversarial Stress Testing (Challenger 1)', () => {
       let plan = ctx.sandbox.getTaskPlan();
       expect(plan.status).toBe('in_progress');
 
-      // 1. Pause
       expect(pausePlan()).toBe(true);
       expect(plan.status).toBe('paused');
       expect(ctx.elementRegistry.get('btn-plan-pause')!.style.display).toBe('none');
       expect(ctx.elementRegistry.get('btn-plan-resume')!.style.display).not.toBe('none');
 
-      // 2. Resume
       expect(resumePlan()).toBe(true);
       expect(plan.status).toBe('in_progress');
       expect(ctx.elementRegistry.get('btn-plan-pause')!.style.display).not.toBe('none');
       expect(ctx.elementRegistry.get('btn-plan-resume')!.style.display).toBe('none');
 
-      // 3. Pause again
       expect(pausePlan()).toBe(true);
       expect(plan.status).toBe('paused');
 
-      // 4. Cancel from paused state
       expect(cancelPlan()).toBe(true);
       expect(plan.status).toBe('cancelled');
       expect(ctx.elementRegistry.get('plan-status-badge')!.textContent).toContain('CANCELLED');
@@ -1021,7 +991,6 @@ describe('Milestone v0.2.2: Adversarial Stress Testing (Challenger 1)', () => {
       const resumePlan = ctx.sandbox.resumeTaskPlan;
       const cancelPlan = ctx.sandbox.cancelTaskPlan;
 
-      // 1. Calling lifecycle controls before any plan exists
       expect(pausePlan()).toBe(false);
       expect(resumePlan()).toBe(false);
       expect(cancelPlan()).toBe(false);
@@ -1029,23 +998,19 @@ describe('Milestone v0.2.2: Adversarial Stress Testing (Challenger 1)', () => {
       // Create plan
       createPlan({ title: 'Invalid Transitions Plan', subtasks: [{ id: 'st-1', title: 'Task 1' }] });
 
-      // 2. Resuming an already in_progress plan
       expect(resumePlan()).toBe(false);
 
       // Pause plan
       pausePlan();
 
-      // 3. Pausing an already paused plan
       expect(pausePlan()).toBe(false);
 
       // Cancel plan
       cancelPlan();
 
-      // 4. Pausing or resuming an already cancelled plan
       expect(pausePlan()).toBe(false);
       expect(resumePlan()).toBe(false);
 
-      // 5. Cancelling an already cancelled plan
       expect(cancelPlan()).toBe(false);
     });
 
@@ -1087,10 +1052,8 @@ describe('Milestone v0.2.2: Adversarial Stress Testing (Challenger 1)', () => {
         ],
       });
 
-      // 1. Advancing non-existent subtask ID returns false
       expect(advanceSubtask('phantom-id-404', 'completed')).toBe(false);
 
-      // 2. Advancing duplicate ID advances the first occurrence without crashing
       const ok = advanceSubtask('dup-id', 'completed');
       expect(ok).toBe(true);
 
@@ -1121,13 +1084,10 @@ describe('Milestone v0.2.2: Adversarial Stress Testing (Challenger 1)', () => {
       const ctx = setupAdversarialSandbox(jsContent);
       const createPlan = ctx.sandbox.createTaskPlan;
 
-      // 1. Missing planData throws error
       expect(() => createPlan(null)).toThrow(/Task plan requires a valid title/);
 
-      // 2. Missing title throws error
       expect(() => createPlan({ title: '' })).toThrow(/Task plan requires a valid title/);
 
-      // 3. Non-array subtasks defaults to empty array without throwing
       const plan = createPlan({ title: 'Valid Title', subtasks: 'invalid' as any });
       expect(Array.isArray(plan.subtasks)).toBe(true);
       expect(plan.subtasks.length).toBe(0);
@@ -1166,7 +1126,6 @@ describe('Milestone v0.2.2: Adversarial Stress Testing (Challenger 1)', () => {
       expect(escapeHtml('<script>alert("xss")</script>')).toBe('&lt;script&gt;alert(&quot;xss&quot;)&lt;/script&gt;');
       expect(escapeHtml('foo & bar "test" \'val\'')).toBe('foo &amp; bar &quot;test&quot; &#039;val&#039;');
 
-      // 1. Test XSS in execution logs
       createPlan({
         title: 'Sanitization Plan',
         subtasks: [
@@ -1187,7 +1146,6 @@ describe('Milestone v0.2.2: Adversarial Stress Testing (Challenger 1)', () => {
       expect(lastRow.innerHTML).toContain('&lt;script&gt;');
       expect(lastRow.innerHTML).not.toContain('<script>window.pwned=true;</script>');
 
-      // 2. Subtask description escaping check in DOM
       const subtaskList = ctx.elementRegistry.get('plan-subtask-list')!;
       const subtaskItem = subtaskList.children[0];
       const descEl = subtaskItem.querySelector('.subtask-desc');
@@ -1282,7 +1240,6 @@ describe('Milestone v0.2.2: Adversarial Stress Testing (Challenger 1)', () => {
       const ctx = setupAdversarialSandbox(jsContent);
       const bridge = ctx.sandbox.editorEventBridge;
 
-      // 1. Unsubscribing via returned disposer function
       const spyA = vi.fn();
       const disposeA = bridge.on('test:sub', spyA);
 
@@ -1293,10 +1250,8 @@ describe('Milestone v0.2.2: Adversarial Stress Testing (Challenger 1)', () => {
       bridge.emit('test:sub', { step: 2 });
       expect(spyA).toHaveBeenCalledTimes(1); // not called again
 
-      // 2. Emitting an event with zero listeners does not throw
       expect(() => bridge.emit('unregistered:event', { foo: 'bar' })).not.toThrow();
 
-      // 3. Re-entrant event emission
       let reentrantCount = 0;
       bridge.on('reentrant:outer', () => {
         reentrantCount++;

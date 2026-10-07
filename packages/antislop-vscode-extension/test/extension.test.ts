@@ -44,19 +44,15 @@ describe('VS Code Extension: AntiSlop Active Cognition Suite', () => {
       expect(result).toBe(true);
 
       // INVIOLABLE ASSERTIONS:
-      // 1. Zero edits: editor.edit() MUST NEVER be called
       expect(editor.editCalls).toHaveLength(0);
 
-      // 2. Buffer untouched: document.isDirty MUST remain false
       expect(doc.isDirty).toBe(false);
 
-      // 3. Visual decoration applied
       const decorations = editor.decorations.get(manager.getFaultDecorationType());
       expect(decorations).toBeDefined();
       expect(decorations).toHaveLength(1);
       expect(decorations![0].start.line).toBe(2); // 1-indexed line 3 -> 0-indexed line 2
 
-      // 4. Focus preserved and revealed in center
       expect(editor.revealedRanges).toHaveLength(1);
       expect(editor.revealedRanges[0].range.start.line).toBe(2);
       expect(mockVscode.window.showTextDocument).toHaveBeenCalledWith(doc, {

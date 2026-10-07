@@ -29,7 +29,7 @@ export class AntislopLayoutContribution
     const isAttached = mainWidgets.some((w) => w.id === AntislopWidget.ID);
 
     if (isAttached) {
-      return false; // Already attached
+      return false;
     }
 
     const refWidget = mainWidgets.find((w) => w.id !== AntislopWidget.ID);

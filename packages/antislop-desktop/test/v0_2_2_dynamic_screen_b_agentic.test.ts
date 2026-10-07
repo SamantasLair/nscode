@@ -4,10 +4,6 @@ import fs from 'fs';
 import os from 'os';
 import vm from 'vm';
 
-// =============================================================================
-// ELECTRON IPC MOCK HARNESS
-// =============================================================================
-
 const { ipcHandlers, mockWebContents, mockMainWindow, mockShell } = vi.hoisted(() => {
   const handlers = new Map<string, Function>();
   const webContents = {
@@ -56,10 +52,6 @@ vi.mock('electron', () => {
 
 // Import main module to trigger IPC registrations
 import { setCurrentWorkspaceRootForTesting } from '../src/main';
-
-// =============================================================================
-// HIGH-FIDELITY DOM SIMULATOR FOR NODE VM SANDBOX
-// =============================================================================
 
 interface MockElement {
   id: string;
@@ -352,10 +344,6 @@ function createMockDomElement(tag = 'div', id = ''): MockElement {
   return el;
 }
 
-// =============================================================================
-// WORKBENCH SANDBOX INITIALIZER
-// =============================================================================
-
 function setupWorkbenchSandbox(jsContent: string) {
   const elementRegistry = new Map<string, MockElement>();
 
@@ -416,7 +404,6 @@ function setupWorkbenchSandbox(jsContent: string) {
   // Seed Screen B Middle Container & Views
   const middleContainer = getOrCreateEl('secondary-middle-container');
 
-  // 1. Chat View
   const viewChat = getOrCreateEl('screen-b-view-chat');
   viewChat.style.display = 'flex';
   const interactionContainer = getOrCreateEl('screen-b-interaction-container');
@@ -437,7 +424,6 @@ function setupWorkbenchSandbox(jsContent: string) {
   (webviewFrame as any).contentWindow = { postMessage: mockPostMessage };
   viewChat.appendChild(webviewFrame);
 
-  // 2. Plan View (R2/R3)
   const viewPlan = getOrCreateEl('screen-b-view-plan');
   viewPlan.style.display = 'none';
 
@@ -498,7 +484,6 @@ function setupWorkbenchSandbox(jsContent: string) {
   viewPlan.appendChild(planEmptyPane);
   viewPlan.appendChild(planActivePane);
 
-  // 3. Review View (R2/R4)
   const viewReview = getOrCreateEl('screen-b-view-review');
   viewReview.style.display = 'none';
 
@@ -533,7 +518,6 @@ function setupWorkbenchSandbox(jsContent: string) {
   middleContainer.appendChild(viewPlan);
   middleContainer.appendChild(viewReview);
 
-  // Bottom prompt container
   const promptContainer = getOrCreateEl('antigravity-prompt-container');
   const promptInputBox = getOrCreateEl('prompt-input-box', 'textarea');
   promptInputBox.value = '';
@@ -541,12 +525,10 @@ function setupWorkbenchSandbox(jsContent: string) {
   promptContainer.appendChild(promptInputBox);
   promptContainer.appendChild(btnPromptRun);
 
-  // Navigation & Tabs
   getOrCreateEl('workbench-tabs');
   getOrCreateEl('open-editors-list');
   getOrCreateEl('workspace-file-tree');
 
-  // Monaco Mock Instrumentation
   let modelVersionId = 1;
   let modelContent = 'def quicksort(arr):\n    if len(arr) <= 1:\n        return arr\n    pivot = arr[len(arr) // 2]\n    left = [x for x in arr if x < pivot]\n    middle = [x for x in arr if x == pivot]\n    right = [x for x in arr if x > pivot]\n    return quicksort(left) + middle + quicksort(right)\n';
   let changeListeners: Function[] = [];
@@ -632,7 +614,6 @@ function setupWorkbenchSandbox(jsContent: string) {
     restoreViewState: vi.fn(),
   };
 
-  // Monaco Diff Editor Mock
   let diffEditorOriginalModel: any = null;
   let diffEditorModifiedModel: any = null;
   let diffEditorOptions: any = null;
@@ -881,6 +862,7 @@ function setupWorkbenchSandbox(jsContent: string) {
     globalThis.targetStack = typeof targetStack !== 'undefined' ? targetStack : [];
     globalThis.renderTargetStack = typeof renderTargetStack !== 'undefined' ? renderTargetStack : undefined;
     globalThis.screenBController = typeof screenBController !== 'undefined' ? screenBController : (typeof window !== 'undefined' ? window.screenBController : undefined);
+    globalThis.secondaryResizer = typeof secondaryResizer !== 'undefined' ? secondaryResizer : (typeof window !== 'undefined' ? window.secondaryResizer : undefined);
   `;
 
   try {
@@ -935,10 +917,6 @@ function setupWorkbenchSandbox(jsContent: string) {
   };
 }
 
-// =============================================================================
-// COMPREHENSIVE TEST SUITE: MILESTONE v0.2.2 (SUITES 1 TO 5)
-// =============================================================================
-
 describe('Milestone v0.2.2: Dynamic Screen B Agentic Intelligence & Layar A Zero-Buffer Diff', () => {
   let testTempDir: string;
   let workspaceDir: string;
@@ -974,9 +952,6 @@ describe('Milestone v0.2.2: Dynamic Screen B Agentic Intelligence & Layar A Zero
     }
   });
 
-  // ===========================================================================
-  // SUITE 1: CONTEXT BRIDGE (Ctrl+Alt+A & MONACO CONTEXT MENU)
-  // ===========================================================================
   describe('Suite 1: Context Bridge (Ctrl+Alt+A & Monaco Context Menu)', () => {
     it('1.1 registers Monaco action "sendToScreenB" with label "Kirim ke Screen B" and keybinding CtrlCmd+Alt+KeyA', () => {
       const ctx = setupWorkbenchSandbox(jsContent);
@@ -1165,9 +1140,6 @@ describe('Milestone v0.2.2: Dynamic Screen B Agentic Intelligence & Layar A Zero
     });
   });
 
-  // ===========================================================================
-  // SUITE 2: DYNAMIC SCREEN B MODE MORPHING (Chat <-> Plan <-> Review)
-  // ===========================================================================
   describe('Suite 2: Dynamic Screen B Mode Morphing (Chat <-> Plan <-> Review)', () => {
     it('2.1 manual tab switching via setScreenBMode updates active tab, aria-selected, and view visibility', () => {
       const ctx = setupWorkbenchSandbox(jsContent);
@@ -1303,9 +1275,6 @@ describe('Milestone v0.2.2: Dynamic Screen B Agentic Intelligence & Layar A Zero
     });
   });
 
-  // ===========================================================================
-  // SUITE 3: AGENTIC TASK PLAN STATE MACHINE (R3)
-  // ===========================================================================
   describe('Suite 3: Agentic Task Plan State Machine (R3)', () => {
     it('3.1 createTaskPlan initializes task plan with subtasks, initial progress 0%, and in_progress status', () => {
       const ctx = setupWorkbenchSandbox(jsContent);
@@ -1571,9 +1540,7 @@ describe('Milestone v0.2.2: Dynamic Screen B Agentic Intelligence & Layar A Zero
     });
   });
 
-  // ===========================================================================
   // SUITE 4: LAYAR A ZERO-BUFFER DIFF PREVIEW & REVIEW INSPECTION (R4)
-  // ===========================================================================
   describe('Suite 4: Layar A Zero-Buffer Diff Preview & Review Inspection (R4)', () => {
     it('4.1 setReviewDiffs renders modified files list with diff badges and totals', () => {
       const ctx = setupWorkbenchSandbox(jsContent);
@@ -1748,19 +1715,15 @@ describe('Milestone v0.2.2: Dynamic Screen B Agentic Intelligence & Layar A Zero
 
       await acceptDiff('diff-1');
 
-      // 1. Writes to disk via electronFS.writeFile
       expect(ctx.spies.writeFile).toHaveBeenCalledWith('quicksort.py', proposed);
 
-      // 2. Synchronizes open document buffer
       expect(ctx.openDoc.isDirty).toBe(false);
 
-      // 3. Diff editor closed, editor-mount restored
       const editorMount = ctx.elementRegistry.get('editor-mount')!;
       const diffMount = ctx.elementRegistry.get('diff-editor-mount')!;
       expect(editorMount.style.display).toBe('block');
       expect(diffMount.style.display).toBe('none');
 
-      // 4. Event emitted
       expect(acceptSpy).toHaveBeenCalled();
     });
 
@@ -1891,23 +1854,17 @@ describe('Milestone v0.2.2: Dynamic Screen B Agentic Intelligence & Layar A Zero
     });
   });
 
-  // ===========================================================================
-  // SUITE 5: MONOREPO REGRESSION & BUILD INTEGRITY (R5)
-  // ===========================================================================
   describe('Suite 5: Monorepo Regression & Build Integrity (R5)', () => {
     it('5.1 verifies all required Screen B and Diff Editor DOM elements exist in index.html', () => {
-      // Screen B Mode Switcher Tabs
       expect(htmlContent).toContain('id="screen-b-mode-tabs"');
       expect(htmlContent).toContain('id="tab-screen-b-chat"');
       expect(htmlContent).toContain('id="tab-screen-b-plan"');
       expect(htmlContent).toContain('id="tab-screen-b-review"');
 
-      // Screen B Views
       expect(htmlContent).toContain('id="screen-b-view-chat"');
       expect(htmlContent).toContain('id="screen-b-view-plan"');
       expect(htmlContent).toContain('id="screen-b-view-review"');
 
-      // Plan Active Pane & Controls
       expect(htmlContent).toContain('id="plan-active-pane"');
       expect(htmlContent).toContain('id="btn-plan-pause"');
       expect(htmlContent).toContain('id="btn-plan-resume"');
@@ -1917,7 +1874,6 @@ describe('Milestone v0.2.2: Dynamic Screen B Agentic Intelligence & Layar A Zero
       expect(htmlContent).toContain('id="plan-affected-list"');
       expect(htmlContent).toContain('id="plan-logs-console"');
 
-      // Review Active Pane & Controls
       expect(htmlContent).toContain('id="review-active-pane"');
       expect(htmlContent).toContain('id="review-file-count"');
       expect(htmlContent).toContain('id="review-total-added"');
@@ -1926,7 +1882,6 @@ describe('Milestone v0.2.2: Dynamic Screen B Agentic Intelligence & Layar A Zero
       expect(htmlContent).toContain('id="btn-review-discard-all"');
       expect(htmlContent).toContain('id="review-file-list"');
 
-      // Monaco Layar A Diff Mount
       expect(htmlContent).toContain('id="editor-mount"');
       expect(htmlContent).toContain('id="diff-editor-mount"');
     });
@@ -1990,6 +1945,23 @@ describe('Milestone v0.2.2: Dynamic Screen B Agentic Intelligence & Layar A Zero
       expect(fs.existsSync(path.resolve(__dirname, '../src/preload.ts'))).toBe(true);
       expect(fs.existsSync(path.resolve(__dirname, '../src/workbench/index.html'))).toBe(true);
       expect(fs.existsSync(path.resolve(__dirname, '../src/workbench/workbench.js'))).toBe(true);
+    });
+
+    it('5.6 verifies Screen B header has prominent close button and handles COLLAPSE_SCREEN_B message', () => {
+      expect(htmlContent).toContain('id="btn-secondary-collapse"');
+      expect(htmlContent).toContain('codicon-close');
+      expect(htmlContent).toContain('Tutup Layar B (Ctrl+Alt+B)');
+
+      const ctx = setupWorkbenchSandbox(jsContent);
+      const secondaryResizer = ctx.sandbox.secondaryResizer;
+      expect(secondaryResizer).toBeDefined();
+
+      const collapseSpy = vi.spyOn(secondaryResizer, 'collapse');
+      ctx.sandbox.window.dispatchEvent({
+        type: 'message',
+        data: { type: 'COLLAPSE_SCREEN_B' }
+      });
+      expect(collapseSpy).toHaveBeenCalled();
     });
   });
 });

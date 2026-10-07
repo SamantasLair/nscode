@@ -14,7 +14,6 @@ export class TerminalWatcher implements vscode.Disposable {
   }
 
   private registerListeners(): void {
-    // 1. Modern shell execution API (VS Code 1.80+)
     const windowAny = vscode.window as any;
     if (typeof windowAny.onDidEndTerminalShellExecution === 'function') {
       this.disposables.push(
@@ -39,7 +38,6 @@ export class TerminalWatcher implements vscode.Disposable {
       );
     }
 
-    // 2. Terminal close fallback listener
     if (typeof vscode.window.onDidCloseTerminal === 'function') {
       this.disposables.push(
         vscode.window.onDidCloseTerminal(async (terminal) => {
@@ -78,7 +76,6 @@ export class TerminalWatcher implements vscode.Disposable {
   }
 
   public stripAnsi(text: string): string {
-    // Strips ANSI escape sequences and control characters
     // eslint-disable-next-line no-control-regex
     return text.replace(/[\u001b\u009b][[()#;?]*(?:[0-9]{1,4}(?:;[0-9]{0,4})*)?[0-9A-ORZcf-nqry=><]/g, '').trim();
   }

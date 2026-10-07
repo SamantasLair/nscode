@@ -19,9 +19,7 @@ describe('Tier 3: Zero-Buffer Mutation Decoration Suite', () => {
     mockVscode.window.visibleTextEditors.length = 0;
   });
 
-  // =========================================================================
   // Suite 1: Inviolable Zero-Buffer Mutation Invariant
-  // =========================================================================
   describe('1. Inviolable Zero-Buffer Mutation Invariant', () => {
     it('applies line decoration while guaranteeing pristine buffer text, isDirty === false, and zero edit calls', async () => {
       const manager = new DecorationManager();
@@ -56,20 +54,14 @@ describe('Tier 3: Zero-Buffer Mutation Decoration Suite', () => {
       const success = await manager.highlightLine(payload, { preserveFocus: true });
       expect(success).toBe(true);
 
-      // INVIOLABLE BUFFER INTEGRITY ASSERTIONS:
-      // 1. Document dirty state is strictly false
       expect(doc.isDirty).toBe(false);
 
-      // 2. Document text is byte-for-byte identical to pristine content
       expect(doc.getText()).toBe(pristineContent);
 
-      // 3. Zero editor.edit calls executed (undo/redo stack completely clean)
       expect(editor.editCalls).toHaveLength(0);
 
-      // 4. workspace.applyEdit was never invoked
       expect(mockVscode.workspace.openTextDocument).toHaveBeenCalledTimes(1);
 
-      // 5. Visual decoration styling verified
       const decorations = editor.decorations.get(manager.getFaultDecorationType());
       expect(decorations).toBeDefined();
       expect(decorations).toHaveLength(1);
@@ -78,7 +70,6 @@ describe('Tier 3: Zero-Buffer Mutation Decoration Suite', () => {
       expect(decorations![0].end.line).toBe(3);
       expect(decorations![0].end.character).toBe(doc.lineAt(3).text.length);
 
-      // 6. Viewport revealed without stealing focus from Screen B
       expect(editor.revealedRanges).toHaveLength(1);
       expect(editor.revealedRanges[0].range.start.line).toBe(3);
       expect(mockVscode.window.showTextDocument).toHaveBeenCalledWith(doc, {
@@ -108,9 +99,6 @@ describe('Tier 3: Zero-Buffer Mutation Decoration Suite', () => {
     });
   });
 
-  // =========================================================================
-  // Suite 2: Range & Multiline Calculations with Boundary Clamping
-  // =========================================================================
   describe('2. Coordinate Mapping, Multiline Spanning & Boundary Clamping', () => {
     it('accurately highlights multiline span when endLine is specified', async () => {
       const manager = new DecorationManager();
@@ -191,9 +179,6 @@ describe('Tier 3: Zero-Buffer Mutation Decoration Suite', () => {
     });
   });
 
-  // =========================================================================
-  // Suite 3: Highlight Disposal & Tab Switch Hygiene
-  // =========================================================================
   describe('3. Highlight Disposal, Tab Switch Hygiene & Document Close', () => {
     it('clears visual highlights on previous editor when active editor tab switches to another file', async () => {
       const manager = new DecorationManager();
@@ -289,9 +274,6 @@ describe('Tier 3: Zero-Buffer Mutation Decoration Suite', () => {
     });
   });
 
-  // =========================================================================
-  // Suite 4: Pre-Existing Dirty Document Integrity
-  // =========================================================================
   describe('4. Pre-Existing Dirty Document Protection', () => {
     it('preserves pre-existing dirty document state without adding edits or modifying content', async () => {
       const manager = new DecorationManager();

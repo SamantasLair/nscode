@@ -1,6 +1,6 @@
 {
   "name": "@antislop/desktop",
-  "version": "0.1.1",
+  "version": "0.2.5",
   "description": "Make Coders Great Again. No Slop. - Standalone Electron desktop application for NSCode",
   "author": "AntiSlop Team",
   "main": "dist/main.js",
@@ -14,8 +14,8 @@
     "dist": "yarn predist && yarn build && electron-builder --win --x64"
   },
   "dependencies": {
-    "@antislop/protocol": "0.1.1",
-    "@antislop/sidecar": "0.1.1",
+    "@antislop/protocol": "0.2.5",
+    "@antislop/sidecar": "0.2.5",
     "ws": "^8.18.0"
   },
   "devDependencies": {

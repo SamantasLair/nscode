@@ -282,7 +282,6 @@ export function createMockVscode() {
           },
         };
       }),
-      // Helper to simulate editor change
       simulateActiveEditorChange: (editor: MockTextEditor | undefined) => {
         activeEditor = editor;
         for (const l of activeEditorListeners) l(editor);

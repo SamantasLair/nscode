@@ -6,6 +6,7 @@ import {
   type HighlightLinePayload,
   type RequestAnalysisPayload,
   type PracticeCompletedPayload,
+  type ThemeTokensPayload,
 } from '@antislop/protocol';
 
 export interface VsCodeRawApi<TState = unknown> {
@@ -113,6 +114,13 @@ export class VsCodeApiBridge {
     });
   }
 
+  public collapseSidebar(): boolean {
+    return this.postMessage({
+      type: 'COLLAPSE_SCREEN_B',
+      payload: {},
+    });
+  }
+
   public onMessage(listener: (msg: ExtensionToWebviewMessage) => void): () => void {
     this.listeners.add(listener);
     return () => {
@@ -130,6 +138,10 @@ export class VsCodeApiBridge {
     }
 
     const typedMsg = parseResult.data;
+    if (typedMsg.type === 'THEME_CHANGED') {
+      applyThemeTokens(typedMsg.payload);
+    }
+
     for (const listener of this.listeners) {
       try {
         listener(typedMsg);
@@ -143,7 +155,6 @@ export class VsCodeApiBridge {
     let mockState: unknown = undefined;
     return {
       postMessage: (msg: unknown) => {
-        // Log in dev mode
         if (typeof console !== 'undefined' && console.log) {
           console.log('[VsCodeApiBridge Mock Outbound]', msg);
         }
@@ -175,3 +186,21 @@ export class VsCodeApiBridge {
 }
 
 export const vscodeApi = VsCodeApiBridge.getInstance();
+
+export function applyThemeTokens(payload: ThemeTokensPayload): void {
+  if (typeof document === 'undefined') return;
+  let styleEl = document.getElementById('dynamic-theme-tokens') as HTMLStyleElement | null;
+  if (!styleEl) {
+    styleEl = document.createElement('style');
+    styleEl.id = 'dynamic-theme-tokens';
+    document.head.appendChild(styleEl);
+  }
+  const declarations = Object.entries(payload.tokens)
+    .map(([key, val]) => `  ${key}: ${val};`)
+    .join('\n');
+  styleEl.textContent = `:root {\n${declarations}\n}`;
+  if (document.body) {
+    document.body.setAttribute('data-theme-id', payload.themeId);
+    document.body.setAttribute('data-theme-type', payload.themeType);
+  }
+}

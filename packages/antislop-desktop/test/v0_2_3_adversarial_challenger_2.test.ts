@@ -4,10 +4,6 @@ import fs from 'fs';
 import os from 'os';
 import vm from 'vm';
 
-// =============================================================================
-// ELECTRON MOCK HARNESS FOR ADVERSARIAL CHALLENGER 2
-// =============================================================================
-
 const { ipcHandlers, mockWebContents, mockMainWindow, mockShell, mockClipboard } = vi.hoisted(() => {
   const handlers = new Map<string, Function>();
   const webContents = { send: vi.fn() };
@@ -59,10 +55,6 @@ vi.mock('electron', () => ({
 }));
 
 import { setCurrentWorkspaceRootForTesting } from '../src/main';
-
-// =============================================================================
-// HIGH-FIDELITY DOM SIMULATOR FOR NODE VM SANDBOX
-// =============================================================================
 
 export interface MockElement {
   id: string;
@@ -376,10 +368,6 @@ export function createMockDomElement(tag = 'div', id = ''): MockElement {
   return el;
 }
 
-// =============================================================================
-// SANDBOX SETUP FOR CHALLENGER 2
-// =============================================================================
-
 function setupTestSandbox(jsContent: string) {
   const elementRegistry = new Map<string, MockElement>();
 
@@ -390,13 +378,11 @@ function setupTestSandbox(jsContent: string) {
     return elementRegistry.get(id)!;
   };
 
-  // Editor mounts
   const editorMount = getOrCreateEl('editor-mount');
   editorMount.style.display = 'block';
   const diffEditorMount = getOrCreateEl('diff-editor-mount');
   diffEditorMount.style.display = 'none';
 
-  // Status bar
   const statusDaemon = getOrCreateEl('status-daemon');
   const daemonStatusDot = getOrCreateEl('daemon-status-dot', 'span');
   daemonStatusDot.className = 'status-dot disconnected';
@@ -408,7 +394,6 @@ function setupTestSandbox(jsContent: string) {
   statusDaemon.appendChild(daemonLatencyText);
   statusDaemon.appendChild(daemonModelBadge);
 
-  // Screen B Header
   const screenBHeader = getOrCreateEl('screen-b-header');
   const screenBModeTabs = getOrCreateEl('screen-b-mode-tabs');
   const tabChat = getOrCreateEl('tab-screen-b-chat', 'button');
@@ -430,7 +415,6 @@ function setupTestSandbox(jsContent: string) {
   screenBModeTabs.appendChild(tabReview);
   screenBHeader.appendChild(screenBModeTabs);
 
-  // Screen B Views
   const viewChat = getOrCreateEl('screen-b-view-chat');
   const chatThreadContainer = getOrCreateEl('chat-thread-container');
   chatThreadContainer.className = 'chat-thread-container';
@@ -454,7 +438,6 @@ function setupTestSandbox(jsContent: string) {
   viewReview.appendChild(reviewEmptyPane);
   viewReview.appendChild(reviewActivePane);
 
-  // Monaco Mock
   let modelContent = 'def solve():\n    return 42\n';
   let modelVersionId = 1;
   const mockModel: any = {
@@ -659,10 +642,6 @@ function setupTestSandbox(jsContent: string) {
   };
 }
 
-// =============================================================================
-// ADVERSARIAL TEST SUITE: CHALLENGER 2
-// =============================================================================
-
 describe('Challenger 2: Adversarial Stress Test Suite (Milestone v0.2.3)', () => {
   let jsContent: string;
   let env: ReturnType<typeof setupTestSandbox>;
@@ -674,9 +653,6 @@ describe('Challenger 2: Adversarial Stress Test Suite (Milestone v0.2.3)', () =>
     vi.clearAllMocks();
   });
 
-  // ===========================================================================
-  // SUITE 1: Heavily Fragmented & Adversarial Thinking Tag Stream Parsing
-  // ===========================================================================
   describe('Suite 1: Fragmented & Adversarial Thinking Tag Stream Parsing Stress', () => {
     it('1.1 should correctly parse single-character fragmented chunks across 15+ iterations without tag leakage', () => {
       const { StreamMessageParser } = env.sandbox;
@@ -857,9 +833,6 @@ describe('Challenger 2: Adversarial Stress Test Suite (Milestone v0.2.3)', () =>
     });
   });
 
-  // ===========================================================================
-  // SUITE 2: High-Throughput Typewriter Queue Bursts (10,000+ Characters)
-  // ===========================================================================
   describe('Suite 2: High-Throughput Typewriter Queue Bursts & Non-Blocking Drainage', () => {
     it('2.1 should drain a massive burst of 10,000 characters with dynamic acceleration in <= 85 ticks without dropping characters', () => {
       const { TypewriterRenderer } = env.sandbox;
@@ -986,9 +959,7 @@ describe('Challenger 2: Adversarial Stress Test Suite (Milestone v0.2.3)', () =>
     });
   });
 
-  // ===========================================================================
   // SUITE 3: Code Block Formatting, Multilingual Syntax, XSS & Copy Race Conditions
-  // ===========================================================================
   describe('Suite 3: Code Block Formatting, XSS Sanitization & Copy Button Race Conditions', () => {
     it('3.1 should highlight diverse programming language tokens with VS Code Dark+ classes', () => {
       const { formatCodeWithDarkPlusTokens } = env.sandbox;
@@ -1047,7 +1018,6 @@ describe('Challenger 2: Adversarial Stress Test Suite (Milestone v0.2.3)', () =>
       expect(env.mockElectronClipboard.writeText).toHaveBeenCalledTimes(30);
       expect(env.mockElectronClipboard.writeText).toHaveBeenLastCalledWith(sampleCode);
 
-      // Visual feedback applied
       expect(button.classList.contains('copied')).toBe(true);
       expect(label.textContent).toBe('Copied!');
       expect(icon.classList.contains('codicon-check')).toBe(true);
@@ -1088,9 +1058,6 @@ describe('Challenger 2: Adversarial Stress Test Suite (Milestone v0.2.3)', () =>
     });
   });
 
-  // ===========================================================================
-  // SUITE 4: Out-of-Order & Adversarial Plan Streaming Events
-  // ===========================================================================
   describe('Suite 4: Out-of-Order & Adversarial Plan Streaming Events', () => {
     it('4.1 should return null gracefully when plan:step_start arrives before plan:init is called', () => {
       const { handlePlanStreamMessage } = env.sandbox;
@@ -1107,7 +1074,6 @@ describe('Challenger 2: Adversarial Stress Test Suite (Milestone v0.2.3)', () =>
     it('4.2 should handle plan:step_start referencing a phantom non-existent subtask ID without corrupting valid subtasks', () => {
       const { handlePlanStreamMessage, getCurrentTaskPlan } = env.sandbox;
 
-      // 1. Initialize plan with 2 subtasks
       handlePlanStreamMessage({
         type: 'plan:init',
         params: {
@@ -1120,7 +1086,6 @@ describe('Challenger 2: Adversarial Stress Test Suite (Milestone v0.2.3)', () =>
         },
       });
 
-      // 2. Send step_start for phantom subtask
       expect(() => {
         handlePlanStreamMessage({
           type: 'plan:step_start',
@@ -1128,7 +1093,6 @@ describe('Challenger 2: Adversarial Stress Test Suite (Milestone v0.2.3)', () =>
         });
       }).not.toThrow();
 
-      // 3. Verify real subtasks remain untouched (subtask 0 is in_progress by init default, subtask 1 is pending)
       const plan = getCurrentTaskPlan();
       expect(plan).toBeDefined();
       expect(plan.subtasks[0].status).toBe('in_progress');
@@ -1219,7 +1183,6 @@ describe('Challenger 2: Adversarial Stress Test Suite (Milestone v0.2.3)', () =>
       expect(plan.logs.length).toBe(101);
 
       const consoleEl = document.getElementById('plan-logs-console');
-      // Console DOM receives 100 streamed log elements
       expect(consoleEl.children.length).toBe(100);
       expect(consoleEl.scrollTop).toBe(consoleEl.scrollHeight);
     });
@@ -1256,9 +1219,7 @@ describe('Challenger 2: Adversarial Stress Test Suite (Milestone v0.2.3)', () =>
     });
   });
 
-  // ===========================================================================
   // SUITE 5: Rapid Diff Proposals, Duplicate Diff IDs & Zero-Buffer Invariant
-  // ===========================================================================
   describe('Suite 5: Rapid Diff Proposals, Duplicate IDs & Zero-Buffer Invariant Preservation', () => {
     it('5.1 should update existing diff in-place when rapid successive proposals target the SAME file path', () => {
       const { handleDiffStreamMessage, getReviewDiffs, document } = env.sandbox;
@@ -1397,7 +1358,6 @@ describe('Challenger 2: Adversarial Stress Test Suite (Milestone v0.2.3)', () =>
 
       closeReviewDiff();
 
-      // Restored mounts
       expect(document.getElementById('diff-editor-mount').style.display).toBe('none');
       expect(document.getElementById('editor-mount').style.display).toBe('block');
       expect(getActiveDiffReviewId()).toBeNull();
@@ -1428,16 +1388,13 @@ describe('Challenger 2: Adversarial Stress Test Suite (Milestone v0.2.3)', () =>
 
       expect(getReviewDiffs().length).toBe(2);
 
-      // 1. Accept diff: MUST write to disk and remove from pending review diffs
       await acceptReviewDiff('diff-accept-me');
       expect(env.mockElectronFS.writeFile).toHaveBeenCalledWith('accept.ts', 'export const ACCEPTED = true;');
       expect(getReviewDiffs().length).toBe(1);
       expect(getReviewDiffs()[0].id).toBe('diff-discard-me');
 
-      // Reset mock
       env.mockElectronFS.writeFile.mockClear();
 
-      // 2. Discard diff: MUST NOT write to disk and removes from pending diffs
       discardReviewDiff('diff-discard-me');
       expect(env.mockElectronFS.writeFile).not.toHaveBeenCalled();
       expect(getReviewDiffs().length).toBe(0);

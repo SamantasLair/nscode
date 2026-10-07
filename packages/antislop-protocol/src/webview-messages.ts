@@ -1,9 +1,5 @@
 import { z } from 'zod';
 
-// ==========================================
-// Webview -> Extension Messages
-// ==========================================
-
 export const HighlightLinePayloadSchema = z.object({
   fileUri: z.string().min(1, 'fileUri is required'),
   line: z.number().int().positive('line must be a positive 1-indexed number'),
@@ -22,6 +18,16 @@ export const PracticeCompletedPayloadSchema = z.object({
 });
 export type PracticeCompletedPayload = z.infer<typeof PracticeCompletedPayloadSchema>;
 
+export const CollapseScreenBPayloadSchema = z.record(z.unknown()).optional();
+export type CollapseScreenBPayload = z.infer<typeof CollapseScreenBPayloadSchema>;
+
+export const SocraticAdvanceLevelPayloadSchema = z.object({
+  challengeId: z.string().min(1),
+  level: z.union([z.literal(1), z.literal(2), z.literal(3), z.literal(4)]),
+  optionId: z.string().optional(),
+});
+export type SocraticAdvanceLevelPayload = z.infer<typeof SocraticAdvanceLevelPayloadSchema>;
+
 export const WebviewToExtensionMessageSchema = z.discriminatedUnion('type', [
   z.object({
     type: z.literal('HIGHLIGHT_LINE'),
@@ -35,12 +41,16 @@ export const WebviewToExtensionMessageSchema = z.discriminatedUnion('type', [
     type: z.literal('PRACTICE_COMPLETED'),
     payload: PracticeCompletedPayloadSchema,
   }),
+  z.object({
+    type: z.literal('COLLAPSE_SCREEN_B'),
+    payload: CollapseScreenBPayloadSchema,
+  }),
+  z.object({
+    type: z.literal('SOCRATIC_ADVANCE_LEVEL'),
+    payload: SocraticAdvanceLevelPayloadSchema,
+  }),
 ]);
 export type WebviewToExtensionMessage = z.infer<typeof WebviewToExtensionMessageSchema>;
-
-// ==========================================
-// Extension -> Webview Messages
-// ==========================================
 
 export const SetActiveFilePayloadSchema = z.object({
   fileUri: z.string().min(1),
@@ -53,6 +63,16 @@ export const WatchdogStatusPayloadSchema = z.object({
   latencyMs: z.number().nonnegative(),
 });
 export type WatchdogStatusPayload = z.infer<typeof WatchdogStatusPayloadSchema>;
+
+export const ThemeTypeSchema = z.enum(['dark', 'light', 'hc-black', 'hc-light']);
+export type ThemeType = z.infer<typeof ThemeTypeSchema>;
+
+export const ThemeTokensPayloadSchema = z.object({
+  themeId: z.string().min(1),
+  themeType: ThemeTypeSchema,
+  tokens: z.record(z.string()),
+});
+export type ThemeTokensPayload = z.infer<typeof ThemeTokensPayloadSchema>;
 
 export const ExtensionToWebviewMessageSchema = z.discriminatedUnion('type', [
   z.object({
@@ -70,6 +90,14 @@ export const ExtensionToWebviewMessageSchema = z.discriminatedUnion('type', [
   z.object({
     type: z.literal('WATCHDOG_STATUS'),
     payload: WatchdogStatusPayloadSchema,
+  }),
+  z.object({
+    type: z.literal('THEME_CHANGED'),
+    payload: ThemeTokensPayloadSchema,
+  }),
+  z.object({
+    type: z.literal('SOCRATIC_LADDER_UPDATE'),
+    payload: z.unknown(),
   }),
 ]);
 export type ExtensionToWebviewMessage = z.infer<typeof ExtensionToWebviewMessageSchema>;

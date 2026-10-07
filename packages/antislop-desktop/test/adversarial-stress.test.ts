@@ -5,10 +5,8 @@ import os from 'os';
 import { EventEmitter } from 'events';
 import type { ChildProcess } from 'child_process';
 
-// =============================================================================
 // ELECTRON IPC MOCK HARNESS
 // Intercepts ipcMain.handle registrations to test real handlers directly from src/main.ts
-// =============================================================================
 
 const { ipcHandlers, mockWebContents, mockMainWindow } = vi.hoisted(() => {
   const handlers = new Map<string, Function>();
@@ -66,9 +64,7 @@ describe('Adversarial Stress & Boundary Testing: packages/antislop-desktop', () 
     }
   });
 
-  // ===========================================================================
   // 1. FILE SYSTEM IPC SECURITY & BOUNDARY TESTING
-  // ===========================================================================
   describe('1. File System IPC Security & Boundary Testing', () => {
     describe('fs:readFile Boundaries & Guards', () => {
       it('rejects non-existent file paths with clean error object', async () => {
@@ -236,7 +232,6 @@ describe('Adversarial Stress & Boundary Testing: packages/antislop-desktop', () 
       it('strictly excludes sensitive and bulky directories (.git, node_modules, dist, release, etc.)', async () => {
         const readDirHandler = ipcHandlers.get('fs:readDirectory');
 
-        // Create folders to ignore
         const sensitiveDirs = [
           '.git',
           'node_modules',
@@ -270,7 +265,6 @@ describe('Adversarial Stress & Boundary Testing: packages/antislop-desktop', () 
         fs.mkdirSync(nestedDist);
         fs.writeFileSync(path.join(nestedDist, 'bundle.js'), 'bad');
 
-        // Create ignored files
         fs.writeFileSync(path.join(testTempDir, '.DS_Store'), 'trash');
         fs.writeFileSync(path.join(testTempDir, 'Thumbs.db'), 'trash');
         fs.writeFileSync(path.join(testTempDir, 'desktop.ini'), 'trash');
@@ -364,9 +358,6 @@ describe('Adversarial Stress & Boundary Testing: packages/antislop-desktop', () 
     });
   });
 
-  // ===========================================================================
-  // 2. ANTI-TRAP SASH & MOUSE CAPTURE TESTING
-  // ===========================================================================
   describe('2. Anti-Trap Sash & Mouse Capture Testing', () => {
     it('verifies workbench.css strictly contains pointer-events: none !important for iframes', () => {
       const cssPath = path.resolve(__dirname, '../src/workbench/workbench.css');
@@ -384,7 +375,6 @@ describe('Adversarial Stress & Boundary Testing: packages/antislop-desktop', () 
     });
 
     it('simulates resizer lifecycle with mouseup, blur, and mouseleave cleanups', () => {
-      // Simulate DOM environment
       class MockClassList {
         private classes = new Set<string>();
         add(c: string) { this.classes.add(c); }
@@ -456,7 +446,6 @@ describe('Adversarial Stress & Boundary Testing: packages/antislop-desktop', () 
 
       const resizer = new TestSidebarResizer(sidebarEl, sashEl);
 
-      // 1. Normal Drag & Release Cycle
       resizer.onMouseDown({ clientX: 500 });
       expect(mockBody.classList.contains('is-resizing')).toBe(true);
       expect(sashEl.classList.contains('is-active')).toBe(true);
@@ -470,21 +459,18 @@ describe('Adversarial Stress & Boundary Testing: packages/antislop-desktop', () 
       expect(sashEl.classList.contains('is-active')).toBe(false);
       expect(resizer.isDragging).toBe(false);
 
-      // 2. Fallback: Window Blur Cleanup
       resizer.onMouseDown({ clientX: 500 });
       expect(mockBody.classList.contains('is-resizing')).toBe(true);
       // Window blur triggers onMouseUp
       resizer.onMouseUp();
       expect(mockBody.classList.contains('is-resizing')).toBe(false);
 
-      // 3. Fallback: Document Mouseleave Cleanup
       resizer.onMouseDown({ clientX: 500 });
       expect(mockBody.classList.contains('is-resizing')).toBe(true);
       // Mouseleave triggers onMouseUp
       resizer.onMouseUp();
       expect(mockBody.classList.contains('is-resizing')).toBe(false);
 
-      // 4. Fallback: Drag-to-Collapse Auto-Cleanup
       resizer.onMouseDown({ clientX: 500 });
       expect(mockBody.classList.contains('is-resizing')).toBe(true);
       // Drag cursor far to right so targetWidth drops below 140px threshold
@@ -495,9 +481,6 @@ describe('Adversarial Stress & Boundary Testing: packages/antislop-desktop', () 
     });
   });
 
-  // ===========================================================================
-  // 3. ANTIGRAVITY CLI (AGY) BRIDGE TESTING
-  // ===========================================================================
   describe('3. Antigravity CLI (agy) Bridge Testing', () => {
     it('verifies antigravity:checkStatus handler is registered and callable', async () => {
       const checkStatusHandler = ipcHandlers.get('antigravity:checkStatus');

@@ -1,6 +1,6 @@
 {
   "name": "@antislop/webview",
-  "version": "0.1.1",
+  "version": "0.2.5",
   "private": true,
   "description": "Screen B active-cognition React/Vite webview UI for AIAssistedAntiSlopIDE",
   "type": "module",
@@ -14,7 +14,7 @@
     "clean": "rimraf dist tsconfig.tsbuildinfo"
   },
   "dependencies": {
-    "@antislop/protocol": "0.1.1",
+    "@antislop/protocol": "0.2.4",
     "react": "^18.3.1",
     "react-dom": "^18.3.1"
   },

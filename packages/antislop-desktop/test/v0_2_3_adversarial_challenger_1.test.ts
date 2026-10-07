@@ -4,10 +4,6 @@ import fs from 'fs';
 import os from 'os';
 import vm from 'vm';
 
-// =============================================================================
-// ELECTRON IPC & SHELL MOCK HARNESS
-// =============================================================================
-
 const { ipcHandlers, mockWebContents, mockMainWindow, mockShell, mockClipboard } = vi.hoisted(() => {
   const handlers = new Map<string, Function>();
   const webContents = {
@@ -63,10 +59,6 @@ vi.mock('electron', () => {
 });
 
 import { setCurrentWorkspaceRootForTesting } from '../src/main';
-
-// =============================================================================
-// DETERMINISTIC ADVERSARIAL MOCK WEBSOCKET
-// =============================================================================
 
 export class AdversarialMockWebSocket {
   static CONNECTING = 0;
@@ -171,10 +163,6 @@ export class AdversarialMockWebSocket {
     AdversarialMockWebSocket.instances = [];
   }
 }
-
-// =============================================================================
-// HIGH-FIDELITY DOM SIMULATOR FOR NODE VM SANDBOX
-// =============================================================================
 
 export interface MockElement {
   id: string;
@@ -396,10 +384,6 @@ export function createMockDomElement(tag = 'div', id = ''): MockElement {
   return el;
 }
 
-// =============================================================================
-// WORKBENCH SANDBOX SETUP
-// =============================================================================
-
 export function setupWorkbenchSandbox(jsContent: string) {
   const elementRegistry = new Map<string, MockElement>();
 
@@ -410,13 +394,11 @@ export function setupWorkbenchSandbox(jsContent: string) {
     return elementRegistry.get(id)!;
   };
 
-  // Editor mounts
   const editorMount = getOrCreateEl('editor-mount');
   editorMount.style.display = 'block';
   const diffEditorMount = getOrCreateEl('diff-editor-mount');
   diffEditorMount.style.display = 'none';
 
-  // Status Bar Daemon Elements (R1)
   const statusDaemon = getOrCreateEl('status-daemon');
   const daemonStatusDot = getOrCreateEl('daemon-status-dot', 'span');
   daemonStatusDot.className = 'status-dot disconnected';
@@ -440,7 +422,6 @@ export function setupWorkbenchSandbox(jsContent: string) {
   statusAgyText.textContent = 'agy: Ready';
   statusAgy.appendChild(statusAgyText);
 
-  // Screen B Header & Mode Tabs
   const screenBHeader = getOrCreateEl('screen-b-header');
   const screenBModeTabs = getOrCreateEl('screen-b-mode-tabs');
   screenBModeTabs.setAttribute('role', 'tablist');
@@ -469,7 +450,6 @@ export function setupWorkbenchSandbox(jsContent: string) {
   screenBModeTabs.appendChild(tabReview);
   screenBHeader.appendChild(screenBModeTabs);
 
-  // Screen B Daemon Status
   const screenBDaemonStatus = getOrCreateEl('screen-b-daemon-status');
   screenBDaemonStatus.className = 'screen-b-daemon-status';
   const screenBDaemonDot = getOrCreateEl('screen-b-daemon-dot', 'span');
@@ -486,7 +466,6 @@ export function setupWorkbenchSandbox(jsContent: string) {
   screenBDaemonStatus.appendChild(screenBModelBadge);
   screenBHeader.appendChild(screenBDaemonStatus);
 
-  // Screen B Views
   const viewChat = getOrCreateEl('screen-b-view-chat');
   viewChat.style.display = 'flex';
   const chatThreadContainer = getOrCreateEl('chat-thread-container');
@@ -514,7 +493,6 @@ export function setupWorkbenchSandbox(jsContent: string) {
   reviewActivePane.appendChild(reviewFileList);
   viewReview.appendChild(reviewActivePane);
 
-  // Prompt Container
   const promptContainer = getOrCreateEl('antigravity-prompt-container');
   const promptInputBox = getOrCreateEl('prompt-input-box', 'textarea');
   promptInputBox.value = '';
@@ -523,7 +501,6 @@ export function setupWorkbenchSandbox(jsContent: string) {
   promptContainer.appendChild(promptInputBox);
   promptContainer.appendChild(btnPromptRun);
 
-  // File tree and tabs
   getOrCreateEl('workbench-tabs');
   getOrCreateEl('open-editors-list');
   getOrCreateEl('workspace-file-tree');
@@ -642,10 +619,6 @@ export function setupWorkbenchSandbox(jsContent: string) {
   };
 }
 
-// =============================================================================
-// ADVERSARIAL CHALLENGER 1: HIGH-STRESS NETWORK & PROTOCOL HARNESS
-// =============================================================================
-
 describe('Adversarial Challenger 1: WebSocket Lifecycle, Telemetry & Network Stress', () => {
   let jsContent: string;
   let testTempDir: string;
@@ -673,9 +646,6 @@ describe('Adversarial Challenger 1: WebSocket Lifecycle, Telemetry & Network Str
     }
   });
 
-  // ---------------------------------------------------------------------------
-  // SUITE 1: RAPID CONNECT / DISCONNECT CHURN & RECONNECT TIMER LIFECYCLE
-  // ---------------------------------------------------------------------------
   describe('1. Rapid Connect/Disconnect Churn & Reconnect Timer Lifecycle', () => {
     it('1.1 multiple rapid consecutive connect() calls do not leak timers or create unhandled errors', () => {
       const ctx = setupWorkbenchSandbox(jsContent);
@@ -845,9 +815,6 @@ describe('Adversarial Challenger 1: WebSocket Lifecycle, Telemetry & Network Str
     });
   });
 
-  // ---------------------------------------------------------------------------
-  // SUITE 2: MALFORMED WEBSOCKET PAYLOADS & CORRUPTED DATA HANDLING
-  // ---------------------------------------------------------------------------
   describe('2. Malformed WebSocket Payloads & Corrupted Data Handling', () => {
     it('2.1 truncated and unparseable JSON payloads are silently discarded without throwing', () => {
       const ctx = setupWorkbenchSandbox(jsContent);
@@ -1084,9 +1051,7 @@ describe('Adversarial Challenger 1: WebSocket Lifecycle, Telemetry & Network Str
     });
   });
 
-  // ---------------------------------------------------------------------------
   // SUITE 3: LATENCY CALCULATION, DELAYED PONGS, CLOCK DRIFT & MISSED PING THRESHOLD
-  // ---------------------------------------------------------------------------
   describe('3. Latency Calculation, Delayed Pongs, Clock Drift & Missed Ping Threshold', () => {
     it('3.1 exactly 2 missed pings triggers socket closure and auto-reconnect sequence', () => {
       const ctx = setupWorkbenchSandbox(jsContent);
@@ -1284,9 +1249,6 @@ describe('Adversarial Challenger 1: WebSocket Lifecycle, Telemetry & Network Str
     });
   });
 
-  // ---------------------------------------------------------------------------
-  // SUITE 4: EXPONENTIAL BACKOFF BOUNDS & JITTER PROGRESSION
-  // ---------------------------------------------------------------------------
   describe('4. Exponential Backoff Bounds & Jitter Progression', () => {
     it('4.1 exponential backoff delay strictly satisfies the mathematical lower and upper bounds', () => {
       // Replicate the client scheduleReconnect calculation:
@@ -1371,9 +1333,6 @@ describe('Adversarial Challenger 1: WebSocket Lifecycle, Telemetry & Network Str
     });
   });
 
-  // ---------------------------------------------------------------------------
-  // SUITE 5: OFFLINE FALLBACK BEHAVIOR & GRACEFUL DEGRADATION
-  // ---------------------------------------------------------------------------
   describe('5. Offline Fallback Behavior & Graceful Degradation', () => {
     it('5.1 connection error transitions UI indicators to red dot and offline state text', () => {
       const ctx = setupWorkbenchSandbox(jsContent);

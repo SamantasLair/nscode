@@ -13,10 +13,8 @@ let terminalWatcher: TerminalWatcher | null = null;
 let lspWatcher: LspDiagnosticsWatcher | null = null;
 
 export async function activate(context: vscode.ExtensionContext): Promise<void> {
-  // 1. Initialize Zero-Buffer Decoration Manager
   decorationManager = new DecorationManager();
 
-  // 2. Read configuration and initialize Watchdog Client
   const config = vscode.workspace.getConfiguration('antislop');
   const sidecarUrl = config.get<string>('sidecar.url', 'ws://127.0.0.1:4949');
   const sidecarToken = config.get<string>('sidecar.token', '');
@@ -26,14 +24,12 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
     authToken: sidecarToken,
   });
 
-  // 3. Initialize Screen B Webview Provider
   webviewProvider = new ScreenBWebviewProvider(
     context.extensionUri,
     decorationManager,
     watchdogClient
   );
 
-  // Relay Watchdog Status to Webview
   watchdogClient.onStatusChange((connected, latencyMs) => {
     if (webviewProvider) {
       webviewProvider.postMessage({
@@ -43,7 +39,6 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
     }
   });
 
-  // Relay Sidecar Notifications to Webview
   watchdogClient.onNotification((method: string, params: unknown) => {
     if (webviewProvider) {
       webviewProvider.postMessage({
@@ -53,7 +48,6 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
     }
   });
 
-  // Sync active editor buffer state with Sidecar and Webview
   context.subscriptions.push(
     vscode.window.onDidChangeActiveTextEditor((editor) => {
       if (editor && editor.document) {
@@ -83,11 +77,9 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
     })
   );
 
-  // 4. Initialize Terminal & LSP Watchers
   terminalWatcher = new TerminalWatcher(watchdogClient);
   lspWatcher = new LspDiagnosticsWatcher(watchdogClient);
 
-  // 5. Register Commands
   const openCmd = vscode.commands.registerCommand(
     'antislop.openDiagnosticScreen',
     () => {

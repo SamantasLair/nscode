@@ -3,10 +3,6 @@ import path from 'path';
 import fs from 'fs';
 import vm from 'vm';
 
-// =============================================================================
-// ELECTRON IPC & BROWSER MOCK HARNESS
-// =============================================================================
-
 const { ipcHandlers, mockWebContents, mockMainWindow, mockShell } = vi.hoisted(() => {
   const handlers = new Map<string, Function>();
   const webContents = {
@@ -52,10 +48,6 @@ vi.mock('electron', () => {
     },
   };
 });
-
-// =============================================================================
-// ROBUST DOM SIMULATOR FOR NODE VM SANDBOX
-// =============================================================================
 
 interface MockElement {
   id: string;
@@ -264,10 +256,6 @@ function createMockDomElement(tag = 'div', id = ''): MockElement {
   return el;
 }
 
-// =============================================================================
-// WORKBENCH SANDBOX BUILDER
-// =============================================================================
-
 function setupWorkbenchSandbox(jsContent: string) {
   const elementRegistry = new Map<string, MockElement>();
 
@@ -278,7 +266,6 @@ function setupWorkbenchSandbox(jsContent: string) {
     return elementRegistry.get(id)!;
   };
 
-  // Seed Dialog Elements
   const dirtyDialogBackdrop = getOrCreateEl('dirty-dialog-backdrop');
   dirtyDialogBackdrop.style.display = 'none';
   const dirtyDialogModal = getOrCreateEl('dirty-dialog-modal');
@@ -299,7 +286,6 @@ function setupWorkbenchSandbox(jsContent: string) {
   dirtyDialogModal.appendChild(btnDirtyDontSave);
   dirtyDialogModal.appendChild(btnDirtyCancel);
 
-  // Status bar
   const statusCursor = getOrCreateEl('status-cursor');
   const statusCursorPos = getOrCreateEl('status-cursor-pos', 'span');
   statusCursorPos.textContent = 'Ln 1, Col 1';
@@ -357,7 +343,6 @@ function setupWorkbenchSandbox(jsContent: string) {
   middleContainer.appendChild(viewPlan);
   middleContainer.appendChild(viewReview);
 
-  // Multi-Group Editor Elements
   getOrCreateEl('editor-area');
   getOrCreateEl('editor-split-sash');
   getOrCreateEl('editor-group');
@@ -572,10 +557,6 @@ function setupWorkbenchSandbox(jsContent: string) {
   };
 }
 
-// =============================================================================
-// ADVERSARIAL CHALLENGE SPECIFICATION
-// =============================================================================
-
 describe('Adversarial Challenger 2: Screen B Switcher, EventBridge & Multi-Group Dirty Tabs', () => {
   let jsContent: string;
 
@@ -584,9 +565,6 @@ describe('Adversarial Challenger 2: Screen B Switcher, EventBridge & Multi-Group
     jsContent = fs.readFileSync(workbenchJsPath, 'utf8');
   });
 
-  // ---------------------------------------------------------------------------
-  // 1. RAPID MODE TAB SWITCHING & CONTAINER STATE INTEGRITY
-  // ---------------------------------------------------------------------------
   describe('1. Screen B Mode Switcher Rapid Stress & Boundary Testing', () => {
     it('1.1 stresses rapid cyclical mode switching (Chat -> Plan -> Review -> Chat) across 600 transitions without state drift', () => {
       const ctx = setupWorkbenchSandbox(jsContent);
@@ -703,9 +681,6 @@ describe('Adversarial Challenger 2: Screen B Switcher, EventBridge & Multi-Group
     });
   });
 
-  // ---------------------------------------------------------------------------
-  // 2. EDITOREVENTBRIDGE DECOUPLING & HOSTILE LISTENER ISOLATION
-  // ---------------------------------------------------------------------------
   describe('2. EditorEventBridge Decoupling & Error Containment', () => {
     it('2.1 isolates crashing listeners: throwing listener must NOT crash sibling listeners or emit() caller', () => {
       const ctx = setupWorkbenchSandbox(jsContent);
@@ -873,9 +848,6 @@ describe('Adversarial Challenger 2: Screen B Switcher, EventBridge & Multi-Group
     });
   });
 
-  // ---------------------------------------------------------------------------
-  // 3. MULTI-GROUP SPLIT EDITOR TAB CLOSURE & DIRTY GUARD BEHAVIOR
-  // ---------------------------------------------------------------------------
   describe('3. Multi-Group Split Editor Tab Closure & Dirty Guard Behavior', () => {
     it('3.1 cancels dirty tab closure in secondary group: document remains open and dirty across all groups', async () => {
       const ctx = setupWorkbenchSandbox(jsContent);

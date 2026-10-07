@@ -1,16 +1,13 @@
 import { describe, it, expect } from 'vitest';
 import {
-  // Protocol JSON-RPC
   READ_ONLY_RPC_METHODS,
   READ_ONLY_METHODS,
   isReadOnlyRpcMethod,
   isReadOnlyMethod,
   validateIncomingRequest,
   createMethodNotFoundError,
-  // Error Anatomy
   ContractViolatedSchema,
   TextSpanRangeSchema,
-  // Smart Card
   BIG_O_TIME_REGEX,
   BIG_O_SPACE_REGEX,
   ComplexityMetricSchema,
@@ -18,13 +15,11 @@ import {
   SmartCardSchema,
   TargetLanguageSchema,
   type TargetLanguage,
-  // Cognitive Gate
   ClozeChallengeSchema,
   TypeAlongPracticeSchema,
   CognitiveFrictionSessionSchema,
   transitionGateSession,
   type CognitiveFrictionSessionDTO,
-  // Webview messages
   WebviewToExtensionMessageSchema,
   ExtensionToWebviewMessageSchema,
 } from '@antislop/protocol';
@@ -308,23 +303,19 @@ describe('Tier 1: Protocol Invariants & Schema Verification Harness', () => {
       };
       expect(CognitiveFrictionSessionSchema.safeParse(state).success).toBe(true);
 
-      // Step 1: Start Cloze
       state = transitionGateSession(state, { type: 'START_CLOZE' });
       expect(state.status).toBe('CLOZE_PENDING');
       expect(state.clipboardUnlocked).toBe(false);
 
-      // Step 2: Complete Cloze
       state = transitionGateSession(state, { type: 'CLOZE_COMPLETED' });
       expect(state.status).toBe('UNLOCKED');
       expect(state.clozeSolved).toBe(true);
       expect(state.clipboardUnlocked).toBe(true);
 
-      // Step 3: Start Guided Type-Along
       state = transitionGateSession(state, { type: 'START_TYPE_ALONG' });
       expect(state.status).toBe('TYPE_ALONG_PENDING');
       expect(state.clipboardUnlocked).toBe(false);
 
-      // Step 4: Finish Type-Along with high accuracy
       state = transitionGateSession(state, {
         type: 'TYPE_ALONG_COMPLETED',
         accuracyPercent: 97.8,

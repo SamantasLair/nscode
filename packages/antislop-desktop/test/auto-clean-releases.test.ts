@@ -33,17 +33,14 @@ describe('Auto-Clean Legacy Releases Suite', () => {
   });
 
   it('prunes older version executables and blockmaps while preserving active version', () => {
-    // Mock legacy files
     fs.writeFileSync(path.join(tempReleaseDir, 'NSCode 0.1.0.exe'), 'dummy-exe-010');
     fs.writeFileSync(path.join(tempReleaseDir, 'NSCode Setup 0.1.0.exe'), 'dummy-setup-010');
     fs.writeFileSync(path.join(tempReleaseDir, 'NSCode Setup 0.1.0.exe.blockmap'), 'dummy-blockmap-010');
 
-    // Mock active files
     fs.writeFileSync(path.join(tempReleaseDir, 'NSCode 0.1.1.exe'), 'dummy-exe-011');
     fs.writeFileSync(path.join(tempReleaseDir, 'NSCode Setup 0.1.1.exe'), 'dummy-setup-011');
     fs.writeFileSync(path.join(tempReleaseDir, 'NSCode Setup 0.1.1.exe.blockmap'), 'dummy-blockmap-011');
 
-    // Mock directory
     fs.mkdirSync(path.join(tempReleaseDir, 'win-unpacked'));
 
     const result = cleanLegacyReleases({
@@ -57,7 +54,6 @@ describe('Auto-Clean Legacy Releases Suite', () => {
     expect(result.cleanedFiles).toContain('NSCode Setup 0.1.0.exe');
     expect(result.cleanedFiles).toContain('NSCode Setup 0.1.0.exe.blockmap');
 
-    // Verify disk state
     expect(fs.existsSync(path.join(tempReleaseDir, 'NSCode 0.1.0.exe'))).toBe(false);
     expect(fs.existsSync(path.join(tempReleaseDir, 'NSCode Setup 0.1.0.exe'))).toBe(false);
     expect(fs.existsSync(path.join(tempReleaseDir, 'NSCode 0.1.1.exe'))).toBe(true);

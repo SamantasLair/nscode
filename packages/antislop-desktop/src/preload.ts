@@ -1,6 +1,5 @@
 import { contextBridge, ipcRenderer, clipboard } from 'electron';
 
-// Expose safe generic IPC API
 contextBridge.exposeInMainWorld('electronIpc', {
   send: (channel: string, data: unknown) => {
     ipcRenderer.send(channel, data);
@@ -13,7 +12,6 @@ contextBridge.exposeInMainWorld('electronIpc', {
   },
 });
 
-// Expose typed File System API (R2 & Milestone v0.1.2)
 contextBridge.exposeInMainWorld('electronFS', {
   openDirectory: () => ipcRenderer.invoke('fs:openDirectory'),
   getWorkspaceRoot: () => ipcRenderer.invoke('fs:getWorkspaceRoot'),
@@ -48,7 +46,6 @@ contextBridge.exposeInMainWorld('electronFS', {
     ipcRenderer.invoke('fs:listFiles', options),
 });
 
-// Expose typed Shell API (Milestone v0.1.2)
 contextBridge.exposeInMainWorld('electronShell', {
   revealInFolder: (pathOrParams: string | { filePath?: string; path?: string }) => {
     const params = typeof pathOrParams === 'string' ? { path: pathOrParams } : pathOrParams;
@@ -58,10 +55,11 @@ contextBridge.exposeInMainWorld('electronShell', {
     ipcRenderer.invoke('shell:revealInFolder', { path: filePath }),
 });
 
-// Expose typed Antigravity CLI API (R6)
 contextBridge.exposeInMainWorld('electronAntigravity', {
   checkStatus: () => ipcRenderer.invoke('antigravity:checkStatus'),
-  runCommand: (params: { prompt: string; correlationId: string; cwd?: string }) =>
+  getModels: () => ipcRenderer.invoke('antigravity:getModels'),
+  getAgents: () => ipcRenderer.invoke('antigravity:getAgents'),
+  runCommand: (params: { prompt: string; correlationId: string; cwd?: string; model?: string; agent?: string }) =>
     ipcRenderer.invoke('antigravity:runCommand', params),
   cancelCommand: () => ipcRenderer.invoke('antigravity:cancelCommand'),
   onOutput: (callback: (data: { correlationId: string; stream: 'stdout' | 'stderr'; chunk: string; timestamp: number }) => void) => {
@@ -76,7 +74,6 @@ contextBridge.exposeInMainWorld('electronAntigravity', {
   },
 });
 
-// Expose typed Interactive Terminal API (R4)
 contextBridge.exposeInMainWorld('electronTerminal', {
   create: (options?: { cwd?: string; shell?: string }) =>
     ipcRenderer.invoke('terminal:create', options),
@@ -104,7 +101,6 @@ contextBridge.exposeInMainWorld('electronTerminal', {
   },
 });
 
-// Expose typed Git API (Milestone v0.1.1)
 contextBridge.exposeInMainWorld('electronGit', {
   status: () => ipcRenderer.invoke('git:status'),
   init: () => ipcRenderer.invoke('git:init'),
@@ -115,7 +111,6 @@ contextBridge.exposeInMainWorld('electronGit', {
   commit: (message: string) => ipcRenderer.invoke('git:commit', { message }),
 });
 
-// Expose typed Search API (Milestone v0.1.1)
 contextBridge.exposeInMainWorld('electronSearch', {
   searchFiles: (options: {
     query: string;
@@ -128,7 +123,6 @@ contextBridge.exposeInMainWorld('electronSearch', {
   }) => ipcRenderer.invoke('fs:searchFiles', options),
 });
 
-// Expose typed Clipboard API (Milestone v0.1.2)
 contextBridge.exposeInMainWorld('electronClipboard', {
   writeText: (text: string) => {
     try {
@@ -147,10 +141,8 @@ contextBridge.exposeInMainWorld('electronClipboard', {
   },
 });
 
-// Expose typed Guidance API (Milestone v0.2.0)
 contextBridge.exposeInMainWorld('electronGuidance', {
   scoutPattern: (target: { filePath: string; startLine: number; endLine?: number; context?: string; promptText?: string }) =>
     ipcRenderer.invoke('guidance:scoutPattern', target),
 });
-
 

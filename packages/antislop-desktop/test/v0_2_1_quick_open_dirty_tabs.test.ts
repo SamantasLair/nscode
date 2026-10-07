@@ -4,10 +4,6 @@ import fs from 'fs';
 import os from 'os';
 import vm from 'vm';
 
-// =============================================================================
-// ELECTRON IPC MOCK HARNESS
-// =============================================================================
-
 const { ipcHandlers, mockWebContents, mockMainWindow, mockShell } = vi.hoisted(() => {
   const handlers = new Map<string, Function>();
   const webContents = {
@@ -56,10 +52,6 @@ vi.mock('electron', () => {
 
 // Import main module to trigger IPC registrations including fs:listFiles
 import { setCurrentWorkspaceRootForTesting, registerFileSystemIpc } from '../src/main';
-
-// =============================================================================
-// ROBUST DOM SIMULATOR FOR NODE VM SANDBOX
-// =============================================================================
 
 interface MockElement {
   id: string;
@@ -350,10 +342,6 @@ function createMockDomElement(tag = 'div', id = ''): MockElement {
   return el;
 }
 
-// =============================================================================
-// WORKBENCH SANDBOX INITIALIZER
-// =============================================================================
-
 function setupWorkbenchSandbox(jsContent: string) {
   const elementRegistry = new Map<string, MockElement>();
 
@@ -364,7 +352,6 @@ function setupWorkbenchSandbox(jsContent: string) {
     return elementRegistry.get(id)!;
   };
 
-  // Seed Quick Open elements
   const paletteBackdrop = getOrCreateEl('command-palette-backdrop');
   paletteBackdrop.style.display = 'none';
   const paletteModal = getOrCreateEl('command-palette-modal');
@@ -378,7 +365,6 @@ function setupWorkbenchSandbox(jsContent: string) {
   paletteModal.appendChild(paletteInput);
   paletteModal.appendChild(paletteResults);
 
-  // Seed Save Confirmation Dialog elements
   const dirtyDialogBackdrop = getOrCreateEl('dirty-dialog-backdrop');
   dirtyDialogBackdrop.style.display = 'none';
   const dirtyDialogModal = getOrCreateEl('dirty-dialog-modal');
@@ -402,7 +388,6 @@ function setupWorkbenchSandbox(jsContent: string) {
   dirtyDialogModal.appendChild(btnDirtyDontSave);
   dirtyDialogModal.appendChild(btnDirtyCancel);
 
-  // Seed Status Bar elements
   const statusCursor = getOrCreateEl('status-cursor');
   statusCursor.className = 'status-item status-clickable';
   statusCursor.title = 'Go to Line/Column (Ctrl+G)';
@@ -412,7 +397,6 @@ function setupWorkbenchSandbox(jsContent: string) {
   getOrCreateEl('status-agy');
   getOrCreateEl('status-agy-text');
 
-  // Seed Screen B elements
   const screenBHeader = getOrCreateEl('screen-b-header');
   const screenBModeTabs = getOrCreateEl('screen-b-mode-tabs');
   screenBModeTabs.setAttribute('role', 'tablist');
@@ -472,7 +456,6 @@ function setupWorkbenchSandbox(jsContent: string) {
   middleContainer.appendChild(viewPlan);
   middleContainer.appendChild(viewReview);
 
-  // Seed Tabs & Explorer elements
   getOrCreateEl('workbench-tabs');
   getOrCreateEl('open-editors-list');
   getOrCreateEl('workspace-file-tree');
@@ -480,7 +463,6 @@ function setupWorkbenchSandbox(jsContent: string) {
   getOrCreateEl('prompt-input-box', 'textarea');
   getOrCreateEl('btn-prompt-run', 'button');
 
-  // Monaco Model & Editor Mocks
   let modelVersionId = 1;
   let modelContent = 'line 1\nline 2\nline 3\nline 4\nline 5\nline 6\nline 7\nline 8\nline 9\nline 10';
   let changeListeners: Function[] = [];
@@ -772,10 +754,6 @@ function setupWorkbenchSandbox(jsContent: string) {
   };
 }
 
-// =============================================================================
-// COMPREHENSIVE TEST SUITE: MILESTONE v0.2.1 (38 TEST SPECIFICATIONS)
-// =============================================================================
-
 describe('Milestone v0.2.1: Quick Open, Tab Dirty State, Status Telemetry & Dynamic Screen B', () => {
   let testTempDir: string;
   let workspaceDir: string;
@@ -811,12 +789,8 @@ describe('Milestone v0.2.1: Quick Open, Tab Dirty State, Status Telemetry & Dyna
     }
   });
 
-  // ===========================================================================
-  // GROUP 1: R1. QUICK OPEN (Ctrl+P) WITH WORKSPACE FUZZY SEARCH
-  // ===========================================================================
   describe('Group 1: R1. Quick Open (Ctrl+P) with Workspace Fuzzy Search', () => {
     it('1. verifies Quick Open modal UI elements and structure in index.html & workbench.css', () => {
-      // Index.html markup structure
       expect(htmlContent).toContain('id="command-palette-backdrop"');
       expect(htmlContent).toContain('id="command-palette-modal"');
       expect(htmlContent).toContain('id="command-palette-prompt-icon"');
@@ -824,7 +798,6 @@ describe('Milestone v0.2.1: Quick Open, Tab Dirty State, Status Telemetry & Dyna
       expect(htmlContent).toContain('id="command-palette-results"');
       expect(htmlContent).toContain('placeholder="Type a command or search files..."');
 
-      // Workbench.css styling tokens
       expect(cssContent).toContain('.palette-backdrop');
       expect(cssContent).toContain('.palette-modal');
       expect(cssContent).toContain('.palette-highlight');
@@ -1024,9 +997,6 @@ describe('Milestone v0.2.1: Quick Open, Tab Dirty State, Status Telemetry & Dyna
     });
   });
 
-  // ===========================================================================
-  // GROUP 2: R2. TAB DIRTY STATE MANAGEMENT (●) & SAVE ERGONOMICS
-  // ===========================================================================
   describe('Group 2: R2. Tab Dirty State Management (●) & Save Ergonomics', () => {
     it('9. verifies initial document is clean (isDirty === false) with standard close icon', () => {
       const ctx = setupWorkbenchSandbox(jsContent);
@@ -1214,9 +1184,6 @@ describe('Milestone v0.2.1: Quick Open, Tab Dirty State, Status Telemetry & Dyna
     });
   });
 
-  // ===========================================================================
-  // GROUP 3: R3. STATUS BAR CURSOR TELEMETRY (Ln/Col) & GO TO LINE (Ctrl+G)
-  // ===========================================================================
   describe('Group 3: R3. Status Bar Cursor Telemetry (Ln/Col) & Go to Line (Ctrl+G)', () => {
     it('19. displays real-time cursor coordinate telemetry (Ln X, Col Y) on Status Bar', () => {
       const ctx = setupWorkbenchSandbox(jsContent);
@@ -1323,7 +1290,6 @@ describe('Milestone v0.2.1: Quick Open, Tab Dirty State, Status Telemetry & Dyna
       const ctx = setupWorkbenchSandbox(jsContent);
       const input = ctx.elementRegistry.get('command-palette-input')!;
 
-      // 1. Line exceeding lineCount (50) should clamp to 50
       input.value = ':99999';
       ctx.sandbox.updatePaletteResults(input.value);
       let items = ctx.sandbox.getPaletteItems();
@@ -1331,7 +1297,6 @@ describe('Milestone v0.2.1: Quick Open, Tab Dirty State, Status Telemetry & Dyna
       items[0].action();
       expect(ctx.spies.editorRevealLine).toHaveBeenCalledWith(50);
 
-      // 2. Line 0 or negative should clamp to 1
       input.value = ':0';
       ctx.sandbox.updatePaletteResults(input.value);
       items = ctx.sandbox.getPaletteItems();
@@ -1353,9 +1318,6 @@ describe('Milestone v0.2.1: Quick Open, Tab Dirty State, Status Telemetry & Dyna
     });
   });
 
-  // ===========================================================================
-  // GROUP 4: R4. DYNAMIC SCREEN B MODE SWITCHER & EDITOR EVENT BRIDGE
-  // ===========================================================================
   describe('Group 4: R4. Dynamic Screen B Mode Switcher & Editor Event Bridge', () => {
     it('27. verifies Screen B header contains Mode Switcher tabs: Chat, Plan, Review with Chat active by default', () => {
       expect(htmlContent).toContain('id="screen-b-mode-tabs"');
@@ -1374,7 +1336,6 @@ describe('Milestone v0.2.1: Quick Open, Tab Dirty State, Status Telemetry & Dyna
     });
 
     it('28. verifies Screen B mode tabs adhere to VS Code Dark+ visual styling tokens and zero emoji', () => {
-      // CSS tokens
       expect(cssContent).toContain('.screen-b-mode-tabs');
       expect(cssContent).toContain('.screen-b-mode-tab');
       expect(cssContent).toContain('border-bottom: 2px solid #007acc');
@@ -1571,9 +1532,6 @@ describe('Milestone v0.2.1: Quick Open, Tab Dirty State, Status Telemetry & Dyna
     });
   });
 
-  // ===========================================================================
-  // GROUP 5: R5. TEST ARCHITECTURE, BUILD & REGRESSION INTEGRITY
-  // ===========================================================================
   describe('Group 5: R5. Test Architecture, Build & Regression Integrity', () => {
     it('37. verifies all existing test suite files exist and are registered without regression', () => {
       const desktopTestDir = path.resolve(__dirname);
