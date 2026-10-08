@@ -1,5 +1,6 @@
 import React from 'react';
 import type { ContractViolatedDTO } from '@antislop/protocol';
+import { vscodeApi } from '../../vscode-api.js';
 import { LinePointerButton } from './LinePointerButton.js';
 import { CodePreview } from '../Common/CodePreview.js';
 
@@ -101,10 +102,33 @@ export const ContractViolated: React.FC<ContractViolatedProps> = ({
           <div className="related-spans-list">
             <span className="related-spans-title">Lokasi Terkait:</span>
             {relatedSpans.map((span, idx) => (
-              <div key={idx} className="related-span-item">
+              <div
+                key={idx}
+                className="related-span-item"
+                role="button"
+                tabIndex={0}
+                title={`Klik untuk menyorot baris ${span.range.startLine} di Layar A`}
+                onClick={() => {
+                  vscodeApi.highlightLine({
+                    fileUri: span.fileUri || sourceLocation.fileUri,
+                    line: span.range.startLine,
+                    endLine: span.range.endLine,
+                  });
+                }}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault();
+                    vscodeApi.highlightLine({
+                      fileUri: span.fileUri || sourceLocation.fileUri,
+                      line: span.range.startLine,
+                      endLine: span.range.endLine,
+                    });
+                  }
+                }}
+              >
                 <span className="role-tag">[{span.role}]</span>
                 <span className="span-coords">
-                  {span.fileUri ? `${span.fileUri}:` : ''}Baris {span.range.startLine}:{span.range.startColumn}
+                  {span.fileUri ? `${span.fileUri.split(/[\\/]/).pop()}:` : ''}Baris {span.range.startLine}:{span.range.startColumn}
                 </span>
                 <span className="span-label">{span.label}</span>
               </div>

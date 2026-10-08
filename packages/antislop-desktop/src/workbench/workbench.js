@@ -301,9 +301,15 @@ function updateCursorTelemetry(ed = editor) {
 
   if (sel && typeof sel.isEmpty === 'function' && !sel.isEmpty()) {
     const model = ed.getModel ? ed.getModel() : null;
-    if (model && typeof model.getValueInRange === 'function') {
-      const selectedText = model.getValueInRange(sel);
-      selectionCount = selectedText ? selectedText.length : 0;
+    if (model) {
+      if (typeof model.getValueLengthInRange === 'function') {
+        selectionCount = model.getValueLengthInRange(sel);
+      } else if (sel.startLineNumber === sel.endLineNumber) {
+        selectionCount = Math.abs(sel.endColumn - sel.startColumn);
+      } else if (typeof model.getValueInRange === 'function') {
+        const selectedText = model.getValueInRange(sel);
+        selectionCount = selectedText ? selectedText.length : 0;
+      }
     }
   }
 
@@ -329,7 +335,16 @@ function updateCursorTelemetry(ed = editor) {
     updateScreenBBreadcrumb(filePath);
   }
 
-  // Throttled IPC event broadcasting via rAF (60fps clamp to prevent event storms during fast scroll)
+  // Trailing-Edge Telemetry Cache: selalu perbarui data kursor terkini
+  updateCursorTelemetry._pendingTelemetry = {
+    filePath,
+    lineNumber: pos.lineNumber,
+    column: pos.column,
+    selectionCount,
+    selection: sel,
+  };
+
+  // Throttled IPC event broadcasting via rAF (60fps clamp with trailing-edge guarantee)
   if (!updateCursorTelemetry._rafPending) {
     updateCursorTelemetry._rafPending = true;
     const rafFn = (typeof requestAnimationFrame === 'function') 
@@ -341,15 +356,18 @@ function updateCursorTelemetry(ed = editor) {
           : (cb) => cb();
     
     rafFn(() => {
+      // Baca snapshot telemetry terkini sebelum mereset guard rAF
+      const latest = updateCursorTelemetry._pendingTelemetry;
       updateCursorTelemetry._rafPending = false;
+      if (!latest) return;
       
       if (typeof editorEventBridge !== 'undefined') {
         editorEventBridge.emit('editor:cursorChange', {
-          filePath,
-          lineNumber: pos.lineNumber,
-          column: pos.column,
-          selectionCount,
-          selection: sel,
+          filePath: latest.filePath,
+          lineNumber: latest.lineNumber,
+          column: latest.column,
+          selectionCount: latest.selectionCount,
+          selection: latest.selection,
         });
       }
 
@@ -359,10 +377,10 @@ function updateCursorTelemetry(ed = editor) {
         webviewIframe.contentWindow.postMessage({
           type: 'CURSOR_TELEMETRY_UPDATE',
           payload: {
-            filePath,
-            lineNumber: pos.lineNumber,
-            column: pos.column,
-            selectionCount,
+            filePath: latest.filePath,
+            lineNumber: latest.lineNumber,
+            column: latest.column,
+            selectionCount: latest.selectionCount,
           }
         }, '*');
       }
@@ -1428,11 +1446,17 @@ class MultiGroupEditorManager {
   }
 
   layoutAll() {
-    this.groups.forEach((g) => {
-      if (g.editor && g.editor.layout) {
-        setTimeout(() => g.editor.layout(), 25);
-      }
-    });
+    if (this._layoutTimer) {
+      clearTimeout(this._layoutTimer);
+    }
+    this._layoutTimer = setTimeout(() => {
+      this._layoutTimer = null;
+      this.groups.forEach((g) => {
+        if (g.editor && typeof g.editor.layout === 'function') {
+          g.editor.layout();
+        }
+      });
+    }, 16);
   }
 }
 
@@ -1877,11 +1901,38 @@ function syncLspDiagnosticsToScreenB(markers) {
   if (severeErrors.length > 0 && window.nscodeMaieuticDuck && typeof window.nscodeMaieuticDuck.notifyFailure === 'function') {
     const topError = severeErrors[0];
     const filePath = topError.resource ? (topError.resource.fsPath || topError.resource.path || 'active') : 'active';
-    window.nscodeMaieuticDuck.notifyFailure({
+    const errorPayload = {
       symbol: filePath.replace(/\\/g, '/').split('/').pop() || filePath,
       line: topError.startLineNumber,
       message: topError.message,
-    });
+    };
+    
+    const triggered = window.nscodeMaieuticDuck.notifyFailure(errorPayload);
+    if (triggered && typeof revealMaieuticDuck === 'function') {
+      revealMaieuticDuck(errorPayload);
+    }
+  }
+}
+
+function revealMaieuticDuck(context = {}) {
+  const secondarySidebar = document.getElementById('secondary-sidebar');
+  if (secondarySidebar && secondarySidebar.classList.contains('collapsed') && secondaryResizer) {
+    secondaryResizer.expand();
+  }
+
+  if (typeof setScreenBMode === 'function') {
+    setScreenBMode('chat');
+  }
+
+  const duckContainer = document.getElementById('maieutic-duck-container');
+  if (duckContainer) {
+    duckContainer.style.display = 'block';
+    if (window.nscodeMaieuticDuckController && typeof window.nscodeMaieuticDuckController.renderPane === 'function') {
+      window.nscodeMaieuticDuckController.renderPane(duckContainer);
+    }
+    if (typeof duckContainer.scrollIntoView === 'function') {
+      duckContainer.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    }
   }
 }
 
@@ -3810,9 +3861,10 @@ class SidebarResizer {
 
   initEvents() {
     if (!this.sash || !this.sidebar) return;
-    this.sash.addEventListener('mousedown', (e) => {
+    
+    const handlePointerDown = (e) => {
       if (this.sidebar.classList.contains('collapsed')) return;
-      if (e.button !== 0) return;
+      if (e.button !== 0 && e.pointerType === 'mouse') return;
       this.isDragging = true;
       this.startX = e.clientX;
       this.startWidth = this.sidebar.getBoundingClientRect ? this.sidebar.getBoundingClientRect().width : (this.isLeft ? 260 : 380);
@@ -3820,12 +3872,15 @@ class SidebarResizer {
       if (document.body) document.body.classList.add('is-resizing');
       if (this.sash.classList) this.sash.classList.add('is-active');
 
-      if (e.target && typeof e.target.setPointerCapture === 'function' && e.pointerId) {
+      if (e.target && typeof e.target.setPointerCapture === 'function' && e.pointerId !== undefined) {
         try { e.target.setPointerCapture(e.pointerId); } catch (_) {}
       }
 
       e.preventDefault();
-    });
+    };
+
+    this.sash.addEventListener('pointerdown', handlePointerDown);
+    this.sash.addEventListener('mousedown', handlePointerDown);
 
     if (typeof window !== 'undefined' && typeof window.addEventListener === 'function') {
       window.addEventListener('mousemove', (e) => {
@@ -3833,14 +3888,17 @@ class SidebarResizer {
         const deltaX = this.isLeft ? (e.clientX - this.startX) : (this.startX - e.clientX);
         let targetWidth = this.startWidth + deltaX;
 
-        if (targetWidth < 50) {
+        const minW = this.isLeft ? 160 : 280;
+        const maxW = this.isLeft ? 600 : 700;
+        const snapMargin = this.isLeft ? 50 : 60;
+        const collapseThreshold = minW - snapMargin;
+
+        if (targetWidth < collapseThreshold) {
           this.collapse();
           this.onMouseUp();
           return;
         }
 
-        const minW = this.isLeft ? 160 : 280;
-        const maxW = this.isLeft ? 600 : 700;
         targetWidth = Math.max(minW, Math.min(maxW, targetWidth));
 
         this.sidebar.style.width = `${targetWidth}px`;
@@ -5151,10 +5209,25 @@ function renderTargetStack() {
       </div>
     `;
 
-    // Accordion toggle helper
+    // In-place Accordion toggle helper (preserves scroll position & runs CSS 160ms transitions)
     const toggleExpansion = () => {
       expandedTargetId = (expandedTargetId === target.id) ? null : target.id;
-      renderTargetStack();
+      const allCards = listEl.querySelectorAll ? listEl.querySelectorAll('.target-line-card, .target-card') : [];
+      if (allCards.length > 0) {
+        allCards.forEach((c) => {
+          const isTarget = c.dataset.targetId === target.id;
+          const isExp = isTarget && (expandedTargetId === target.id);
+          if (c.classList) {
+            c.classList.toggle('chip-expanded', isExp);
+            c.classList.toggle('chip-collapsed', !isExp);
+          }
+          if (typeof c.setAttribute === 'function') {
+            c.setAttribute('aria-expanded', isExp ? 'true' : 'false');
+          }
+        });
+      } else {
+        renderTargetStack();
+      }
     };
 
     // Click card navigates Monaco & toggles accordion (unless buttons clicked)

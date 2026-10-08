@@ -1,7 +1,7 @@
 import React, { useState, useMemo, useCallback } from 'react';
 import type { HighlightLinePayload } from '@antislop/protocol';
 import { vscodeApi } from '../../vscode-api.js';
-import { tokenize, type MicroToken } from './micro-tokenizer.js';
+import { tokenize, tokenizeLines, type MicroToken } from './micro-tokenizer.js';
 import type { CodePreviewProps, ParsedCodeLine, HighlightRange } from './CodePreview.types.js';
 import './CodePreview.css';
 
@@ -65,8 +65,8 @@ export const CodePreview: React.FC<CodePreviewProps> = ({
       let currentLineNum = startLineNumber;
       let currentOldLineNum = startLineNumber;
 
-      return rawLines.map((raw) => {
-        if (isDiffMode) {
+      if (isDiffMode) {
+        return rawLines.map((raw) => {
           if (raw.startsWith('@@')) {
             const match = raw.match(/@@ -(\d+)(?:,\d+)? \+(\d+)(?:,\d+)? @@/);
             if (match) {
@@ -122,15 +122,18 @@ export const CodePreview: React.FC<CodePreviewProps> = ({
             raw,
             isHighlighted: isLineHighlighted(lineNum),
           };
-        }
+        });
+      }
 
-        // Standard pure code mode
+      // Standard pure code mode: use tokenizeLines across entire code to preserve multiline state
+      const allLineTokens = tokenizeLines(code || '', { language: languageId });
+      return rawLines.map((raw, idx) => {
         const lineNum = currentLineNum++;
         return {
           lineNumber: lineNum,
           type: 'neutral' as const,
           prefix: '',
-          tokens: tokenize(raw, { language: languageId }),
+          tokens: allLineTokens[idx] || tokenize(raw, { language: languageId }),
           raw,
           isHighlighted: isLineHighlighted(lineNum),
         };

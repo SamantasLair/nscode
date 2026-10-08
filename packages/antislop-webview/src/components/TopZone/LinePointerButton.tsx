@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { vscodeApi } from '../../vscode-api.js';
 
 export interface LinePointerButtonProps {
@@ -15,6 +15,23 @@ export const LinePointerButton: React.FC<LinePointerButtonProps> = ({
   isActiveFileMatch = true,
 }) => {
   const [highlighted, setHighlighted] = useState(false);
+  const resetTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    setHighlighted(false);
+    if (resetTimerRef.current) {
+      clearTimeout(resetTimerRef.current);
+      resetTimerRef.current = null;
+    }
+  }, [fileUri, line, endLine]);
+
+  useEffect(() => {
+    return () => {
+      if (resetTimerRef.current) {
+        clearTimeout(resetTimerRef.current);
+      }
+    };
+  }, []);
 
   const handleClick = () => {
     vscodeApi.highlightLine({
@@ -23,6 +40,13 @@ export const LinePointerButton: React.FC<LinePointerButtonProps> = ({
       endLine,
     });
     setHighlighted(true);
+    if (resetTimerRef.current) {
+      clearTimeout(resetTimerRef.current);
+    }
+    resetTimerRef.current = setTimeout(() => {
+      setHighlighted(false);
+      resetTimerRef.current = null;
+    }, 2000);
   };
 
   const lineDisplay = endLine && endLine !== line ? `Baris ${line}–${endLine}` : `Baris ${line}`;

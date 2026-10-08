@@ -33,12 +33,16 @@
       this.dialogue = [];
       this.container = null;
       this.failureHistory = []; // Track recent failure timestamps [{ time, context }]
+      this.interventionCallbacks = [];
+      this.lastNudgeTimestamp = 0;
 
       this.startDialecticSession = this.startDialecticSession.bind(this);
       this.sendUserReflection = this.sendUserReflection.bind(this);
       this.renderPane = this.renderPane.bind(this);
       this.notifyFailure = this.notifyFailure.bind(this);
       this.notifyFrustration = this.notifyFrustration.bind(this);
+      this.getContainer = this.getContainer.bind(this);
+      this.onIntervention = this.onIntervention.bind(this);
     }
 
     /**
@@ -100,16 +104,42 @@
       }
     }
 
+    getContainer() {
+      if (this.container) return this.container;
+      if (typeof document !== 'undefined') {
+        this.container = document.getElementById('maieutic-duck-container');
+      }
+      return this.container;
+    }
+
+    onIntervention(callback) {
+      if (typeof callback === 'function') {
+        if (!this.interventionCallbacks) this.interventionCallbacks = [];
+        this.interventionCallbacks.push(callback);
+      }
+    }
+
+    triggerIntervention(type, context) {
+      if (Array.isArray(this.interventionCallbacks)) {
+        this.interventionCallbacks.forEach((cb) => {
+          try { cb({ type, context, phase: this.state.phase }); } catch (_) {}
+        });
+      }
+      if (typeof window !== 'undefined' && window.editorEventBridge) {
+        window.editorEventBridge.emit('maieuticDuck:intervention', { type, context });
+      }
+    }
+
     /**
-     * Initializes a new dialectic session with a target context envelope.
-     * Transitions state to 'probe' phase.
+     * Initializes a dialectic inquiry session.
      *
-     * @param {object} envelope Context envelope { symbol, lineNumber, diagnosticMessage }
-     * @returns {object} Initial session response
+     * @param {object} envelope
+     * @param {string|null} initialNoticeBubble
+     * @returns {object} Session init summary
      */
-    startDialecticSession(envelope = {}) {
+    startDialecticSession(envelope = {}, initialNoticeBubble = null) {
       const normalizedEnvelope = {
-        symbol: envelope.symbol || 'targetSymbol',
+        symbol: envelope.symbol || 'anonymous',
         lineNumber: envelope.lineNumber !== undefined ? envelope.lineNumber : (envelope.line !== undefined ? envelope.line : 1),
         diagnosticMessage: envelope.diagnosticMessage || '',
         userStatement: envelope.userStatement || '',
@@ -123,17 +153,25 @@
       const question = this.getQuestionForPhase('probe', normalizedEnvelope);
       const suggested = this.getSuggestedReflectionForPhase('probe');
 
-      this.dialogue = [
-        {
+      this.dialogue = [];
+      if (initialNoticeBubble) {
+        this.dialogue.push({
           sender: 'duck',
           phase: 'probe',
-          text: question,
+          text: initialNoticeBubble,
           timestamp: Date.now(),
-        },
-      ];
+        });
+      }
+      this.dialogue.push({
+        sender: 'duck',
+        phase: 'probe',
+        text: question,
+        timestamp: Date.now(),
+      });
 
-      if (this.container) {
-        this.renderPane(this.container);
+      const container = this.getContainer();
+      if (container) {
+        this.renderPane(container);
       }
 
       return {
@@ -154,14 +192,14 @@
     notifyFailure(failureContext = {}) {
       const now = Date.now();
       // Keep only failures within last 60 seconds
-      this.failureHistory = this.failureHistory.filter(f => (now - f.time) < 60000);
+      this.failureHistory = this.failureHistory.filter((f) => now - f.time < 60000);
       this.failureHistory.push({ time: now, context: failureContext });
 
       if (this.failureHistory.length >= 3) {
         const symbol = failureContext.symbol || 'logika fungsi';
         const line = failureContext.line || failureContext.lineNumber || '?';
         const msg = failureContext.message || 'Kompilasi/Pengujian berulang kali gagal';
-        
+
         const proactiveEnvelope = {
           symbol,
           lineNumber: line,
@@ -170,7 +208,7 @@
         };
 
         this.startDialecticSession(proactiveEnvelope);
-        
+
         // Add specialized proactive nudge dialogue bubble
         const proactiveText = `🦆 *Kwek!* Saya mendeteksi 3 kegagalan pengujian/kompilasi berturut-turut pada **${escapeHtml(symbol)}** (baris ${line}). Mari istirahat sejenak: invarian atau asumsi prasyarat apa yang kemungkinan besar dilanggar oleh masukan saat ini?`;
         this.dialogue.unshift({
@@ -180,9 +218,12 @@
           timestamp: Date.now(),
         });
 
-        if (this.container) {
-          this.renderPane(this.container);
+        const container = this.getContainer();
+        if (container) {
+          this.renderPane(container);
         }
+
+        this.triggerIntervention('failure', failureContext);
 
         // Clear history after trigger to prevent spamming
         this.failureHistory = [];
@@ -214,9 +255,11 @@
         timestamp: Date.now(),
       });
 
-      if (this.container) {
-        this.renderPane(this.container);
+      const container = this.getContainer();
+      if (container) {
+        this.renderPane(container);
       }
+      this.triggerIntervention('frustration', churnContext);
       return true;
     }
 

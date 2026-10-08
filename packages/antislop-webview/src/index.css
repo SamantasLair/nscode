@@ -253,14 +253,16 @@ button:focus-visible {
   display: flex;
   align-items: center;
   gap: 8px;
-  color: var(--accent-red, #f14c4c);
+  color: var(--callout-error-header-fg, #fca5a5);
   font-size: 13px;
 }
 
 .contract-statement {
-  color: var(--text-primary, #d4d4d4);
+  color: var(--callout-error-header-fg, #fca5a5);
   font-weight: 500;
   font-size: 14px;
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }
 
 /* Source Location & Line Pointer */
@@ -375,21 +377,44 @@ button:focus-visible {
 
 .related-span-item {
   display: flex;
-  align-items: center;
-  gap: 8px;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 6px;
   font-family: var(--font-mono);
   font-size: 12px;
-  padding: 4px 8px;
+  padding: 5px 8px;
   background: var(--bg-surface-elevated);
+  border: 1px solid var(--border-subtle);
   border-radius: 4px;
+  cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease;
+  min-width: 0;
+}
+
+.related-span-item:hover {
+  background: var(--bg-surface);
+  border-color: var(--accent-blue);
 }
 
 .role-tag {
   color: #60a5fa;
+  font-weight: 600;
+  flex-shrink: 0;
 }
 
 .span-coords {
   color: var(--text-secondary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 100%;
+}
+
+.span-label {
+  color: var(--text-muted);
+  word-break: break-word;
+  overflow-wrap: anywhere;
+  flex: 1 1 100%;
 }
 
 .span-label {
