@@ -1,6 +1,7 @@
 import React from 'react';
 import type { ContractViolatedDTO } from '@antislop/protocol';
 import { LinePointerButton } from './LinePointerButton.js';
+import { CodePreview } from '../Common/CodePreview.js';
 
 export interface ContractViolatedProps {
   diagnostic: ContractViolatedDTO;
@@ -79,9 +80,22 @@ export const ContractViolated: React.FC<ContractViolatedProps> = ({
 
       <div className="code-frame-container">
         <div className="code-frame-header">Cuplikan Kesalahan:</div>
-        <pre className="raw-error-frame">
-          <code>{rawError}</code>
-        </pre>
+        <CodePreview
+          code={rawError}
+          fileUri={sourceLocation.fileUri}
+          startLineNumber={sourceLocation.range.startLine}
+          highlightedLine={{
+            startLine: sourceLocation.range.startLine,
+            endLine: sourceLocation.range.endLine,
+          }}
+          title={sourceLocation.label || 'Cuplikan Kesalahan'}
+          maxHeight="260px"
+          fallback={
+            <pre className="raw-error-frame">
+              <code>{rawError}</code>
+            </pre>
+          }
+        />
 
         {relatedSpans && relatedSpans.length > 0 && (
           <div className="related-spans-list">

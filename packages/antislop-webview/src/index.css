@@ -33,6 +33,17 @@
   --code-border: var(--vscode-syntax-codeBorder, var(--vscode-sideBarSectionHeader-border, #2d2d2d));
   --code-fg: var(--vscode-editor-foreground, #d4d4d4);
 
+  /* Syntax Tokens (1:1 Monaco Parity) */
+  --token-keyword: var(--vscode-symbolIcon-keywordForeground, #c586c0);
+  --token-function: var(--vscode-symbolIcon-functionForeground, #dcdcaa);
+  --token-string: var(--vscode-symbolIcon-stringForeground, #ce9178);
+  --token-number: var(--vscode-symbolIcon-numberForeground, #b5cea8);
+  --token-comment: var(--vscode-descriptionForeground, #6a9955);
+  --token-type: var(--vscode-symbolIcon-classForeground, #4ec9b0);
+  --token-variable: var(--vscode-symbolIcon-variableForeground, #9cdcfe);
+  --token-punctuation: var(--vscode-editor-foreground, #d4d4d4);
+  --token-operator: var(--vscode-symbolIcon-operatorForeground, #d4d4d4);
+
   --font-sans: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
   --font-mono: "Cascadia Code", Consolas, Monaco, "Courier New", monospace;
 }
@@ -46,42 +57,94 @@
 html, body {
   width: 100%;
   height: 100%;
+  height: 100dvh;
+  margin: 0;
+  padding: 0;
   background-color: var(--bg-primary);
   color: var(--text-primary);
   font-family: var(--font-sans);
   font-size: 14px;
   line-height: 1.5;
-  overflow-x: hidden;
+  overflow: hidden !important;
+  overscroll-behavior: none !important;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
 }
 
 #root {
+  width: 100%;
+  height: 100%;
   display: flex;
   flex-direction: column;
-  min-height: 100vh;
+  overflow: hidden !important;
+  contain: layout size style;
 }
 
 /* App Container */
 .app-container {
   display: flex;
   flex-direction: column;
-  flex: 1;
+  flex: 1 1 0%;
+  min-height: 0;
+  width: 100%;
   max-width: 100%;
-  overflow-x: hidden;
+  overflow: hidden !important;
+  position: relative;
   container-type: inline-size;
   container-name: app;
 }
 
 .main-content {
-  flex: 1;
+  flex: 1 1 0%;
+  min-height: 0;
+  width: 100%;
+  max-width: 1400px;
+  margin: 0 auto;
+  box-sizing: border-box;
   padding: clamp(8px, 2.5cqi, 20px);
   display: flex;
   flex-direction: column;
   gap: clamp(12px, 2cqi, 24px);
-  max-width: 1400px;
-  width: 100%;
-  margin: 0 auto;
+
+  /* Single-Scroll Sovereign Viewport */
+  overflow-y: auto;
+  overflow-x: hidden;
+  overscroll-behavior-y: contain;
+  overscroll-behavior-x: none;
+  scrollbar-gutter: stable;
+  scrollbar-width: thin;
+  scrollbar-color: var(--border-strong, #3c3c3c) transparent;
+
+  /* GPU Composite Layer & Jitter Suppression */
+  contain: layout style;
+  transform: translateZ(0);
+  will-change: scroll-position;
+  backface-visibility: hidden;
+  overflow-anchor: auto;
+
   container-type: inline-size;
   container-name: main;
+}
+
+/* Custom Scrollbar Polish */
+.main-content::-webkit-scrollbar {
+  width: 8px;
+}
+
+.main-content::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.main-content::-webkit-scrollbar-thumb {
+  background: var(--border-strong, #3c3c3c);
+  border-radius: 4px;
+  border: 2px solid transparent;
+  background-clip: content-box;
+}
+
+.main-content::-webkit-scrollbar-thumb:hover {
+  background-color: var(--text-muted, #858585);
 }
 
 /* Common Buttons & Focus */
@@ -177,8 +240,8 @@ button:focus-visible {
 
 /* Contract Callout */
 .contract-callout {
-  background: #1c1917;
-  border: 1px solid #441313;
+  background: var(--accent-red-bg, rgba(241, 76, 76, 0.15));
+  border: 1px solid var(--accent-red-border, rgba(241, 76, 76, 0.35));
   border-radius: 6px;
   padding: 12px 16px;
   display: flex;
@@ -190,12 +253,12 @@ button:focus-visible {
   display: flex;
   align-items: center;
   gap: 8px;
-  color: #fca5a5;
+  color: var(--accent-red, #f14c4c);
   font-size: 13px;
 }
 
 .contract-statement {
-  color: #fef2f2;
+  color: var(--text-primary, #d4d4d4);
   font-weight: 500;
   font-size: 14px;
 }
@@ -355,13 +418,13 @@ button:focus-visible {
 
 /* Streaming token indicator */
 .streaming-token-box {
-  background: #0f172a;
-  border: 1px solid #1e293b;
+  background: var(--bg-surface-elevated, #1e1e1e);
+  border: 1px solid var(--border-subtle, #2d2d2d);
   border-radius: 6px;
   padding: 10px 14px;
   font-family: var(--font-mono);
   font-size: 13px;
-  color: #38bdf8;
+  color: var(--accent-blue, #007acc);
 }
 
 .streaming-label {
@@ -947,21 +1010,21 @@ button:focus-visible {
 }
 
 .copy-btn.locked {
-  background: #27272a;
-  border: 1px solid #3f3f46;
-  color: #71717a;
+  background: var(--bg-muted, #252526);
+  border: 1px solid var(--border-subtle, #2d2d2d);
+  color: var(--text-muted, #858585);
   cursor: not-allowed;
 }
 
 .copy-btn.unlocked {
-  background: #052e16;
-  border: 1px solid #22c55e;
-  color: #86efac;
+  background: var(--accent-green-bg, rgba(137, 209, 133, 0.15));
+  border: 1px solid var(--accent-green-border, rgba(137, 209, 133, 0.35));
+  color: var(--accent-green, #89d185);
 }
 
 .copy-btn.unlocked:hover {
-  background: #14532d;
-  color: #ffffff;
+  background: var(--accent-green, #89d185);
+  color: var(--bg-primary, #1e1e1e);
 }
 
 .lock-tooltip {
@@ -970,14 +1033,27 @@ button:focus-visible {
   left: 0;
   right: 0;
   margin-bottom: 8px;
-  background: #18181b;
-  border: 1px solid #f59e0b;
-  color: #fef3c7;
+  background: var(--bg-surface-elevated, #1e1e1e);
+  border: 1px solid var(--accent-amber-border, rgba(204, 167, 0, 0.35));
+  color: var(--text-primary, #d4d4d4);
   padding: 8px 12px;
   border-radius: 6px;
   font-size: 12px;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
   z-index: 10;
+}
+
+/* Anti-Slop Disabled Control Token Rule (§14) */
+button:disabled,
+.btn:disabled,
+button[disabled],
+.btn[disabled],
+.token-chip:disabled {
+  background: var(--bg-muted, #252526) !important;
+  color: var(--text-muted, #858585) !important;
+  border-color: var(--border-subtle, #2d2d2d) !important;
+  cursor: not-allowed !important;
+  opacity: 0.65;
 }
 
 /* Cloze Challenge */

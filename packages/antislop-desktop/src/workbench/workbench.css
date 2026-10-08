@@ -1325,6 +1325,15 @@ body.is-resizing .bottom-panel {
   font-weight: 600;
 }
 
+.screen-b-cursor-pos {
+  color: var(--vscode-descriptionForeground, #858585);
+  font-size: 11px;
+  font-family: var(--vscode-editor-font-family, 'Cascadia Code', Consolas, monospace);
+  padding-left: 6px;
+  border-left: 1px solid var(--vscode-sideBarSectionHeader-border, #3f3f46);
+  white-space: nowrap;
+}
+
 /* Secondary Webview Container & Guided Cognition */
 .secondary-webview-container {
   flex: 1;
@@ -1333,7 +1342,7 @@ body.is-resizing .bottom-panel {
   position: relative;
   overflow-y: auto;
   overflow-x: hidden;
-  background-color: #18181b;
+  background-color: var(--vscode-secondary-sidebar-bg, #252526);
   display: flex;
   flex-direction: column;
 }
@@ -1351,8 +1360,8 @@ body.is-resizing .bottom-panel {
 
 /* Target Line Stack Container & Cards */
 .target-line-stack-container {
-  background-color: #1e1e1e;
-  border: 1px solid #2d2d2d;
+  background-color: var(--vscode-sideBar-background, #1e1e1e);
+  border: 1px solid var(--vscode-sideBarSectionHeader-border, #2d2d2d);
   border-radius: 4px;
   padding: 8px 10px;
   display: flex;
@@ -1369,7 +1378,7 @@ body.is-resizing .bottom-panel {
   justify-content: space-between;
   font-size: 11px;
   font-weight: 700;
-  color: #858585;
+  color: var(--vscode-descriptionForeground, #858585);
   letter-spacing: 0.05em;
 }
 
@@ -1382,14 +1391,14 @@ body.is-resizing .bottom-panel {
 .target-stack-title {
   font-size: 11px;
   font-weight: 700;
-  color: #858585;
+  color: var(--vscode-descriptionForeground, #858585);
   text-transform: uppercase;
 }
 
 .target-stack-count {
-  background-color: #27272a;
-  color: #858585;
-  border: 1px solid #3f3f46;
+  background-color: var(--vscode-badge-background, #27272a);
+  color: var(--vscode-badge-foreground, #858585);
+  border: 1px solid var(--vscode-sideBarSectionHeader-border, #3f3f46);
   border-radius: 10px;
   padding: 0 6px;
   font-size: 10px;
@@ -1407,43 +1416,85 @@ body.is-resizing .bottom-panel {
 
 .target-line-card,
 .target-card {
-  background-color: #252526;
-  border: 1px solid #2d2d2d;
+  background-color: var(--vscode-editor-background, #252526);
+  border: 1px solid var(--vscode-sideBarSectionHeader-border, #2d2d2d);
   border-radius: 4px;
+  box-sizing: border-box;
+  max-width: 100%;
+  overflow: hidden;
+  word-break: break-word;
+  cursor: pointer;
+  transform: translateZ(0);
+  transition: max-height 160ms cubic-bezier(0.4, 0, 0.2, 1),
+              border-color 160ms cubic-bezier(0.4, 0, 0.2, 1),
+              background-color 160ms cubic-bezier(0.4, 0, 0.2, 1),
+              box-shadow 160ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* 22px Collapsed Chip Mode */
+.target-line-card.chip-collapsed,
+.target-card.chip-collapsed {
+  height: 22px;
+  max-height: 22px;
+  min-height: 22px;
+  padding: 0 8px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  overflow: hidden;
+}
+
+.target-line-card.chip-collapsed .target-code-preview,
+.target-card.chip-collapsed .target-code-preview,
+.target-line-card.chip-collapsed .target-card-actions,
+.target-card.chip-collapsed .target-card-actions {
+  display: none !important;
+  opacity: 0;
+  pointer-events: none;
+}
+
+/* Expanded Card Mode */
+.target-line-card.chip-expanded,
+.target-card.chip-expanded {
+  height: auto;
+  min-height: 22px;
+  max-height: 300px;
   padding: 8px 10px;
   display: flex;
   flex-direction: column;
   gap: 6px;
-  box-sizing: border-box;
-  max-width: 100%;
-  overflow-x: hidden;
-  word-break: break-word;
-  transition: border-color 0.15s ease;
-  cursor: pointer;
+  border-color: var(--vscode-focusBorder, #007acc);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
 }
 
 .target-line-card:hover,
 .target-card:hover,
 .target-line-card.active,
 .target-card.active {
-  border-color: #007acc;
+  border-color: var(--vscode-focusBorder, #007acc);
 }
 
 .target-card-main {
   display: flex;
   align-items: center;
   gap: 6px;
+  height: 22px;
+  min-height: 22px;
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Cascadia Code, monospace;
   font-size: 12px;
-  color: #d4d4d4;
+  color: var(--vscode-foreground, #d4d4d4);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  min-width: 0;
+  width: 100%;
 }
 
 .target-file-badge,
 .target-path {
-  color: #d4d4d4;
+  flex: 1 1 auto;
+  min-width: 0;
+  color: var(--vscode-foreground, #d4d4d4);
   font-weight: 500;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -1451,15 +1502,34 @@ body.is-resizing .bottom-panel {
 }
 
 .target-range-badge {
-  background-color: #27272a;
-  color: #007acc;
-  border: 1px solid #3f3f46;
+  flex-shrink: 0;
+  background-color: var(--vscode-badge-background, #27272a);
+  color: var(--vscode-badge-foreground, #007acc);
+  border: 1px solid var(--vscode-sideBarSectionHeader-border, #3f3f46);
   padding: 1px 6px;
   border-radius: 3px;
   font-size: 11px;
   font-weight: 600;
   font-family: 'Cascadia Code', Consolas, monospace;
+}
+
+.target-btn-dismiss {
   flex-shrink: 0;
+  background: transparent;
+  border: none;
+  color: var(--vscode-descriptionForeground, #858585);
+  cursor: pointer;
+  padding: 2px;
+  border-radius: 3px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: color 0.15s ease, background-color 0.15s ease;
+}
+
+.target-btn-dismiss:hover {
+  color: var(--vscode-button-foreground, #ffffff);
+  background-color: var(--vscode-toolbar-hoverBackground, rgba(255, 255, 255, 0.1));
 }
 
 .target-card-actions {
@@ -1471,9 +1541,9 @@ body.is-resizing .bottom-panel {
 .target-btn-reveal,
 .btn-request-guidance,
 .target-btn-guidance {
-  background-color: #27272a;
-  color: #d4d4d4;
-  border: 1px solid #3f3f46;
+  background-color: var(--vscode-button-secondaryBackground, #27272a);
+  color: var(--vscode-button-secondaryForeground, #d4d4d4);
+  border: 1px solid var(--vscode-button-border, #3f3f46);
   padding: 3px 8px;
   font-size: 11px;
   border-radius: 3px;
@@ -1486,22 +1556,22 @@ body.is-resizing .bottom-panel {
 }
 
 .target-btn-reveal:hover {
-  background-color: #007acc;
-  color: #ffffff;
-  border-color: #007acc;
+  background-color: var(--vscode-button-background, #007acc);
+  color: var(--vscode-button-foreground, #ffffff);
+  border-color: var(--vscode-focusBorder, #007acc);
 }
 
 .btn-request-guidance,
 .target-btn-guidance {
-  background-color: #27272a;
-  border-color: #3f3f46;
+  background-color: var(--vscode-button-secondaryBackground, #27272a);
+  border-color: var(--vscode-button-border, #3f3f46);
 }
 
 .btn-request-guidance:hover,
 .target-btn-guidance:hover {
-  background-color: #007acc;
-  color: #ffffff;
-  border-color: #007acc;
+  background-color: var(--vscode-button-background, #007acc);
+  color: var(--vscode-button-foreground, #ffffff);
+  border-color: var(--vscode-focusBorder, #007acc);
 }
 
 /* Technical Summary Cards */
@@ -1650,6 +1720,37 @@ body.is-resizing .bottom-panel {
   display: block;
   padding: 1px 4px;
   border-radius: 2px;
+}
+
+/* LSP Diagnostics Smart Cards */
+.technical-summary-card.lsp-diagnostic-card {
+  border-left: 3px solid var(--vscode-focusBorder, #007acc);
+  cursor: pointer;
+  transition: transform 160ms cubic-bezier(0.4, 0, 0.2, 1), border-color 160ms ease;
+}
+
+.technical-summary-card.lsp-diagnostic-card:hover {
+  transform: translateY(-1px);
+}
+
+.technical-summary-card.lsp-diagnostic-card.diagnostic-error {
+  border-left-color: var(--vscode-errorForeground, #f87171);
+}
+
+.technical-summary-card.lsp-diagnostic-card.diagnostic-warning {
+  border-left-color: var(--vscode-editorWarning-foreground, #fbbf24);
+}
+
+.summary-card-badge.badge-error {
+  background-color: rgba(248, 113, 113, 0.2);
+  color: var(--vscode-errorForeground, #f87171);
+  border-color: rgba(248, 113, 113, 0.4);
+}
+
+.summary-card-badge.badge-warning {
+  background-color: rgba(251, 191, 36, 0.2);
+  color: var(--vscode-editorWarning-foreground, #fbbf24);
+  border-color: rgba(251, 191, 36, 0.4);
 }
 
 .secondary-webview-frame {
@@ -2884,13 +2985,13 @@ body.is-resizing .bottom-panel {
    TARGET CODE PREVIEW & CONTEXT CARDS (Milestone v0.2.2 - R1)
    ============================================================================= */
 .target-code-preview {
-  background-color: #1e1e1e;
-  border: 1px solid #2d2d2d;
+  background-color: var(--vscode-textCodeBlock-background, #1e1e1e);
+  border: 1px solid var(--vscode-sideBarSectionHeader-border, #2d2d2d);
   border-radius: 3px;
   padding: 4px 6px;
-  font-family: 'Cascadia Code', Consolas, monospace;
+  font-family: var(--vscode-editor-font-family, 'Cascadia Code', Consolas, monospace);
   font-size: 11px;
-  color: #9cdcfe;
+  color: var(--vscode-editor-foreground, #9cdcfe);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: pre;

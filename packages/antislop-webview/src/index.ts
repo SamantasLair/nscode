@@ -13,4 +13,7 @@ export * from './components/CognitiveGate/LockedCopyButton.js';
 export * from './components/CognitiveGate/ClozeChallenge.js';
 export * from './components/CognitiveGate/TypeAlongPractice.js';
 export * from './components/Common/StatusBar.js';
+export * from './components/Common/micro-tokenizer.js';
+export * from './components/Common/CodePreview.js';
+export * from './components/Common/CodePreview.types.js';
 export * from './App.js';

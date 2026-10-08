@@ -187,6 +187,25 @@ export class VsCodeApiBridge {
 
 export const vscodeApi = VsCodeApiBridge.getInstance();
 
+const FALLBACK_THEME_TOKENS: Record<string, string> = {
+  '--vscode-editor-background': '#1e1e1e',
+  '--vscode-editor-foreground': '#d4d4d4',
+  '--vscode-sideBar-background': '#252526',
+  '--vscode-sideBar-border': '#2d2d2d',
+  '--vscode-editorWidget-background': '#1e1e1e',
+  '--vscode-focusBorder': '#007acc',
+  '--vscode-button-background': '#007acc',
+  '--vscode-button-foreground': '#ffffff',
+  '--vscode-descriptionForeground': '#858585',
+  '--vscode-errorForeground': '#f14c4c',
+  '--vscode-symbolIcon-keywordForeground': '#c586c0',
+  '--vscode-symbolIcon-functionForeground': '#dcdcaa',
+  '--vscode-symbolIcon-stringForeground': '#ce9178',
+  '--vscode-symbolIcon-numberForeground': '#b5cea8',
+  '--vscode-symbolIcon-classForeground': '#4ec9b0',
+  '--vscode-symbolIcon-variableForeground': '#9cdcfe',
+};
+
 export function applyThemeTokens(payload: ThemeTokensPayload): void {
   if (typeof document === 'undefined') return;
   let styleEl = document.getElementById('dynamic-theme-tokens') as HTMLStyleElement | null;
@@ -195,12 +214,13 @@ export function applyThemeTokens(payload: ThemeTokensPayload): void {
     styleEl.id = 'dynamic-theme-tokens';
     document.head.appendChild(styleEl);
   }
-  const declarations = Object.entries(payload.tokens)
+  const mergedTokens = { ...FALLBACK_THEME_TOKENS, ...(payload?.tokens || {}) };
+  const declarations = Object.entries(mergedTokens)
     .map(([key, val]) => `  ${key}: ${val};`)
     .join('\n');
   styleEl.textContent = `:root {\n${declarations}\n}`;
   if (document.body) {
-    document.body.setAttribute('data-theme-id', payload.themeId);
-    document.body.setAttribute('data-theme-type', payload.themeType);
+    document.body.setAttribute('data-theme-id', payload?.themeId || 'vs-dark');
+    document.body.setAttribute('data-theme-type', payload?.themeType || 'dark');
   }
 }

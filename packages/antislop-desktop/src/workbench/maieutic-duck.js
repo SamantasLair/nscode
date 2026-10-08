@@ -32,10 +32,13 @@
       this.directSolutionAllowed = false;
       this.dialogue = [];
       this.container = null;
+      this.failureHistory = []; // Track recent failure timestamps [{ time, context }]
 
       this.startDialecticSession = this.startDialecticSession.bind(this);
       this.sendUserReflection = this.sendUserReflection.bind(this);
       this.renderPane = this.renderPane.bind(this);
+      this.notifyFailure = this.notifyFailure.bind(this);
+      this.notifyFrustration = this.notifyFrustration.bind(this);
     }
 
     /**
@@ -139,6 +142,82 @@
         antiSpoonfeedAssertion: true,
         suggestedReflection: suggested,
       };
+    }
+
+    /**
+     * Proactive Intervention: Monitors consecutive failures within a temporal window (60s).
+     * If 3 failures occur in 60s, automatically triggers a proactive Socratic nudge.
+     *
+     * @param {object} failureContext { symbol, line, message }
+     * @returns {boolean} True if proactive nudge was triggered
+     */
+    notifyFailure(failureContext = {}) {
+      const now = Date.now();
+      // Keep only failures within last 60 seconds
+      this.failureHistory = this.failureHistory.filter(f => (now - f.time) < 60000);
+      this.failureHistory.push({ time: now, context: failureContext });
+
+      if (this.failureHistory.length >= 3) {
+        const symbol = failureContext.symbol || 'logika fungsi';
+        const line = failureContext.line || failureContext.lineNumber || '?';
+        const msg = failureContext.message || 'Kompilasi/Pengujian berulang kali gagal';
+        
+        const proactiveEnvelope = {
+          symbol,
+          lineNumber: line,
+          diagnosticMessage: `[Proactive Nudge: 3x Kegagalan Berurutan] ${msg}`,
+          userStatement: 'Terdeteksi 3 kegagalan berturut-turut dalam 60 detik.',
+        };
+
+        this.startDialecticSession(proactiveEnvelope);
+        
+        // Add specialized proactive nudge dialogue bubble
+        const proactiveText = `🦆 *Kwek!* Saya mendeteksi 3 kegagalan pengujian/kompilasi berturut-turut pada **${escapeHtml(symbol)}** (baris ${line}). Mari istirahat sejenak: invarian atau asumsi prasyarat apa yang kemungkinan besar dilanggar oleh masukan saat ini?`;
+        this.dialogue.unshift({
+          sender: 'duck',
+          phase: 'probe',
+          text: proactiveText,
+          timestamp: Date.now(),
+        });
+
+        if (this.container) {
+          this.renderPane(this.container);
+        }
+
+        // Clear history after trigger to prevent spamming
+        this.failureHistory = [];
+        return true;
+      }
+      return false;
+    }
+
+    /**
+     * Proactive Intervention: Triggered when developer churn or rapid backspacing/rewriting is detected.
+     *
+     * @param {object} churnContext { symbol, line }
+     */
+    notifyFrustration(churnContext = {}) {
+      const symbol = churnContext.symbol || 'blok kode';
+      const line = churnContext.line || '?';
+      const proactiveEnvelope = {
+        symbol,
+        lineNumber: line,
+        diagnosticMessage: 'Pola penulisan ulang berulang (churn) terdeteksi.',
+      };
+
+      this.startDialecticSession(proactiveEnvelope);
+      const churnText = `🦆 *Kwek!* Anda telah menulis ulang ${escapeHtml(symbol)} beberapa kali. Daripada mencoba-coba secara acak, mari isolasi batasan sistem: kondisi apa yang harus selalu benar (invariant) sebelum dan sesudah blok ini berjalan?`;
+      this.dialogue.unshift({
+        sender: 'duck',
+        phase: 'invariant',
+        text: churnText,
+        timestamp: Date.now(),
+      });
+
+      if (this.container) {
+        this.renderPane(this.container);
+      }
+      return true;
     }
 
     /**
@@ -350,11 +429,15 @@
     }
   }
 
-  // Attach singleton & class to window
-  if (typeof window !== 'undefined') {
-    window.MaieuticDuckController = MaieuticDuckController;
-    if (!window.nscodeMaieuticDuck) {
-      window.nscodeMaieuticDuck = new MaieuticDuckController();
+  // Attach singleton & class to window / globalThis
+  const rootObj = typeof window !== 'undefined' ? window : (typeof globalThis !== 'undefined' ? globalThis : this);
+  if (rootObj) {
+    rootObj.MaieuticDuckController = MaieuticDuckController;
+    if (!rootObj.nscodeMaieuticDuckController) {
+      rootObj.nscodeMaieuticDuckController = new MaieuticDuckController();
+    }
+    if (!rootObj.nscodeMaieuticDuck) {
+      rootObj.nscodeMaieuticDuck = rootObj.nscodeMaieuticDuckController;
     }
   }
 

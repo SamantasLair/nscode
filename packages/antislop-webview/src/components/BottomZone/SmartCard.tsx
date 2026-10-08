@@ -7,6 +7,7 @@ import { TradeOffsView } from './TradeOffsView.js';
 import { LockedCopyButton } from '../CognitiveGate/LockedCopyButton.js';
 import { ClozeChallenge } from '../CognitiveGate/ClozeChallenge.js';
 import { TypeAlongPractice } from '../CognitiveGate/TypeAlongPractice.js';
+import { CodePreview } from '../Common/CodePreview.js';
 
 export interface SmartCardProps {
   card: SmartCardDTO;
@@ -101,9 +102,19 @@ export const SmartCard: React.FC<SmartCardProps> = ({
       <div className="card-sandbox-area">
         {activeMode === 'view' && (
           <div className="code-viewer-container">
-            <pre className="code-block">
-              <code>{card.codeSnippet}</code>
-            </pre>
+            <CodePreview
+              code={card.codeSnippet}
+              languageId={card.languageBreakdown?.targetLanguage}
+              title={card.title}
+              isUnlocked={session.clipboardUnlocked}
+              showCopyButton={false}
+              maxHeight="320px"
+              fallback={
+                <pre className="code-block">
+                  <code>{card.codeSnippet}</code>
+                </pre>
+              }
+            />
           </div>
         )}
 

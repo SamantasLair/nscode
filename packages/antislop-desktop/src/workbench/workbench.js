@@ -292,7 +292,7 @@ function showDirtySaveDialog(fileName) {
 // REAL-TIME CURSOR TELEMETRY & EVENT BROADCASTING (Milestone v0.2.1 - R3)
 // =============================================================================
 function updateCursorTelemetry(ed = editor) {
-  if (!ed || !statusCursorPos) return;
+  if (!ed) return;
   const pos = (ed.getPosition && ed.getPosition()) || { lineNumber: 1, column: 1 };
   if (!pos) return;
 
@@ -307,22 +307,65 @@ function updateCursorTelemetry(ed = editor) {
     }
   }
 
-  if (selectionCount > 0) {
-    statusCursorPos.textContent = `Ln ${pos.lineNumber}, Col ${pos.column} (${selectionCount} selected)`;
-  } else {
-    statusCursorPos.textContent = `Ln ${pos.lineNumber}, Col ${pos.column}`;
+  const posText = selectionCount > 0 
+    ? `Ln ${pos.lineNumber}, Col ${pos.column} (${selectionCount} selected)`
+    : `Ln ${pos.lineNumber}, Col ${pos.column}`;
+
+  if (statusCursorPos) {
+    statusCursorPos.textContent = posText;
+  }
+
+  // Synchronize Screen B Header Scope Indicator if present
+  const screenBCursorPos = document.getElementById('screen-b-cursor-pos');
+  if (screenBCursorPos) {
+    screenBCursorPos.textContent = `Ln ${pos.lineNumber}, Col ${pos.column}`;
   }
 
   const activeDoc = docManager?.documents?.get(docManager.activeDocId);
   const filePath = activeDoc?.filePath || 'quicksort.py';
 
-  if (typeof editorEventBridge !== 'undefined') {
-    editorEventBridge.emit('editor:cursorChange', {
-      filePath,
-      lineNumber: pos.lineNumber,
-      column: pos.column,
-      selectionCount,
-      selection: sel,
+  // Synchronize Screen B Active File Pill
+  if (typeof updateScreenBBreadcrumb === 'function') {
+    updateScreenBBreadcrumb(filePath);
+  }
+
+  // Throttled IPC event broadcasting via rAF (60fps clamp to prevent event storms during fast scroll)
+  if (!updateCursorTelemetry._rafPending) {
+    updateCursorTelemetry._rafPending = true;
+    const rafFn = (typeof requestAnimationFrame === 'function') 
+      ? requestAnimationFrame 
+      : (typeof globalThis !== 'undefined' && typeof globalThis.requestAnimationFrame === 'function')
+        ? globalThis.requestAnimationFrame
+        : (typeof globalThis !== 'undefined' && typeof globalThis.setTimeout === 'function')
+          ? globalThis.setTimeout
+          : (cb) => cb();
+    
+    rafFn(() => {
+      updateCursorTelemetry._rafPending = false;
+      
+      if (typeof editorEventBridge !== 'undefined') {
+        editorEventBridge.emit('editor:cursorChange', {
+          filePath,
+          lineNumber: pos.lineNumber,
+          column: pos.column,
+          selectionCount,
+          selection: sel,
+        });
+      }
+
+      // IPC Message to Secondary Webview iframe (Zero-latency sync)
+      const webviewIframe = document.querySelector('.secondary-webview-frame');
+      if (webviewIframe && webviewIframe.contentWindow && typeof webviewIframe.contentWindow.postMessage === 'function') {
+        webviewIframe.contentWindow.postMessage({
+          type: 'CURSOR_TELEMETRY_UPDATE',
+          payload: {
+            filePath,
+            lineNumber: pos.lineNumber,
+            column: pos.column,
+            selectionCount,
+          }
+        }, '*');
+      }
     });
   }
 }
@@ -390,6 +433,13 @@ function setScreenBMode(mode) {
 
 const editorMount = document.getElementById('editor-mount');
 const webviewFrame = document.getElementById('webview-frame');
+if (webviewFrame && typeof webviewFrame.addEventListener === 'function') {
+  webviewFrame.addEventListener('load', () => {
+    if (typeof dispatchThemeToWebview === 'function') {
+      dispatchThemeToWebview();
+    }
+  });
+}
 const tabScrollContainer = document.getElementById('tab-scroll-container');
 const openEditorsList = document.getElementById('open-editors-list');
 const openEditorsCount = document.getElementById('open-editors-count');
@@ -1735,6 +1785,104 @@ function refreshProblems() {
       });
     }
   }
+
+  // Stream LSP diagnostics into Screen B Smart Cards
+  syncLspDiagnosticsToScreenB(markers);
+}
+
+function syncLspDiagnosticsToScreenB(markers) {
+  if (!Array.isArray(markers)) return;
+  const container = document.getElementById('technical-summary-cards-container');
+  
+  // Clean previously auto-generated diagnostic cards
+  if (container) {
+    const existingDiagnosticCards = container.querySelectorAll('.technical-summary-card.lsp-diagnostic-card');
+    existingDiagnosticCards.forEach(c => c.remove());
+
+    // Filter to top errors/warnings (max 5 cards to prevent DOM bloat)
+    const prioritizedMarkers = markers
+      .filter(m => m.severity === 8 || m.severity === 4)
+      .slice(0, 5);
+
+    prioritizedMarkers.forEach((marker) => {
+      const card = document.createElement('div');
+      const isError = marker.severity === 8;
+      card.className = `technical-summary-card lsp-diagnostic-card ${isError ? 'diagnostic-error' : 'diagnostic-warning'}`;
+      const filePath = marker.resource ? (marker.resource.fsPath || marker.resource.path || 'active') : 'active';
+      const fileName = filePath.replace(/\\/g, '/').split('/').pop() || filePath;
+      card.dataset.filePath = filePath;
+      card.dataset.startLine = marker.startLineNumber.toString();
+
+      card.innerHTML = `
+        <div class="summary-card-header">
+          <span class="summary-card-title">
+            <span class="codicon ${isError ? 'codicon-error problem-icon-error' : 'codicon-warning problem-icon-warning'}"></span>
+            <span>${isError ? 'LSP Kompilasi / Error' : 'LSP Peringatan'} (${fileName}:${marker.startLineNumber})</span>
+          </span>
+          <span class="summary-card-badge ${isError ? 'badge-error' : 'badge-warning'}">${marker.source || 'DIAGNOSTIK'}</span>
+        </div>
+        <div class="summary-root-cause">
+          <strong>Pesan:</strong> ${escapeHtml(marker.message)}
+        </div>
+        <div class="target-card-actions" style="margin-top: 6px;">
+          <button class="target-btn-reveal" title="Lompat ke baris di Layar A">
+            <span class="codicon codicon-go-to-file"></span>
+            <span>Sorot Baris ${marker.startLineNumber}</span>
+          </button>
+        </div>
+      `;
+
+      card.addEventListener('click', (e) => {
+        if (marker.resource && marker.resource.fsPath && docManager) {
+          docManager.openFile(marker.resource.fsPath);
+        }
+        if (editor && editor.setPosition) {
+          editor.setPosition({ lineNumber: marker.startLineNumber, column: marker.startColumn });
+          if (editor.revealPositionInCenter) {
+            editor.revealPositionInCenter({ lineNumber: marker.startLineNumber, column: marker.startColumn });
+          }
+          if (typeof highlightLine === 'function') {
+            highlightLine(marker.startLineNumber, marker.message);
+          }
+          if (editor.focus) editor.focus();
+        }
+      });
+
+      container.appendChild(card);
+    });
+  }
+
+  // Broadcast diagnostics to webview iframe via IPC
+  const webviewIframe = document.querySelector('.secondary-webview-frame');
+  if (webviewIframe && webviewIframe.contentWindow && typeof webviewIframe.contentWindow.postMessage === 'function') {
+    webviewIframe.contentWindow.postMessage({
+      type: 'LSP_DIAGNOSTICS_UPDATE',
+      payload: {
+        totalMarkers: markers.length,
+        errors: markers.filter(m => m.severity === 8).length,
+        warnings: markers.filter(m => m.severity === 4).length,
+        markers: markers.slice(0, 10).map(m => ({
+          message: m.message,
+          line: m.startLineNumber,
+          column: m.startColumn,
+          severity: m.severity,
+          source: m.source,
+        })),
+      }
+    }, '*');
+  }
+
+  // Proactive Socratic Intervention: Trigger Duck nudge if severe compilation errors detected
+  const severeErrors = markers.filter(m => m.severity === 8);
+  if (severeErrors.length > 0 && window.nscodeMaieuticDuck && typeof window.nscodeMaieuticDuck.notifyFailure === 'function') {
+    const topError = severeErrors[0];
+    const filePath = topError.resource ? (topError.resource.fsPath || topError.resource.path || 'active') : 'active';
+    window.nscodeMaieuticDuck.notifyFailure({
+      symbol: filePath.replace(/\\/g, '/').split('/').pop() || filePath,
+      line: topError.startLineNumber,
+      message: topError.message,
+    });
+  }
 }
 
 const MENU_DEFINITIONS = {
@@ -2182,6 +2330,13 @@ const THEME_REGISTRY = {
       '--accent-green': '#4ade80',
       '--accent-blue': '#60a5fa',
       '--accent-purple': '#a78bfa',
+      '--vscode-symbolIcon-keywordForeground': '#c586c0',
+      '--vscode-symbolIcon-functionForeground': '#dcdcaa',
+      '--vscode-symbolIcon-stringForeground': '#ce9178',
+      '--vscode-symbolIcon-numberForeground': '#b5cea8',
+      '--vscode-symbolIcon-classForeground': '#4ec9b0',
+      '--vscode-symbolIcon-variableForeground': '#9cdcfe',
+      '--vscode-symbolIcon-operatorForeground': '#d4d4d4',
     }
   },
   'vs': {
@@ -2217,6 +2372,13 @@ const THEME_REGISTRY = {
       '--accent-green': '#16a34a',
       '--accent-blue': '#2563eb',
       '--accent-purple': '#7c3aed',
+      '--vscode-symbolIcon-keywordForeground': '#af00db',
+      '--vscode-symbolIcon-functionForeground': '#795e26',
+      '--vscode-symbolIcon-stringForeground': '#a31515',
+      '--vscode-symbolIcon-numberForeground': '#098658',
+      '--vscode-symbolIcon-classForeground': '#267f99',
+      '--vscode-symbolIcon-variableForeground': '#001080',
+      '--vscode-symbolIcon-operatorForeground': '#000000',
     }
   },
   'hc-black': {
@@ -2252,6 +2414,13 @@ const THEME_REGISTRY = {
       '--accent-green': '#00ff00',
       '--accent-blue': '#00ffff',
       '--accent-purple': '#ff00ff',
+      '--vscode-symbolIcon-keywordForeground': '#569cd6',
+      '--vscode-symbolIcon-functionForeground': '#dcdcaa',
+      '--vscode-symbolIcon-stringForeground': '#ce9178',
+      '--vscode-symbolIcon-numberForeground': '#b5cea8',
+      '--vscode-symbolIcon-classForeground': '#4ec9b0',
+      '--vscode-symbolIcon-variableForeground': '#9cdcfe',
+      '--vscode-symbolIcon-operatorForeground': '#ffffff',
     }
   }
 };
@@ -3633,6 +3802,7 @@ class SidebarResizer {
     this.startX = 0;
     this.startWidth = 0;
     this.lastWidth = isLeft ? 260 : 380;
+    this.rafId = null;
     if (this.sidebar && this.sash) {
       this.initEvents();
     }
@@ -3642,12 +3812,18 @@ class SidebarResizer {
     if (!this.sash || !this.sidebar) return;
     this.sash.addEventListener('mousedown', (e) => {
       if (this.sidebar.classList.contains('collapsed')) return;
+      if (e.button !== 0) return;
       this.isDragging = true;
       this.startX = e.clientX;
-      this.startWidth = this.sidebar.getBoundingClientRect ? this.sidebar.getBoundingClientRect().width : 260;
+      this.startWidth = this.sidebar.getBoundingClientRect ? this.sidebar.getBoundingClientRect().width : (this.isLeft ? 260 : 380);
 
       if (document.body) document.body.classList.add('is-resizing');
       if (this.sash.classList) this.sash.classList.add('is-active');
+
+      if (e.target && typeof e.target.setPointerCapture === 'function' && e.pointerId) {
+        try { e.target.setPointerCapture(e.pointerId); } catch (_) {}
+      }
+
       e.preventDefault();
     });
 
@@ -3669,16 +3845,36 @@ class SidebarResizer {
 
         this.sidebar.style.width = `${targetWidth}px`;
         this.lastWidth = targetWidth;
-        if (multiGroupManager) multiGroupManager.layoutAll();
+
+        if (!this.rafId && typeof requestAnimationFrame === 'function') {
+          this.rafId = requestAnimationFrame(() => {
+            this.rafId = null;
+            if (multiGroupManager) multiGroupManager.layoutAll();
+          });
+        } else if (!this.rafId) {
+          if (multiGroupManager) multiGroupManager.layoutAll();
+        }
       });
 
       window.addEventListener('mouseup', () => this.onMouseUp());
+
+      window.addEventListener('blur', () => {
+        if (this.isDragging) this.onMouseUp();
+      });
+
+      this.sash.addEventListener('lostpointercapture', () => {
+        if (this.isDragging) this.onMouseUp();
+      });
     }
   }
 
   onMouseUp() {
     if (!this.isDragging) return;
     this.isDragging = false;
+    if (this.rafId && typeof cancelAnimationFrame === 'function') {
+      cancelAnimationFrame(this.rafId);
+      this.rafId = null;
+    }
     if (document.body && document.body.classList) document.body.classList.remove('is-resizing');
     if (this.sash && this.sash.classList) this.sash.classList.remove('is-active');
     if (multiGroupManager) multiGroupManager.layoutAll();
@@ -3699,7 +3895,7 @@ class SidebarResizer {
   expand() {
     if (this.sidebar) {
       this.sidebar.classList.remove('collapsed');
-      this.sidebar.style.width = `${this.lastWidth}px`;
+      this.sidebar.style.width = `${this.lastWidth || (this.isLeft ? 260 : 380)}px`;
     }
     if (this.sash) this.sash.classList.remove('disabled');
     if (multiGroupManager) multiGroupManager.layoutAll();
@@ -4875,10 +5071,15 @@ function addTargetsToStack(newTargets) {
   renderTargetStack();
 }
 
+let expandedTargetId = null;
+
 function removeTargetFromStack(targetId) {
   if (!targetId) return false;
   const beforeLen = targetStack.length;
   targetStack = targetStack.filter(t => t.id !== targetId);
+  if (expandedTargetId === targetId) {
+    expandedTargetId = null;
+  }
   if (targetStack.length !== beforeLen) {
     renderTargetStack();
     return true;
@@ -4901,13 +5102,17 @@ function renderTargetStack() {
   listEl.innerHTML = '';
 
   targetStack.forEach((target) => {
+    const isExpanded = (expandedTargetId === target.id);
     const card = document.createElement('div');
-    card.className = 'target-line-card target-card';
+    card.className = `target-line-card target-card ${isExpanded ? 'chip-expanded' : 'chip-collapsed'}`;
     card.dataset.targetId = target.id;
     card.dataset.filePath = target.filePath;
     card.dataset.startLine = target.startLine.toString();
     if (target.endLine) card.dataset.endLine = target.endLine.toString();
     if (typeof card.setAttribute === 'function') {
+      card.setAttribute('role', 'button');
+      card.setAttribute('tabindex', '0');
+      card.setAttribute('aria-expanded', isExpanded ? 'true' : 'false');
       card.setAttribute('data-target-id', target.id);
       card.setAttribute('data-file-path', target.filePath);
       card.setAttribute('data-start-line', target.startLine.toString());
@@ -4946,7 +5151,13 @@ function renderTargetStack() {
       </div>
     `;
 
-    // Click card navigates Monaco (zero buffer modification)
+    // Accordion toggle helper
+    const toggleExpansion = () => {
+      expandedTargetId = (expandedTargetId === target.id) ? null : target.id;
+      renderTargetStack();
+    };
+
+    // Click card navigates Monaco & toggles accordion (unless buttons clicked)
     card.addEventListener('click', (e) => {
       if (e.target.closest('.target-btn-dismiss')) {
         e.stopPropagation();
@@ -4958,7 +5169,22 @@ function renderTargetStack() {
         requestGuidanceForTarget(target);
         return;
       }
+      if (e.target.closest('.target-btn-reveal')) {
+        e.stopPropagation();
+        revealTargetInMonaco(target);
+        return;
+      }
+      toggleExpansion();
       revealTargetInMonaco(target);
+    });
+
+    // Keyboard navigation (Enter / Space)
+    card.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' || e.key === ' ') {
+        e.preventDefault();
+        toggleExpansion();
+        revealTargetInMonaco(target);
+      }
     });
 
     const dismissBtn = card.querySelector('.target-btn-dismiss');
@@ -9133,6 +9359,18 @@ if (typeof window !== 'undefined') {
     getSession: getMaieuticSession,
     resetSession: resetMaieuticSession,
     processDialecticTurn: processMaieuticDialecticTurn,
+    notifyFailure: (ctx) => {
+      if (window.MaieuticDuckController && window.nscodeMaieuticDuckController) {
+        return window.nscodeMaieuticDuckController.notifyFailure(ctx);
+      }
+      return false;
+    },
+    notifyFrustration: (ctx) => {
+      if (window.MaieuticDuckController && window.nscodeMaieuticDuckController) {
+        return window.nscodeMaieuticDuckController.notifyFrustration(ctx);
+      }
+      return false;
+    },
   };
   window.closeCommandPalette = closeCommandPalette;
   window.updateWorkspaceFileIndex = updateWorkspaceFileIndex;
@@ -9242,6 +9480,12 @@ if (typeof window !== 'undefined') {
     window.socraticStrictLadder = val;
   };
   window.removeTargetFromStack = removeTargetFromStack;
+  window.renderTargetStack = renderTargetStack;
+  window.getExpandedTargetId = () => expandedTargetId;
+  window.setExpandedTargetId = (id) => {
+    expandedTargetId = id;
+    renderTargetStack();
+  };
   window.addReviewDiffsBatch = addReviewDiffsBatch;
   window.buildScreenBPromptEnvelope = buildScreenBPromptEnvelope;
   window.SCREEN_B_OPERATIONAL_RULESET = SCREEN_B_OPERATIONAL_RULESET;
@@ -9257,8 +9501,15 @@ if (typeof window !== 'undefined') {
     extractTargetLines,
     getTargetStack: () => targetStack,
     removeTargetFromStack,
+    renderTargetStack,
+    getExpandedTargetId: () => expandedTargetId,
+    setExpandedTargetId: (id) => {
+      expandedTargetId = id;
+      renderTargetStack();
+    },
     clearTargetStack: () => {
       targetStack = [];
+      expandedTargetId = null;
       renderTargetStack();
       const sumContainer = document.getElementById('technical-summary-cards-container');
       if (sumContainer) sumContainer.innerHTML = '';
